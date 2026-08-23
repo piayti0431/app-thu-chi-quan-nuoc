@@ -11,6 +11,7 @@ let nativeStartPromise = null;
 let activeOnResult = null;
 let activeOnError = null;
 let activeSession = 0;
+let currentAudio = null;
 
 function normalizeSpeechText(text) {
   return String(text || "")
@@ -151,32 +152,52 @@ export async function batDauNghe(onKetQua, onLoi) {
           isListening = false;
           clearTimeout(nativeTimeout);
           nativeTimeout = null;
-          resetNativeListeners().catch(() => {});
+          resetNativeListeners();
           onLoi?.(error);
+          return null;
         });
+
       return;
     }
 
-    const BrowserSpeech = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!BrowserSpeech) throw new Error("Trình duyệt không hỗ trợ nhận giọng nói");
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      throw new Error("Trình duyệt không hỗ trợ nhận giọng nói");
+    }
 
-    webRecognition = new BrowserSpeech();
+    if (webRecognition) {
+      try {
+        webRecognition.stop();
+      } catch (_) {}
+    }
+
+    webRecognition = new SpeechRec();
     webRecognition.lang = "vi-VN";
+    webRecognition.continuous = false;
     webRecognition.interimResults = true;
-    webRecognition.continuous = true;
 
     webRecognition.onresult = (event) => {
-      const result = event.results[event.results.length - 1];
-      const text = result?.[0]?.transcript || "";
-      if (text) {
-        lastText = text;
-        const isFinalResult = Boolean(result.isFinal);
-        if (isFinalResult) nativeFinalSent = true;
-        onKetQua({ text, isFinal: isFinalResult });
-      }
+      if (session !== activeSession) return;
+      const text = Array.from(event.results)
+        .map((r) => r[0]?.transcript || "")
+        .join(" ");
+      const isFinal = Boolean(event.results[0]?.isFinal);
+      lastText = text;
+      onKetQua({ text, isFinal });
     };
-    webRecognition.onerror = (event) => onLoi?.(new Error(event.error || "Lỗi nhận giọng nói"));
+
+    webRecognition.onerror = (event) => {
+      if (session !== activeSession) return;
+      isListening = false;
+      clearTimeout(nativeTimeout);
+      nativeTimeout = null;
+      onLoi?.(new Error(event?.error || "Lỗi thu âm giọng nói"));
+    };
+
     webRecognition.onend = () => {
+      if (session !== activeSession) return;
+      clearTimeout(nativeTimeout);
+      nativeTimeout = null;
       if (lastText && !nativeFinalSent) {
         nativeFinalSent = true;
         onKetQua({ text: lastText, isFinal: true });
@@ -261,6 +282,73 @@ export function chuanHoaLoiNoiTiengViet(rawText) {
   return text;
 }
 
+function tachCauNho(text, maxLen = 140) {
+  if (!text || text.length <= maxLen) return [text];
+  const sentences = text.split(/([.,!?;\n]+)/);
+  const chunks = [];
+  let cur = "";
+
+  for (let i = 0; i < sentences.length; i++) {
+    const part = sentences[i];
+    if ((cur + part).length <= maxLen) {
+      cur += part;
+    } else {
+      if (cur.trim()) chunks.push(cur.trim());
+      if (part.length > maxLen) {
+        const words = part.split(" ");
+        let sub = "";
+        for (const w of words) {
+          if ((sub + " " + w).length <= maxLen) {
+            sub += (sub ? " " : "") + w;
+          } else {
+            if (sub) chunks.push(sub);
+            sub = w;
+          }
+        }
+        if (sub) cur = sub;
+        else cur = "";
+      } else {
+        cur = part;
+      }
+    }
+  }
+  if (cur.trim()) chunks.push(cur.trim());
+  return chunks.filter((c) => c.length > 0);
+}
+
+export async function phatAmThanhGoogleTTS(text) {
+  if (typeof window === "undefined" || typeof Audio === "undefined") return false;
+
+  if (currentAudio) {
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (_) {}
+    currentAudio = null;
+  }
+
+  const chunks = tachCauNho(text, 140);
+  if (!chunks.length) return false;
+
+  try {
+    for (const chunk of chunks) {
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunk)}`;
+      const audio = new Audio(url);
+      currentAudio = audio;
+
+      await new Promise((resolve, reject) => {
+        audio.onended = () => resolve(true);
+        audio.onerror = (e) => reject(e);
+        audio.play().catch((err) => reject(err));
+      });
+    }
+    return true;
+  } catch (err) {
+    console.warn("Google TTS audio error, falling back to Web Speech", err);
+    return false;
+  }
+}
+
 let cachedVnVoice = null;
 
 function timGiongDocTiengViet() {
@@ -305,6 +393,7 @@ export async function docLai(text) {
   const spokenText = chuanHoaLoiNoiTiengViet(text);
   const { TextToSpeech } = nativePlugins();
 
+  // 1. Android Capacitor Native TTS (has full Vietnamese language pack on phone)
   if (isNative() && TextToSpeech?.speak) {
     try {
       await TextToSpeech.speak({
@@ -320,6 +409,11 @@ export async function docLai(text) {
     }
   }
 
+  // 2. Google Vietnamese Neural TTS Audio (100% chuẩn dấu tiếng Việt)
+  const played = await phatAmThanhGoogleTTS(spokenText);
+  if (played) return;
+
+  // 3. Fallback: Web SpeechSynthesis
   if (typeof window !== "undefined" && window.speechSynthesis && window.SpeechSynthesisUtterance) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(spokenText);
