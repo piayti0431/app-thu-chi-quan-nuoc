@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f766e">
+    <title>Sổ Quán Nước Mía</title>
+    <link rel="icon" href="./assets/logo-app.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/style.css">
+  </head>
+  <body>
+    <!-- MÀN HÌNH ĐĂNG NHẬP -->
+    <section class="auth-screen" id="authScreen" hidden>
+      <div class="auth-card">
+        <img class="auth-logo" src="./assets/logo-app.svg" alt="Biểu trưng ứng dụng">
+        <p class="eyebrow">Sổ Quán Nước Gia Đình</p>
+        <h1>Đăng nhập sổ quán</h1>
+        <form class="auth-form" id="authForm">
+          <label>
+            Tên đăng nhập (Email)
+            <input id="authEmail" type="email" autocomplete="username" enterkeyhint="next" required placeholder="ví dụ: quannuoc@gmail.com">
+          </label>
+          <label>
+            Mật khẩu
+            <input id="authPassword" type="password" autocomplete="current-password" enterkeyhint="done" required placeholder="Ít nhất 6 ký tự">
+          </label>
+          <button class="primary-action" id="authLoginBtn" type="submit">Đăng nhập</button>
+          <button class="ghost-button" id="authSignupBtn" type="button">Tạo tài khoản mới</button>
+        </form>
+        <p class="auth-note">Dữ liệu sẽ tự động đồng bộ khi các điện thoại trong gia đình đăng nhập cùng tài khoản.</p>
+      </div>
+    </section>
+
+    <div class="app-shell">
+      <!-- THANH ĐIỀU HƯỚNG TRÊN CÙNG -->
+      <header class="topbar">
+        <img class="app-logo" src="./assets/logo-app.svg" alt="Biểu trưng quán">
+        <div class="topbar-title-wrap">
+          <p class="eyebrow">Quầy nước gia đình</p>
+          <h1>Sổ Thu Chi</h1>
+          <div class="branch-selector-wrap">
+            <label for="currentBranchSelect" class="branch-label">Điểm bán:</label>
+            <select id="currentBranchSelect" class="branch-select" aria-label="Chọn điểm bán đang thao tác"></select>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <div class="sync-pill" id="syncStatus" aria-live="polite">Chưa kết nối đồng bộ</div>
+          <button class="logout-button" id="logoutBtn" type="button" hidden>Đăng xuất</button>
+        </div>
+      </header>
+
+      <main>
+        <!-- KHỐI TỔNG QUAN TÀI CHÍNH HÔM NAY -->
+        <section class="summary-grid" aria-label="Tổng kết tài chính hôm nay">
+          <article class="summary-card income">
+            <span>+ Doanh Thu</span>
+            <strong id="todayIncome">0 đ</strong>
+          </article>
+          <article class="summary-card expense">
+            <span>- Tiền Chi</span>
+            <strong id="todayExpense">0 đ</strong>
+          </article>
+          <article class="summary-card balance">
+            <span>Tiền Lời</span>
+            <strong id="todayBalance">0 đ</strong>
+          </article>
+        </section>
+
+        <!-- NÚT TỔNG KẾT NGÀY & ĐỌC LOA BÁO CÁO -->
+        <div class="summary-action-row">
+          <button class="report-voice-button summary-highlight-btn" id="openDailyClosingBtn" type="button">
+            <span aria-hidden="true">📋</span>
+            <strong>TỔNG KẾT NGÀY HÔM NAY</strong>
+          </button>
+          <button class="report-voice-button" id="readTodayReportBtn" type="button" aria-label="Phát loa đọc doanh số hôm nay">
+            <span aria-hidden="true">🔊</span>
+            <strong>Đọc doanh số</strong>
+          </button>
+        </div>
+
+        <!-- CÁC TAB ĐIỀU HƯỚNG CHÍNH (ĐÁY TRÊN MOBILE, TRÊN CÙNG TRÊN DESKTOP) -->
+        <nav class="tabs" aria-label="Các màn hình chức năng">
+          <button class="tab is-active" data-view="today">
+            <span class="tab-icon">🥤</span>
+            <span class="tab-label">Bán hàng</span>
+          </button>
+          <button class="tab" data-view="history">
+            <span class="tab-icon">📜</span>
+            <span class="tab-label">Lịch sử</span>
+          </button>
+          <button class="tab" data-view="stats">
+            <span class="tab-icon">📊</span>
+            <span class="tab-label">Thống kê</span>
+          </button>
+          <button class="tab" data-view="settings">
+            <span class="tab-icon">⚙️</span>
+            <span class="tab-label">Cài đặt</span>
+          </button>
+        </nav>
+
+        <!-- TAB 1: BÁN HÀNG & NHẬP THU CHI HÔM NAY -->
+        <section class="view is-active" id="view-today">
+          <div class="today-grid-layout">
+            <!-- CỘT TRÁI (POS TERMINAL): TIỀN THỐI + NÚT MÓN + MIC + FORM NHẬP -->
+            <div class="today-pos-col">
+              <!-- BANNER TIỀN THỐI ĐẦU CA SÁNG -->
+              <div class="opening-cash-banner">
+                <div class="opening-cash-info">
+                  <span>💵 Tiền thối đầu ngày:</span>
+                  <strong id="todayOpeningCashDisplay">500.000 đ</strong>
+                </div>
+                <button class="ghost-button" id="editOpeningCashBtn" type="button" style="min-height: 2rem; padding: 0.2rem 0.6rem; font-size: 0.8rem;">✏️ Đổi số tiền</button>
+              </div>
+
+              <!-- LƯỚI NÚT MÓN BÁN NHANH 1 CHẠM -->
+              <div class="quick-row" id="quickButtons"></div>
+
+              <!-- NÚT BẤM NÓI GIỌNG NÓI TIẾNG VIỆT -->
+              <button class="mic-button" id="micBtn" type="button" aria-label="Bấm để nói thu chi">
+                <span id="micIcon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                  </svg>
+                </span>
+                <small id="micText">Bấm để nói</small>
+              </button>
+
+              <!-- FORM NHẬP THU CHI LINH HOẠT (TỰ NHẬP TÊN MÓN / SỐ LƯỢNG / TIỀN VỐN) -->
+              <form class="entry-form" id="manualForm">
+                <div class="segmented" role="group" aria-label="Loại thu chi">
+                  <label><input type="radio" name="loai" value="thu" checked> <span>+ Thu (Bán hàng)</span></label>
+                  <label><input type="radio" name="loai" value="chi"> <span>- Chi (Mua hàng)</span></label>
+                </div>
+
+                <!-- Hình thức thanh toán: Tiền mặt / Chuyển khoản -->
+                <div class="segmented" role="group" aria-label="Hình thức thanh toán" id="manualPaymentMethodGroup">
+                  <label><input type="radio" name="phuongThuc" value="tien_mat" checked> <span>💵 Tiền mặt</span></label>
+                  <label><input type="radio" name="phuongThuc" value="chuyen_khoan"> <span>📱 Chuyển khoản (QR)</span></label>
+                </div>
+
+                <!-- Tên món / Danh mục tự gõ hoặc chọn -->
+                <label>
+                  Tên món nước hoặc Khoản chi (chọn hoặc tự gõ)
+                  <input id="manualCategoryInput" list="categoryDatalist" autocomplete="off" placeholder="Ví dụ: Nước mía thường, Mua cam, Mua đá..." required>
+                  <datalist id="categoryDatalist"></datalist>
+                </label>
+
+                <div class="three-col">
+                  <label>
+                    Số lượng
+                    <input id="manualQuantity" inputmode="numeric" autocomplete="off" value="1" placeholder="1" required>
+                  </label>
+                  <label>
+                    Đơn vị tính
+                    <select id="manualUnitSelect" aria-label="Đơn vị tính">
+                      <option value="ly" selected>ly</option>
+                      <option value="kg">kg (ký)</option>
+                      <option value="chai">chai</option>
+                      <option value="bao">bao</option>
+                      <option value="bó">bó</option>
+                      <option value="lon">lon</option>
+                      <option value="bọc">bọc / túi</option>
+                      <option value="hộp">hộp</option>
+                      <option value="thùng">thùng</option>
+                      <option value="lít">lít</option>
+                      <option value="lần">lần</option>
+                    </select>
+                  </label>
+                  <label>
+                    Tổng số tiền (đ)
+                    <input id="manualAmount" inputmode="numeric" autocomplete="off" placeholder="Ví dụ: 40000" required>
+                  </label>
+                </div>
+
+                <!-- Ô Giá vốn 1 ly (tùy chọn khi là Thu) -->
+                <div class="two-col" id="manualCostGroup">
+                  <label>
+                    Giá vốn 1 ly (Cost đ - tự động nếu có)
+                    <input id="manualCostPrice" inputmode="numeric" autocomplete="off" placeholder="Ví dụ: 3000">
+                  </label>
+                  <label>
+                    Ghi chú thêm
+                    <input id="manualNote" autocomplete="off" placeholder="Khách ít đá, mua 2 bao đá...">
+                  </label>
+                </div>
+
+                <button class="primary-action" type="submit">Lưu vào sổ</button>
+              </form>
+            </div>
+
+            <!-- CỘT PHẢI: GIÁM SÁT GIAO DỊCH THỜI GIAN THỰC -->
+            <div class="today-feed-col">
+              <!-- DANH SÁCH GIAO DỊCH HÔM NAY -->
+              <section class="panel today-list-panel">
+                <div class="panel-title">
+                  <h2>Giao dịch hôm nay</h2>
+                  <button class="ghost-button" id="exportTodayBtn" type="button">Xuất bảng tính Excel</button>
+                </div>
+                <div class="transaction-list" id="todayList"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 2: LỊCH SỬ GIAO DỊCH -->
+        <section class="view" id="view-history">
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Lịch sử giao dịch</h2>
+              <button class="ghost-button" id="backupBtn" type="button">Sao lưu dữ liệu</button>
+            </div>
+            <div id="historyList"></div>
+          </section>
+        </section>
+
+        <!-- TAB 3: THỐNG KÊ ĐA CHIỀU (NGÀY / TUẦN / THÁNG) -->
+        <section class="view" id="view-stats">
+          <section class="panel stats-panel">
+            <!-- Bộ chọn kỳ thống kê: Ngày / Tuần / Tháng -->
+            <div class="stats-mode-switcher" role="tablist" aria-label="Chọn kỳ thống kê">
+              <button class="stats-mode-btn is-active" type="button" data-stats-mode="day">📅 Theo Ngày</button>
+              <button class="stats-mode-btn" type="button" data-stats-mode="week">🗓️ Theo Tuần</button>
+              <button class="stats-mode-btn" type="button" data-stats-mode="month">📆 Theo Tháng</button>
+            </div>
+
+            <!-- Thanh lọc điều kiện -->
+            <div class="stats-filters-bar">
+              <div class="stats-filter-item">
+                <label for="statsBranchFilter">Điểm bán:</label>
+                <select id="statsBranchFilter" aria-label="Lọc theo điểm bán"></select>
+              </div>
+
+              <!-- Lọc Ngày -->
+              <div class="stats-filter-item stats-date-group" id="statsDayGroup">
+                <label for="statsDateInput">Ngày:</label>
+                <input type="date" id="statsDateInput" aria-label="Chọn ngày xem thống kê">
+              </div>
+
+              <!-- Lọc Tuần -->
+              <div class="stats-filter-item stats-date-group" id="statsWeekGroup" hidden>
+                <label for="statsWeekInput">Tuần chứa ngày:</label>
+                <input type="date" id="statsWeekInput" aria-label="Chọn ngày trong tuần">
+                <span class="stats-range-label" id="statsWeekRangeText"></span>
+              </div>
+
+              <!-- Lọc Tháng -->
+              <div class="stats-filter-item stats-date-group" id="statsMonthGroup" hidden>
+                <label>Tháng:</label>
+                <div class="month-picker">
+                  <select id="statsMonthSelect" aria-label="Chọn tháng"></select>
+                  <select id="statsYearSelect" aria-label="Chọn năm"></select>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5 THẺ TỔNG KẾT TÀI CHÍNH CHI TIẾT (CÓ GIÁ VỐN & LÃI GỘP) -->
+            <div class="stats-summary-grid">
+              <div class="stat-card income">
+                <span>+ Tổng Doanh Thu</span>
+                <strong id="monthIncome">0 đ</strong>
+                <div class="stat-split-row">
+                  <small>💵 Mặt: <span id="statsCashIncome">0 đ</span></small>
+                  <small>📱 CK: <span id="statsTransferIncome">0 đ</span></small>
+                </div>
+              </div>
+              <div class="stat-card cost">
+                <span>Tiền Vốn (Cost)</span>
+                <strong id="statsTotalCost">0 đ</strong>
+              </div>
+              <div class="stat-card gross-profit">
+                <span>Lãi Bán Nước (Lãi Gộp)</span>
+                <strong id="statsGrossProfit">0 đ</strong>
+              </div>
+              <div class="stat-card expense">
+                <span>- Tiền Chi Mua Hàng</span>
+                <strong id="monthExpense">0 đ</strong>
+              </div>
+              <div class="stat-card balance">
+                <span>Tiền Lời Thực Nhận (Lãi Ròng)</span>
+                <strong id="monthBalance">0 đ</strong>
+              </div>
+              <div class="stat-card cups">
+                <span>Tổng Số Ly Bán Ra</span>
+                <strong id="statsTotalCups">0 ly</strong>
+              </div>
+            </div>
+
+            <!-- BẢNG 1: DOANH THU & GIÁ VỐN TỪNG LOẠI NƯỚC -->
+            <div class="stats-section">
+              <div class="stats-section-head">
+                <h3>🥤 Chi tiết bán hàng theo từng loại nước</h3>
+              </div>
+              <div class="stats-table-wrap" id="drinksTableWrap">
+                <table class="stats-table" id="drinksTable">
+                  <thead>
+                    <tr>
+                      <th>Loại nước</th>
+                      <th class="text-center">Số ly</th>
+                      <th class="text-right">Doanh thu</th>
+                      <th class="text-right">Tiền vốn</th>
+                      <th class="text-right">Tiền lời</th>
+                      <th class="text-right">Tỷ trọng</th>
+                    </tr>
+                  </thead>
+                  <tbody id="drinksTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- BẢNG 2: PHÂN LOẠI CHI PHÍ TỪNG LOẠI NGUYÊN LIỆU -->
+            <div class="stats-section">
+              <div class="stats-section-head">
+                <h3>🧊 Chi phí từng loại nguyên liệu mua vào</h3>
+              </div>
+              <div class="stats-table-wrap" id="expensesTableWrap">
+                <table class="stats-table" id="expensesTable">
+                  <thead>
+                    <tr>
+                      <th>Loại nguyên liệu / Khoản chi</th>
+                      <th class="text-center">Số lượng</th>
+                      <th class="text-right">Số tiền chi</th>
+                      <th class="text-right">Tỷ trọng</th>
+                    </tr>
+                  </thead>
+                  <tbody id="expensesTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 2 BIỂU ĐỒ TRỰC QUAN -->
+            <div class="chart-grid">
+              <div class="chart-box">
+                <h4 id="timeChartTitle">Biểu đồ doanh thu</h4>
+                <canvas id="dailyChart" height="220"></canvas>
+              </div>
+              <div class="chart-box">
+                <h4>Cơ cấu món nước bán ra</h4>
+                <canvas id="categoryChart" height="220"></canvas>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- TAB 4: CÀI ĐẶT -->
+        <section class="view" id="view-settings">
+          <section class="panel settings-grid">
+            <!-- BỘ QUẢN LÝ MENU & GIÁ BÁN + GIÁ VỐN (COST) -->
+            <div class="settings-card full-width">
+              <div class="card-head">
+                <h2>📋 Menu, Bảng Giá Bán & Giá Vốn (Cost)</h2>
+                <p class="subtitle">Tùy chỉnh giá bán và giá vốn (cost) từng ly nước của quán.</p>
+              </div>
+              <div class="menu-items-editor" id="menuItemsEditor"></div>
+              <div class="button-row" style="margin-top: 0.75rem;">
+                <button class="ghost-button" id="addNewMenuItemBtn" type="button">+ Thêm món mới</button>
+                <button class="primary-action slim" id="saveMenuBtn" type="button">Lưu bảng giá Menu</button>
+              </div>
+            </div>
+
+            <!-- BỘ QUẢN LÝ CHI NHÁNH -->
+            <div class="settings-card">
+              <div class="card-head">
+                <h2>🏪 Quản lý Chi nhánh / Điểm bán</h2>
+                <p class="subtitle">Thêm hoặc đổi tên các quầy nước của gia đình.</p>
+              </div>
+              <div class="branch-list-editor" id="branchListEditor"></div>
+              <div class="button-row" style="margin-top: 0.75rem;">
+                <button class="ghost-button" id="addNewBranchBtn" type="button">+ Thêm chi nhánh</button>
+                <button class="primary-action slim" id="saveBranchesBtn" type="button">Lưu danh sách chi nhánh</button>
+              </div>
+            </div>
+
+            <!-- TIỀN THỐI ĐẦU NGÀY MẶC ĐỊNH -->
+            <div class="settings-card">
+              <div class="card-head">
+                <h2>💵 Tiền Thối Đầu Ngày Mặc Định</h2>
+                <p class="subtitle">Số tiền lẻ bỏ vào két mỗi sáng sớm để thối tiền cho khách.</p>
+              </div>
+              <label>Số tiền thối mặc định mỗi sáng (đ)<input id="defaultOpeningCashInput" inputmode="numeric" placeholder="500000" value="500000"></label>
+              <div class="button-row" style="margin-top: 0.75rem;">
+                <button class="primary-action slim" id="saveDefaultOpeningCashBtn" type="button">Lưu tiền thối mặc định</button>
+              </div>
+            </div>
+
+            <!-- ĐỒNG BỘ MÁY CHỦ SUPABASE -->
+            <div class="settings-card">
+              <div class="card-head">
+                <h2>☁️ Đồng bộ máy chủ đám mây</h2>
+                <p class="subtitle">Đồng bộ dữ liệu thời gian thực giữa các điện thoại.</p>
+              </div>
+              <label>Địa chỉ máy chủ (URL)<input id="supabaseUrl" placeholder="https://...supabase.co"></label>
+              <label>Khóa kết nối bảo mật (Anon key)<input id="supabaseAnon" placeholder="eyJ..."></label>
+              <div class="two-col">
+                <label>Tài khoản Email<input id="loginEmail" type="email" autocomplete="username"></label>
+                <label>Mật khẩu<input id="loginPassword" type="password" autocomplete="current-password"></label>
+              </div>
+              <div class="button-row">
+                <button class="ghost-button" id="saveSyncConfigBtn" type="button">Lưu cấu hình</button>
+                <button class="ghost-button" id="signupBtn" type="button">Tạo tài khoản</button>
+                <button class="primary-action slim" id="loginBtn" type="button">Đăng nhập</button>
+                <button class="ghost-button" id="syncNowBtn" type="button">Đồng bộ ngay</button>
+              </div>
+            </div>
+
+            <!-- THÔNG TIN PHẦN MỀM -->
+            <div class="app-info-card">
+              <h2>Thông tin ứng dụng</h2>
+              <div class="version-row">
+                <span>Phiên bản hiện tại</span>
+                <strong id="appVersionText">Phiên bản 2.0 (Toàn diện)</strong>
+              </div>
+            </div>
+
+            <!-- SAO LƯU, KHÔI PHỤC & XÓA DỮ LIỆU -->
+            <div class="danger-zone">
+              <div class="danger-zone-head">
+                <div>
+                  <h2>Sao lưu, Khôi phục & Quản lý dữ liệu</h2>
+                  <p>Nhập file sao lưu từ máy hoặc xóa dữ liệu khi cần cài đặt lại.</p>
+                </div>
+              </div>
+              <label class="restore-card" for="restoreInput">
+                <span class="restore-icon" aria-hidden="true">📥</span>
+                <span>
+                  <strong>Khôi phục dữ liệu từ tệp sao lưu</strong>
+                  <small id="restoreFileName">Bấm để chọn file sao lưu từ điện thoại/máy tính</small>
+                </span>
+              </label>
+              <input class="restore-input" id="restoreInput" type="file" accept="application/json">
+              <button class="danger-button danger-wide" id="clearDataBtn" type="button">Xóa tất cả dữ liệu trên máy này</button>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <!-- HỘP THOẠI PHIẾU TỔNG KẾT NGÀY CHI TIẾT -->
+    <dialog class="closing-dialog" id="dailyClosingDialog">
+      <div class="closing-modal-content">
+        <div class="closing-header">
+          <div>
+            <p class="eyebrow" id="closingBranchLabel">Điểm bán: Quán Nhà (Chính)</p>
+            <h2 id="closingDateHeader">📋 Phiếu Tổng Kết Ngày Hôm Nay</h2>
+          </div>
+          <button class="close-icon-btn" id="closeDailyClosingTopBtn" type="button" aria-label="Đóng phiếu">✕</button>
+        </div>
+
+        <div class="closing-body">
+          <!-- 4 Thẻ chỉ số to trong phiếu tổng kết -->
+          <div class="closing-summary-grid">
+            <div class="closing-stat income">
+              <span>+ Tổng Doanh Thu</span>
+              <strong id="closingIncome">0 đ</strong>
+              <div class="closing-split-row">
+                <small>💵 Mặt: <span id="closingCashIncome">0 đ</span></small>
+                <small>📱 CK: <span id="closingTransferIncome">0 đ</span></small>
+              </div>
+              <small id="closingTotalCupsText" style="margin-top: 0.2rem;">0 ly</small>
+            </div>
+            <div class="closing-stat cost">
+              <span>Tiền Vốn (Cost)</span>
+              <strong id="closingCost">0 đ</strong>
+              <small>Chi phí nguyên liệu theo ly</small>
+            </div>
+            <div class="closing-stat gross-profit">
+              <span>Lợi Nhuận Bán Nước</span>
+              <strong id="closingGrossProfit">0 đ</strong>
+              <small>Lãi gộp (Thu − Vốn)</small>
+            </div>
+            <div class="closing-stat expense">
+              <span>- Tiền Chi Phát Sinh</span>
+              <strong id="closingExpense">0 đ</strong>
+              <small>Tiền đá, điện, xăng, bao bì...</small>
+            </div>
+          </div>
+
+          <div class="closing-net-box">
+            <span>💵 TIỀN LỜI THỰC NHẬN CUỐI CÙNG:</span>
+            <strong id="closingNetProfit">0 đ</strong>
+          </div>
+
+          <!-- Bảng kê chi tiết từng món nước bán trong ngày -->
+          <div class="closing-section">
+            <h3>🥤 Chi tiết các loại nước đã bán</h3>
+            <div class="stats-table-wrap">
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>Tên món</th>
+                    <th class="text-center">Số ly</th>
+                    <th class="text-right">Doanh thu</th>
+                    <th class="text-right">Tiền vốn</th>
+                    <th class="text-right">Tiền lời</th>
+                  </tr>
+                </thead>
+                <tbody id="closingDrinksBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Bảng kê chi tiết tiền chi mua nguyên liệu / chi phí -->
+          <div class="closing-section">
+            <h3>🧊 Chi tiết các khoản chi trong ngày</h3>
+            <div class="stats-table-wrap">
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>Khoản chi / Nguyên liệu</th>
+                    <th class="text-center">Số lượng</th>
+                    <th class="text-right">Số tiền chi</th>
+                  </tr>
+                </thead>
+                <tbody id="closingExpensesBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Khu vực Đối Soát Tiền Mặt Cuối Ngày -->
+          <div class="cash-reconcile-card">
+            <h4>🧮 Đối soát tiền mặt trong két cuối ngày</h4>
+            <div class="reconcile-breakdown">
+              <div class="reconcile-row">
+                <span>💵 Tiền vốn thối bỏ vào sáng sớm:</span>
+                <strong id="closingOpeningCash">500.000 đ</strong>
+              </div>
+              <div class="reconcile-row">
+                <span>🟢 + Tiền mặt bán được trong ngày:</span>
+                <strong id="closingCashIncomeReconcile" style="color: var(--green-dark);">+0 đ</strong>
+              </div>
+              <div class="reconcile-row">
+                <span>🔴 − Tiền chi phát sinh hôm nay:</span>
+                <strong id="closingExpenseReconcile" style="color: var(--red);">−0 đ</strong>
+              </div>
+              <div class="reconcile-row total-expected">
+                <span>🎯 TỔNG TIỀN MẶT CẦN CÓ TRONG KÉT:</span>
+                <strong id="closingExpectedCash">500.000 đ</strong>
+              </div>
+              <p style="margin: 0.25rem 0 0; font-size: 0.78rem; color: var(--muted);">*(Tiền chuyển khoản <span id="closingTransferHint" style="font-weight: 700; color: #0284c7;">0 đ</span> đã vào tài khoản ngân hàng, không nằm trong két).*</p>
+            </div>
+            <div class="reconcile-input-row">
+              <label>
+                Số tiền mặt thực đếm được trong két (đ):
+                <input id="closingCashActual" inputmode="numeric" placeholder="Ví dụ: 1000000">
+              </label>
+            </div>
+            <div class="reconcile-result" id="closingCashResult" hidden></div>
+          </div>
+        </div>
+
+        <div class="closing-footer">
+          <button class="ghost-button" id="readClosingSpeechBtn" type="button">
+            🔊 Phát loa đọc tổng kết
+          </button>
+          <button class="ghost-button" id="copyClosingSummaryBtn" type="button">
+            📋 Sao chép báo cáo
+          </button>
+          <button class="primary-action slim" id="closeDailyClosingBtn" type="button">
+            Hoàn tất / Đóng
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- HỘP THOẠI ĐỔI TIỀN THỐI ĐẦU NGÀY -->
+    <dialog class="confirm-dialog" id="editOpeningCashDialog">
+      <form method="dialog" id="editOpeningCashForm">
+        <h2>💵 Đổi Tiền Vốn Thối Đầu Ngày</h2>
+        <p class="subtitle" style="margin: 0.2rem 0 0.8rem; font-size: 0.86rem; color: var(--muted);">Nhập số tiền lẻ bạn bỏ vào két sáng nay để thối cho khách.</p>
+        <label>
+          Số tiền thối đầu ngày (đ):
+          <input id="todayOpeningCashInput" inputmode="numeric" placeholder="500000" required>
+        </label>
+        <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
+          <button class="ghost-button" id="cancelOpeningCashBtn" type="button">Hủy bỏ</button>
+          <button class="primary-action" id="saveTodayOpeningCashBtn" type="button">Lưu số tiền</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- HỘP THOẠI XÁC NHẬN GIAO DỊCH GIỌNG NÓI -->
+    <dialog class="confirm-dialog" id="confirmDialog">
+      <form method="dialog" id="confirmForm">
+        <h2>Xác nhận giao dịch</h2>
+        <section class="voice-review" id="voiceReview" aria-label="Kết quả trợ lý đã nghe">
+          <div class="voice-review-top">
+            <span class="voice-type" id="voiceTypeBadge">+ Thu</span>
+            <strong id="voiceAmount">0 đ</strong>
+          </div>
+          <p class="voice-detail" id="voiceDetail">Đang chờ dữ liệu</p>
+          <div class="voice-meta">
+            <span id="voiceCategory">Danh mục</span>
+            <span id="voiceConfidence">Độ tin cậy</span>
+            <span id="voiceQuantity">Số lượng</span>
+            <span id="voicePriceMode">Cách tính</span>
+          </div>
+        </section>
+        <p class="heard-text" id="heardText"></p>
+        <div class="segmented" role="group" aria-label="Loại giao dịch xác nhận">
+          <label><input type="radio" name="confirmType" value="thu"> <span>+ Thu (Bán nước)</span></label>
+          <label><input type="radio" name="confirmType" value="chi"> <span>- Chi (Mua hàng)</span></label>
+        </div>
+        <div class="two-col">
+          <label>Số tiền (đ)<input id="confirmAmount" inputmode="numeric"></label>
+          <label>Số lượng<input id="confirmQuantity" inputmode="numeric" value="1"></label>
+        </div>
+        <label>Danh mục<select id="confirmCategory"></select></label>
+        <label>Ghi chú<input id="confirmNote"></label>
+        <menu>
+          <button class="ghost-button" value="cancel" type="submit">Hủy bỏ</button>
+          <button class="primary-action slim" id="confirmSaveBtn" value="save" type="submit">Lưu vào sổ</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <!-- HỘP THOẠI CẬP NHẬT ỨNG DỤNG -->
+    <dialog class="update-dialog" id="updateDialog">
+      <form method="dialog" id="updateForm">
+        <div class="update-icon" aria-hidden="true">MỚI</div>
+        <div>
+          <p class="eyebrow">Cập nhật ứng dụng</p>
+          <h2>Có phiên bản mới</h2>
+        </div>
+        <p class="update-version" id="updateVersion">Phiên bản mới đã sẵn sàng tải về.</p>
+        <p class="update-notes" id="updateNotes"></p>
+        <menu>
+          <button class="ghost-button" id="updateLaterBtn" value="later" type="submit">Để sau</button>
+          <button class="primary-action slim" id="updateNowBtn" value="update" type="submit">Cập nhật ngay</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./vendor/chart.umd.min.js"></script>
+    <script src="./vendor/supabase.js"></script>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

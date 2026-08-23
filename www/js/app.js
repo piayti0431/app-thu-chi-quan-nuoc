@@ -1,0 +1,1512 @@
+import {
+  capNhatCauHinhSync,
+  capNhatCurrentBranch,
+  capNhatGiaNhanh,
+  docDuLieu,
+  luuDanhSachChiNhanh,
+  luuDanhSachMenu,
+  luuDuLieu,
+  luuTienThoiDauNgay,
+  luuTienThoiMacDinh,
+  nhapDuLieuTuJson,
+  themGiaoDich,
+  xoaGiaoDich,
+  xoaTatCaDuLieu,
+  xuatDuLieuJson,
+} from "./db.js";
+import { phanTichNhieu } from "./parser.js";
+import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney } from "./report.js";
+import { batDauNghe, docLai, dungNghe } from "./speech.js";
+import {
+  batDauRealtime,
+  dangKy,
+  dangNhap,
+  dangXuat,
+  daDangNhap,
+  dongBo,
+  dungRealtime,
+  syncErrorMessage,
+} from "./sync.js";
+import { caiCapNhat, kiemTraCapNhat, layPhienBanHienTai } from "./updater.js";
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
+const isAuthBypassedForTest = () => window.__NUOCMIA_TEST_AUTH__ === true;
+
+const money = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+  maximumFractionDigits: 0,
+});
+
+const MONTH_NAMES = [
+  "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+  "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12",
+];
+
+let state = await docDuLieu();
+let pendingVoice = null;
+let dailyChart = null;
+let categoryChart = null;
+let toastTimer = null;
+let micListening = false;
+let micStopping = false;
+let authLoggedIn = false;
+let authLoginBusy = false;
+let realtimeActive = false;
+let pendingUpdate = null;
+let updateCheckBusy = false;
+let updateCheckTimer = null;
+let appVersionText = "Phiên bản 2.0 (Toàn diện)";
+
+// Stats view state
+let statsMode = "day"; // "day" | "week" | "month"
+let statsBranch = "all";
+let statsDate = todayKey();
+let statsWeekDate = todayKey();
+let statsMonth = todayKey().slice(0, 7);
+
+const UPDATE_DISMISS_KEY = "nuocmia_update_dismissed_version";
+
+function formatMoney(value) {
+  return money.format(Number(value) || 0).replace("₫", "đ");
+}
+
+function formatVoiceMoney(value) {
+  return docSoTienTiengViet(Number(value) || 0);
+}
+
+function formatDate(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value || "";
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function todayKey() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getWeekRange(dateString) {
+  const target = new Date(dateString || todayKey());
+  const dayOfWeek = target.getDay(); // 0 is Sunday, 1 is Monday...
+  const distanceToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  
+  const monday = new Date(target);
+  monday.setDate(target.getDate() + distanceToMonday);
+  
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  const formatKey = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  return {
+    mondayKey: formatKey(monday),
+    sundayKey: formatKey(sunday),
+    label: `Thứ Hai (${monday.getDate()}/${monday.getMonth() + 1}) - Chủ Nhật (${sunday.getDate()}/${sunday.getMonth() + 1})`,
+  };
+}
+
+function confirmationSpeech(parsed) {
+  if (parsed.isBatch) {
+    return `Đã nghe ${parsed.items.length} món thu, tổng ${formatVoiceMoney(parsed.total)}. Gồm ${parsed.moTaXacNhan}. Đúng không?`;
+  }
+  const type = parsed.loai === "thu" ? "Thu" : "Chi";
+  const detail = parsed.moTaXacNhan || parsed.danhMuc;
+  return `${type} ${formatVoiceMoney(parsed.soTien)}, ${detail}. Đúng không?`;
+}
+
+function showToast(message, isError = false) {
+  const toast = $("#toast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.className = `toast is-visible${isError ? " is-error" : ""}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.className = "toast";
+  }, 2600);
+}
+
+function setMicState(listening) {
+  micListening = listening;
+  const btn = $("#micBtn");
+  const text = $("#micText");
+  if (!btn || !text) return;
+  btn.classList.toggle("is-recording", listening);
+  text.textContent = listening ? "Đang nghe... (Bấm để dừng)" : "Bấm để nói";
+}
+
+function getDrinkIconSvg(iconName) {
+  switch (iconName) {
+    case "bottle":
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4v3h-4zM9 5h6v3a4 4 0 0 1 1 3v9a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-9a4 4 0 0 1 1-3V5z"/><path d="M8 14h8"/></svg>`;
+    case "citrus":
+    case "orange":
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 12 7.5 7.5M12 12l4.5-4.5M12 12v6M12 12l5.5 3M12 12l-5.5 3"/></svg>`;
+    case "leaf":
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2.5 1 5-1 9.5a7 7 0 0 1-7 8.5z"/><path d="M2 22c5-5 7-10 8-12"/></svg>`;
+    case "milk":
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2h8v2H8zM7 4h10l1 4H6zM6 8h12v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V8z"/><path d="M10 13h4M12 11v4"/></svg>`;
+    case "bean":
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="8" ry="5" transform="rotate(-30 12 12)"/><path d="M9 10c2 1 4 3 6 5"/></svg>`;
+    case "tea":
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 8h1a4 4 0 1 1 0 8h-1M5 8h12v9a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8zM6 2v3M10 2v3M14 2v3"/></svg>`;
+    case "cane":
+    default:
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 2v20M17 2v20M7 7h10M7 12h10M7 17h10"/></svg>`;
+  }
+}
+
+// ----------------------------------------------------
+// RENDERERS
+// ----------------------------------------------------
+
+function renderBranchSelectors() {
+  const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
+  const current = state.currentBranch || branches[0]?.name || "Quán Nhà (Chính)";
+
+  // Topbar branch selector
+  const topSelect = $("#currentBranchSelect");
+  if (topSelect) {
+    topSelect.innerHTML = branches
+      .map((b) => `<option value="${b.name}" ${b.name === current ? "selected" : ""}>${b.name}</option>`)
+      .join("");
+  }
+
+  // Stats branch filter
+  const statsSelect = $("#statsBranchFilter");
+  if (statsSelect) {
+    statsSelect.innerHTML = `
+      <option value="all" ${statsBranch === "all" ? "selected" : ""}>Tất cả điểm bán</option>
+      ${branches.map((b) => `<option value="${b.name}" ${statsBranch === b.name ? "selected" : ""}>${b.name}</option>`).join("")}
+    `;
+  }
+
+  // Settings branch manager
+  renderBranchManager();
+}
+
+function renderQuickButtons() {
+  const container = $("#quickButtons");
+  if (!container) return;
+
+  const quickItems = state.quickItems || [];
+  container.innerHTML = quickItems
+    .map(
+      (item) => `
+      <button class="quick-btn theme-${item.icon || "cane"}" data-id="${item.id}" type="button" aria-label="Bán nhanh ${item.name} (${formatMoney(item.price)})">
+        <span class="drink-icon">${getDrinkIconSvg(item.icon)}</span>
+        <strong>+ 1 ${item.shortName || item.name}</strong>
+        <small>${formatMoney(item.price)}</small>
+      </button>
+    `,
+    )
+    .join("");
+
+  $$("#quickButtons .quick-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      const id = btn.getAttribute("data-id");
+      const item = quickItems.find((q) => q.id === id);
+      if (!item) return;
+
+      const tx = await themGiaoDich({
+        loai: "thu",
+        soTien: item.price,
+        soLuong: 1,
+        giaCostDonVi: item.costPrice || 0,
+        tongGiaCost: item.costPrice || 0,
+        danhMuc: item.category || item.name,
+        ghiChu: item.note || `Bán 1 ${item.name}`,
+        cauNoiGoc: `Bán 1 ${item.name}`,
+        daSuaTay: false,
+        chiNhanh: state.currentBranch,
+      });
+
+      state = await docDuLieu();
+      renderAll();
+      showToast(`+1 ${item.name} (${formatMoney(item.price)})`);
+      triggerAutoSync();
+    };
+  });
+}
+
+function renderCategoryDatalist() {
+  const datalist = $("#categoryDatalist");
+  if (!datalist) return;
+  const isThu = $("#manualForm input[name='loai']:checked")?.value === "thu";
+  const list = isThu ? (state.danhMuc?.thu || []) : (state.danhMuc?.chi || []);
+  datalist.innerHTML = list.map((cat) => `<option value="${cat}"></option>`).join("");
+}
+
+function renderToday() {
+  const today = todayKey();
+  const items = (state.ds || []).filter(
+    (item) => !item.deleted && item.ngay === today && (statsBranch === "all" || item.chiNhanh === state.currentBranch),
+  );
+
+  const income = items.filter((item) => item.loai === "thu").reduce((sum, item) => sum + Number(item.soTien || 0), 0);
+  const expense = items.filter((item) => item.loai === "chi").reduce((sum, item) => sum + Number(item.soTien || 0), 0);
+  const balance = income - expense;
+
+  $("#todayIncome").textContent = formatMoney(income);
+  $("#todayExpense").textContent = formatMoney(expense);
+  $("#todayBalance").textContent = formatMoney(balance);
+  if ($("#todayOpeningCashDisplay")) {
+    $("#todayOpeningCashDisplay").textContent = formatMoney(getTodayOpeningCash());
+  }
+
+  const list = $("#todayList");
+  if (!list) return;
+
+  if (!items.length) {
+    list.innerHTML = `<p class="empty-state">Chưa có giao dịch nào hôm nay tại ${state.currentBranch}. Bấm nút món hoặc nói vào Mic để ghi sổ.</p>`;
+    return;
+  }
+
+  list.innerHTML = items
+    .map(
+      (item) => {
+        const isTransfer = item.loai === "thu" && item.phuongThuc === "chuyen_khoan";
+        const methodBadge = isTransfer ? `<span style="background: rgba(14, 165, 233, 0.15); color: #0284c7; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.72rem; font-weight: 800;">📱 CK</span>` : "";
+        return `
+      <div class="transaction-item ${item.loai}">
+        <div class="tx-main">
+          <div class="tx-title-row">
+            <span class="tx-title">${item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi")}</span>
+            ${methodBadge}
+            <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || (item.loai === "thu" ? "ly" : "kg")}` : ""}</span>
+            <span class="tx-branch-badge">${item.chiNhanh || "Quán Nhà"}</span>
+          </div>
+          <p class="tx-note">${item.ghiChu || item.cauNoiGoc || "Không có ghi chú"}</p>
+          <div class="tx-meta">
+            <span>${item.gio || ""}</span>
+            ${item.giaCostDonVi > 0 ? `<span>Vốn: ${formatMoney(item.tongGiaCost || item.giaCostDonVi * (item.soLuong || 1))}</span>` : ""}
+          </div>
+        </div>
+        <div class="tx-right">
+          <strong class="tx-amount ${item.loai}">${item.loai === "thu" ? "+" : "-"}${formatMoney(item.soTien)}</strong>
+          <button class="delete-btn" data-id="${item.id}" type="button" aria-label="Xóa">✕</button>
+        </div>
+      </div>
+    `;
+      },
+    )
+    .join("");
+
+  $$("#todayList .delete-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      const id = Number(btn.getAttribute("data-id"));
+      if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) return;
+      await xoaGiaoDich(id);
+      state = await docDuLieu();
+      renderAll();
+      showToast("Đã xóa giao dịch khỏi sổ");
+      triggerAutoSync();
+    };
+  });
+}
+
+function renderHistory() {
+  const list = $("#historyList");
+  if (!list) return;
+
+  const items = (state.ds || []).filter((item) => !item.deleted);
+  if (!items.length) {
+    list.innerHTML = `<p class="empty-state">Lịch sử giao dịch trống.</p>`;
+    return;
+  }
+
+  list.innerHTML = items
+    .slice(0, 100)
+    .map(
+      (item) => {
+        const isTransfer = item.loai === "thu" && item.phuongThuc === "chuyen_khoan";
+        const methodBadge = isTransfer ? `<span style="background: rgba(14, 165, 233, 0.15); color: #0284c7; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.72rem; font-weight: 800;">📱 CK</span>` : "";
+        return `
+      <div class="transaction-item ${item.loai}">
+        <div class="tx-main">
+          <div class="tx-title-row">
+            <span class="tx-title">${item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi")}</span>
+            ${methodBadge}
+            <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || (item.loai === "thu" ? "ly" : "kg")}` : ""}</span>
+            <span class="tx-branch-badge">${item.chiNhanh || "Quán Nhà"}</span>
+          </div>
+          <p class="tx-note">${item.ghiChu || item.cauNoiGoc || ""}</p>
+          <div class="tx-meta">
+            <span>${formatDate(item.ngay)} ${item.gio || ""}</span>
+          </div>
+        </div>
+        <div class="tx-right">
+          <strong class="tx-amount ${item.loai}">${item.loai === "thu" ? "+" : "-"}${formatMoney(item.soTien)}</strong>
+          <button class="delete-btn" data-id="${item.id}" type="button" aria-label="Xóa">✕</button>
+        </div>
+      </div>
+    `;
+      },
+    )
+    .join("");
+
+  $$("#historyList .delete-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      const id = Number(btn.getAttribute("data-id"));
+      if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) return;
+      await xoaGiaoDich(id);
+      state = await docDuLieu();
+      renderAll();
+      showToast("Đã xóa giao dịch");
+      triggerAutoSync();
+    };
+  });
+}
+
+// ----------------------------------------------------
+// DAILY CLOSING DIALOG (PHIẾU TỔNG KẾT NGÀY)
+// ----------------------------------------------------
+
+function getTodayOpeningCash() {
+  const today = todayKey();
+  const branch = state.currentBranch || "Quán Nhà (Chính)";
+  const key = `${today}_${branch}`;
+  if (state.openingCashByDate && state.openingCashByDate[key] !== undefined) {
+    return Number(state.openingCashByDate[key]);
+  }
+  return Number(state.defaultOpeningCash) >= 0 ? Number(state.defaultOpeningCash) : 500000;
+}
+
+function openDailyClosingModal() {
+  const dialog = $("#dailyClosingDialog");
+  if (!dialog) return;
+
+  const today = todayKey();
+  const currentBranch = state.currentBranch || "Quán Nhà (Chính)";
+  const openingCash = getTodayOpeningCash();
+  const report = dailyReport(state.ds || [], today, currentBranch, openingCash);
+
+  $("#closingBranchLabel").textContent = `Điểm bán: ${currentBranch}`;
+  $("#closingDateHeader").textContent = `📋 Phiếu Tổng Kết Ngày ${formatDate(today)}`;
+
+  $("#closingIncome").textContent = formatMoney(report.income);
+  $("#closingCashIncome").textContent = formatMoney(report.cashIncome);
+  $("#closingTransferIncome").textContent = formatMoney(report.transferIncome);
+  $("#closingTotalCupsText").textContent = `${report.totalDrinks} ly nước`;
+  $("#closingCost").textContent = formatMoney(report.cost);
+  $("#closingGrossProfit").textContent = formatMoney(report.grossProfit);
+  $("#closingExpense").textContent = formatMoney(report.expense);
+  $("#closingNetProfit").textContent = formatMoney(report.balance);
+
+  // Cash Reconcile values
+  if ($("#closingOpeningCash")) $("#closingOpeningCash").textContent = formatMoney(report.openingCash);
+  if ($("#closingCashIncomeReconcile")) $("#closingCashIncomeReconcile").textContent = `+${formatMoney(report.cashIncome)}`;
+  if ($("#closingExpenseReconcile")) $("#closingExpenseReconcile").textContent = `−${formatMoney(report.expense)}`;
+  if ($("#closingExpectedCash")) $("#closingExpectedCash").textContent = formatMoney(report.expectedCashInDrawer);
+  if ($("#closingTransferHint")) $("#closingTransferHint").textContent = formatMoney(report.transferIncome);
+
+  // Drinks breakdown table
+  const drinksMap = new Map();
+  report.items
+    .filter((it) => it.loai === "thu")
+    .forEach((it) => {
+      const name = it.danhMuc || "Nước mía thường";
+      const existing = drinksMap.get(name) || { count: 0, revenue: 0, cost: 0 };
+      existing.count += Number(it.soLuong || 1);
+      existing.revenue += Number(it.soTien || 0);
+      existing.cost += Number(it.tongGiaCost || (Number(it.soLuong || 1) * Number(it.giaCostDonVi || 0)) || 0);
+      drinksMap.set(name, existing);
+    });
+
+  const drinksBody = $("#closingDrinksBody");
+  if (drinksBody) {
+    if (drinksMap.size === 0) {
+      drinksBody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: var(--muted);">Chưa có đơn bán nước nào hôm nay.</td></tr>`;
+    } else {
+      drinksBody.innerHTML = [...drinksMap.entries()]
+        .map(([name, data]) => {
+          const profit = data.revenue - data.cost;
+          return `
+          <tr>
+            <td><strong>${name}</strong></td>
+            <td class="text-center">${data.count} ly</td>
+            <td class="text-right">${formatMoney(data.revenue)}</td>
+            <td class="text-right" style="color: #d97706;">${formatMoney(data.cost)}</td>
+            <td class="text-right" style="color: #059669; font-weight: 700;">+${formatMoney(profit)}</td>
+          </tr>
+        `;
+        })
+        .join("");
+    }
+  }
+
+  // Expenses breakdown table
+  const expensesMap = new Map();
+  report.items
+    .filter((it) => it.loai === "chi")
+    .forEach((it) => {
+      const name = it.danhMuc || "Chi khác";
+      const qty = Number(it.soLuong) || 1;
+      const unit = it.donViTinh || "kg";
+      const existing = expensesMap.get(name) || { amount: 0, units: new Map() };
+      existing.amount += Number(it.soTien || 0);
+      existing.units.set(unit, (existing.units.get(unit) || 0) + qty);
+      expensesMap.set(name, existing);
+    });
+
+  const formatExpenseUnits = (unitsMap) => {
+    return [...unitsMap.entries()].map(([u, q]) => `${q} ${u}`).join(", ") || "1 lần";
+  };
+
+  const expensesBody = $("#closingExpensesBody");
+  if (expensesBody) {
+    if (expensesMap.size === 0) {
+      expensesBody.innerHTML = `<tr><td colspan="3" class="text-center" style="color: var(--muted);">Không có khoản chi nào hôm nay.</td></tr>`;
+    } else {
+      expensesBody.innerHTML = [...expensesMap.entries()]
+        .map(
+          ([name, data]) => `
+          <tr>
+            <td><strong>${name}</strong></td>
+            <td class="text-center">${formatExpenseUnits(data.units)}</td>
+            <td class="text-right" style="color: var(--red); font-weight: 700;">-${formatMoney(data.amount)}</td>
+          </tr>
+        `,
+        )
+        .join("");
+    }
+  }
+
+  // Cash reconcile
+  const cashInput = $("#closingCashActual");
+  const cashResult = $("#closingCashResult");
+  if (cashInput) cashInput.value = "";
+  if (cashResult) {
+    cashResult.hidden = true;
+    cashResult.className = "reconcile-result";
+  }
+
+  if (cashInput && cashResult) {
+    cashInput.oninput = () => {
+      const val = Number(cashInput.value.replace(/[^0-9]/g, ""));
+      if (!val && val !== 0) {
+        cashResult.hidden = true;
+        return;
+      }
+      cashResult.hidden = false;
+      const expected = report.expectedCashInDrawer;
+      const diff = val - expected;
+
+      if (diff === 0) {
+        cashResult.className = "reconcile-result is-match";
+        cashResult.textContent = `✅ Khớp tiền mặt 100%! Đúng ${formatMoney(val)} tiền mặt cần có trong két.`;
+      } else if (diff > 0) {
+        cashResult.className = "reconcile-result is-diff";
+        cashResult.textContent = `⚠️ Dư tiền mặt: +${formatMoney(diff)} (Đếm được: ${formatMoney(val)}, Cần có trong két: ${formatMoney(expected)}).`;
+      } else {
+        cashResult.className = "reconcile-result is-diff";
+        cashResult.textContent = `⚠️ Thiếu tiền mặt: -${formatMoney(Math.abs(diff))} (Đếm được: ${formatMoney(val)}, Cần có trong két: ${formatMoney(expected)}).`;
+      }
+    };
+  }
+
+  // Voice speech button in closing modal
+  const speechBtn = $("#readClosingSpeechBtn");
+  if (speechBtn) {
+    speechBtn.onclick = () => {
+      docLai(report.detailedText);
+      showToast("Đang phát loa đọc tổng kết ngày...");
+    };
+  }
+
+  // Copy summary button
+  const copyBtn = $("#copyClosingSummaryBtn");
+  if (copyBtn) {
+    copyBtn.onclick = () => {
+      const summaryText = `📋 TỔNG KẾT QUÁN (${formatDate(today)} - ${currentBranch}):
+- Bán ra: ${report.totalDrinks} ly
+- Doanh thu: ${formatMoney(report.income)} (Mặt: ${formatMoney(report.cashIncome)}, CK: ${formatMoney(report.transferIncome)})
+- Tiền vốn: ${formatMoney(report.cost)}
+- Lợi nhuận bán nước: ${formatMoney(report.grossProfit)}
+- Tiền chi: ${formatMoney(report.expense)}
+- Tiền mặt trong két: ${formatMoney(report.cashBalance)}
+=> TIỀN LỜI THỰC TẾ: ${formatMoney(report.balance)}`;
+      navigator.clipboard?.writeText(summaryText);
+      showToast("Đã sao chép báo cáo vào bộ nhớ tạm");
+    };
+  }
+
+  dialog.showModal();
+}
+
+// ----------------------------------------------------
+// STATS VIEW (NGÀY / TUẦN / THÁNG)
+// ----------------------------------------------------
+
+function renderStats() {
+  const allItems = (state.ds || []).filter((item) => !item.deleted);
+  
+  // Filter by branch
+  const branchItems = statsBranch === "all" ? allItems : allItems.filter((it) => it.chiNhanh === statsBranch);
+
+  let filtered = [];
+  let periodLabel = "";
+
+  if (statsMode === "day") {
+    filtered = branchItems.filter((it) => it.ngay === statsDate);
+    periodLabel = `Ngày ${formatDate(statsDate)}`;
+    $("#timeChartTitle").textContent = `Biểu đồ doanh thu ngày ${formatDate(statsDate)}`;
+  } else if (statsMode === "week") {
+    const range = getWeekRange(statsWeekDate);
+    filtered = branchItems.filter((it) => it.ngay >= range.mondayKey && it.ngay <= range.sundayKey);
+    periodLabel = range.label;
+    $("#statsWeekRangeText").textContent = range.label;
+    $("#timeChartTitle").textContent = `Doanh thu 7 ngày trong tuần`;
+  } else {
+    // Month mode
+    filtered = branchItems.filter((it) => it.ngay && it.ngay.startsWith(statsMonth));
+    const [y, m] = statsMonth.split("-");
+    periodLabel = `Tháng ${Number(m)}/${y}`;
+    $("#timeChartTitle").textContent = `Doanh thu các ngày trong tháng ${Number(m)}/${y}`;
+  }
+
+  const income = filtered.filter((it) => it.loai === "thu").reduce((sum, it) => sum + Number(it.soTien || 0), 0);
+  const cashIncome = filtered.filter((it) => it.loai === "thu" && it.phuongThuc !== "chuyen_khoan").reduce((sum, it) => sum + Number(it.soTien || 0), 0);
+  const transferIncome = filtered.filter((it) => it.loai === "thu" && it.phuongThuc === "chuyen_khoan").reduce((sum, it) => sum + Number(it.soTien || 0), 0);
+  const cost = filtered
+    .filter((it) => it.loai === "thu")
+    .reduce((sum, it) => sum + Number(it.tongGiaCost || (Number(it.soLuong || 1) * Number(it.giaCostDonVi || 0)) || 0), 0);
+  const grossProfit = income - cost;
+  const expense = filtered.filter((it) => it.loai === "chi").reduce((sum, it) => sum + Number(it.soTien || 0), 0);
+  const balance = income - expense;
+  const totalCups = filtered.filter((it) => it.loai === "thu").reduce((sum, it) => sum + Number(it.soLuong || 1), 0);
+
+  $("#monthIncome").textContent = formatMoney(income);
+  $("#statsCashIncome").textContent = formatMoney(cashIncome);
+  $("#statsTransferIncome").textContent = formatMoney(transferIncome);
+  $("#statsTotalCost").textContent = formatMoney(cost);
+  $("#statsGrossProfit").textContent = formatMoney(grossProfit);
+  $("#monthExpense").textContent = formatMoney(expense);
+  $("#monthBalance").textContent = formatMoney(balance);
+  $("#statsTotalCups").textContent = `${totalCups} ly`;
+
+  // Drinks breakdown table
+  const drinksMap = new Map();
+  filtered
+    .filter((it) => it.loai === "thu")
+    .forEach((it) => {
+      const name = it.danhMuc || "Nước mía thường";
+      const existing = drinksMap.get(name) || { count: 0, revenue: 0, cost: 0 };
+      existing.count += Number(it.soLuong || 1);
+      existing.revenue += Number(it.soTien || 0);
+      existing.cost += Number(it.tongGiaCost || (Number(it.soLuong || 1) * Number(it.giaCostDonVi || 0)) || 0);
+      drinksMap.set(name, existing);
+    });
+
+  const drinksBody = $("#drinksTableBody");
+  if (drinksBody) {
+    if (drinksMap.size === 0) {
+      drinksBody.innerHTML = `<tr><td colspan="6" class="text-center" style="color: var(--muted);">Chưa có số liệu bán hàng trong kỳ này.</td></tr>`;
+    } else {
+      drinksBody.innerHTML = [...drinksMap.entries()]
+        .sort((a, b) => b[1].revenue - a[1].revenue)
+        .map(([name, data]) => {
+          const profit = data.revenue - data.cost;
+          const share = income > 0 ? Math.round((data.revenue / income) * 100) : 0;
+          return `
+          <tr>
+            <td><strong>${name}</strong></td>
+            <td class="text-center">${data.count} ly</td>
+            <td class="text-right">${formatMoney(data.revenue)}</td>
+            <td class="text-right" style="color: #d97706;">${formatMoney(data.cost)}</td>
+            <td class="text-right" style="color: #059669; font-weight: 700;">+${formatMoney(profit)}</td>
+            <td class="text-right">${share}%</td>
+          </tr>
+        `;
+        })
+        .join("");
+    }
+  }
+
+  // Expenses breakdown table
+  const expensesMap = new Map();
+  filtered
+    .filter((it) => it.loai === "chi")
+    .forEach((it) => {
+      const name = it.danhMuc || "Chi khác";
+      const qty = Number(it.soLuong) || 1;
+      const unit = it.donViTinh || "kg";
+      const existing = expensesMap.get(name) || { amount: 0, units: new Map() };
+      existing.amount += Number(it.soTien || 0);
+      existing.units.set(unit, (existing.units.get(unit) || 0) + qty);
+      expensesMap.set(name, existing);
+    });
+
+  const formatExpenseUnits = (unitsMap) => {
+    return [...unitsMap.entries()].map(([u, q]) => `${q} ${u}`).join(", ") || "1 lần";
+  };
+
+  const expensesBody = $("#expensesTableBody");
+  if (expensesBody) {
+    if (expensesMap.size === 0) {
+      expensesBody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: var(--muted);">Không có khoản chi nào trong kỳ này.</td></tr>`;
+    } else {
+      expensesBody.innerHTML = [...expensesMap.entries()]
+        .sort((a, b) => b[1].amount - a[1].amount)
+        .map(([name, data]) => {
+          const share = expense > 0 ? Math.round((data.amount / expense) * 100) : 0;
+          return `
+          <tr>
+            <td><strong>${name}</strong></td>
+            <td class="text-center">${formatExpenseUnits(data.units)}</td>
+            <td class="text-right" style="color: var(--red); font-weight: 700;">-${formatMoney(data.amount)}</td>
+            <td class="text-right">${share}%</td>
+          </tr>
+        `;
+        })
+        .join("");
+    }
+  }
+
+  // Render Charts
+  renderCharts(filtered);
+}
+
+function renderCharts(filtered) {
+  if (typeof Chart === "undefined") return;
+
+  // Chart 1: Time Series Chart
+  const dailyCanvas = $("#dailyChart");
+  if (dailyCanvas) {
+    const ctx = dailyCanvas.getContext("2d");
+    if (dailyChart) dailyChart.destroy();
+
+    let labels = [];
+    let incomeData = [];
+    let expenseData = [];
+
+    if (statsMode === "day") {
+      // Group by hour
+      const hoursMap = new Map();
+      for (let h = 6; h <= 22; h += 2) {
+        hoursMap.set(`${String(h).padStart(2, "0")}:00`, { inc: 0, exp: 0 });
+      }
+      filtered.forEach((it) => {
+        const hour = (it.gio || "08:00").slice(0, 2);
+        const slot = `${String(Math.floor(Number(hour) / 2) * 2).padStart(2, "0")}:00`;
+        const item = hoursMap.get(slot) || { inc: 0, exp: 0 };
+        if (it.loai === "thu") item.inc += Number(it.soTien || 0);
+        else item.exp += Number(it.soTien || 0);
+        hoursMap.set(slot, item);
+      });
+      labels = [...hoursMap.keys()];
+      incomeData = [...hoursMap.values()].map((v) => v.inc);
+      expenseData = [...hoursMap.values()].map((v) => v.exp);
+    } else if (statsMode === "week") {
+      const range = getWeekRange(statsWeekDate);
+      const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+      labels = days;
+      const cur = new Date(range.mondayKey);
+      incomeData = days.map((_, i) => {
+        const d = new Date(cur);
+        d.setDate(cur.getDate() + i);
+        const dKey = d.toISOString().slice(0, 10);
+        return filtered.filter((it) => it.ngay === dKey && it.loai === "thu").reduce((s, it) => s + Number(it.soTien || 0), 0);
+      });
+      expenseData = days.map((_, i) => {
+        const d = new Date(cur);
+        d.setDate(cur.getDate() + i);
+        const dKey = d.toISOString().slice(0, 10);
+        return filtered.filter((it) => it.ngay === dKey && it.loai === "chi").reduce((s, it) => s + Number(it.soTien || 0), 0);
+      });
+    } else {
+      // Month: group by days
+      const daysInMonth = new Date(Number(statsMonth.split("-")[0]), Number(statsMonth.split("-")[1]), 0).getDate();
+      labels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
+      incomeData = labels.map((dayNum) => {
+        const dKey = `${statsMonth}-${dayNum.padStart(2, "0")}`;
+        return filtered.filter((it) => it.ngay === dKey && it.loai === "thu").reduce((s, it) => s + Number(it.soTien || 0), 0);
+      });
+      expenseData = labels.map((dayNum) => {
+        const dKey = `${statsMonth}-${dayNum.padStart(2, "0")}`;
+        return filtered.filter((it) => it.ngay === dKey && it.loai === "chi").reduce((s, it) => s + Number(it.soTien || 0), 0);
+      });
+    }
+
+    dailyChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          { label: "Thu", data: incomeData, backgroundColor: "#10b981", borderRadius: 4 },
+          { label: "Chi", data: expenseData, backgroundColor: "#ef4444", borderRadius: 4 },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: "top" } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { callback: (v) => (v >= 1000 ? `${v / 1000}k` : v) },
+          },
+        },
+      },
+    });
+  }
+
+  // Chart 2: Category Doughnut Chart
+  const categoryCanvas = $("#categoryChart");
+  if (categoryCanvas) {
+    const ctx = categoryCanvas.getContext("2d");
+    if (categoryChart) categoryChart.destroy();
+
+    const catMap = new Map();
+    filtered
+      .filter((it) => it.loai === "thu")
+      .forEach((it) => {
+        const cat = it.danhMuc || "Nước mía";
+        catMap.set(cat, (catMap.get(cat) || 0) + Number(it.soTien || 0));
+      });
+
+    const labels = [...catMap.keys()];
+    const data = [...catMap.values()];
+
+    categoryChart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: labels.length ? labels : ["Chưa có dữ liệu"],
+        datasets: [
+          {
+            data: data.length ? data : [1],
+            backgroundColor: [
+              "#10b981", "#3b82f6", "#f59e0b", "#8b5cf6",
+              "#ec4899", "#14b8a6", "#f97316", "#64748b",
+            ],
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: "bottom" } },
+      },
+    });
+  }
+}
+
+// ----------------------------------------------------
+// SETTINGS: MENU & BRANCH MANAGERS
+// ----------------------------------------------------
+
+function renderMenuManager() {
+  const container = $("#menuItemsEditor");
+  if (!container) return;
+
+  const quickItems = state.quickItems || [];
+  const tableHtml = `
+    <div class="menu-table-container">
+      <table class="menu-editor-table">
+        <thead>
+          <tr>
+            <th style="width: 32%;">🏷️ Tên món nước</th>
+            <th style="width: 24%;">💵 Giá bán ra (đ)</th>
+            <th style="width: 24%;">🟡 Giá vốn 1 ly (Cost đ)</th>
+            <th style="width: 14%;">💰 Lời / 1 ly</th>
+            <th style="width: 6%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${quickItems
+            .map((item, index) => {
+              const price = Number(item.price) || 0;
+              const cost = Number(item.costPrice) || 0;
+              const profit = price - cost;
+              return `
+              <tr class="menu-item-row" data-index="${index}">
+                <td>
+                  <input class="menu-item-name" value="${item.name || ""}" placeholder="Ví dụ: Nước mía" title="Tên món nước" required>
+                </td>
+                <td>
+                  <input class="menu-item-price" type="number" value="${price}" placeholder="8000" title="Giá bán ra cho khách (đ)" required>
+                </td>
+                <td>
+                  <input class="menu-item-cost" type="number" value="${cost}" placeholder="3000" title="Chi phí nguyên liệu 1 ly (Cost đ)">
+                </td>
+                <td>
+                  <span class="profit-badge">+${formatMoney(profit)}</span>
+                </td>
+                <td>
+                  <button class="icon-btn-del" type="button" aria-label="Xóa món">✕</button>
+                </td>
+              </tr>
+            `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = tableHtml;
+
+  // Live profit calculation on input
+  $$("#menuItemsEditor .menu-item-row").forEach((row) => {
+    const priceInput = row.querySelector(".menu-item-price");
+    const costInput = row.querySelector(".menu-item-cost");
+    const profitBadge = row.querySelector(".profit-badge");
+
+    const updateProfit = () => {
+      const p = Number(priceInput?.value) || 0;
+      const c = Number(costInput?.value) || 0;
+      const prof = p - c;
+      if (profitBadge) {
+        profitBadge.textContent = prof >= 0 ? `+${formatMoney(prof)}` : `-${formatMoney(Math.abs(prof))}`;
+        profitBadge.style.background = prof >= 0 ? "#ecfdf5" : "#fff1f2";
+        profitBadge.style.color = prof >= 0 ? "#065f46" : "#9f1239";
+      }
+    };
+
+    priceInput?.addEventListener("input", updateProfit);
+    costInput?.addEventListener("input", updateProfit);
+  });
+
+  $$("#menuItemsEditor .icon-btn-del").forEach((btn) => {
+    btn.onclick = () => {
+      const row = btn.closest(".menu-item-row");
+      const index = Number(row?.getAttribute("data-index"));
+      if (quickItems.length <= 1) {
+        showToast("Menu phải có ít nhất 1 món", true);
+        return;
+      }
+      quickItems.splice(index, 1);
+      renderMenuManager();
+    };
+  });
+}
+
+function renderBranchManager() {
+  const container = $("#branchListEditor");
+  if (!container) return;
+
+  const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
+  container.innerHTML = branches
+    .map(
+      (b, index) => `
+      <div class="branch-item-row" data-index="${index}">
+        <input class="branch-name-input" value="${b.name || ""}" placeholder="Tên chi nhánh / điểm bán" required>
+        <button class="icon-btn-del" type="button" aria-label="Xóa chi nhánh">Xóa</button>
+      </div>
+    `,
+    )
+    .join("");
+
+  $$("#branchListEditor .icon-btn-del").forEach((btn) => {
+    btn.onclick = () => {
+      const row = btn.closest(".branch-item-row");
+      const index = Number(row?.getAttribute("data-index"));
+      if (branches.length <= 1) {
+        showToast("Phải có ít nhất 1 chi nhánh", true);
+        return;
+      }
+      branches.splice(index, 1);
+      renderBranchManager();
+    };
+  });
+}
+
+function renderAll() {
+  renderBranchSelectors();
+  renderQuickButtons();
+  renderCategoryDatalist();
+  renderToday();
+  renderHistory();
+  renderStats();
+  renderMenuManager();
+  renderBranchManager();
+
+  const defaultCashInput = $("#defaultOpeningCashInput");
+  if (defaultCashInput) {
+    defaultCashInput.value = state.defaultOpeningCash || 500000;
+  }
+}
+
+// ----------------------------------------------------
+// AUTO SYNC & SUPABASE
+// ----------------------------------------------------
+
+async function triggerAutoSync() {
+  try {
+    const isAuth = await daDangNhap();
+    if (!isAuth) return;
+    await dongBo();
+    state = await docDuLieu();
+    renderAll();
+    const syncStatus = $("#syncStatus");
+    if (syncStatus) syncStatus.textContent = "Đồng bộ sẵn sàng";
+  } catch (err) {
+    console.warn("Auto sync failed", err);
+  }
+}
+
+// ----------------------------------------------------
+// EVENT LISTENERS & SETUP
+// ----------------------------------------------------
+
+function initEventListeners() {
+  // Tabs navigation
+  $$(".tabs .tab").forEach((tab) => {
+    tab.onclick = () => {
+      $$(".tabs .tab").forEach((t) => t.classList.remove("is-active"));
+      $$(".view").forEach((v) => v.classList.remove("is-active"));
+      tab.classList.add("is-active");
+      const viewId = `view-${tab.getAttribute("data-view")}`;
+      $(`#${viewId}`)?.classList.add("is-active");
+
+      if (tab.getAttribute("data-view") === "stats") {
+        renderStats();
+      }
+    };
+  });
+
+  // Topbar branch selection
+  const branchSelect = $("#currentBranchSelect");
+  if (branchSelect) {
+    branchSelect.onchange = async (e) => {
+      const selected = e.target.value;
+      await capNhatCurrentBranch(selected);
+      state = await docDuLieu();
+      renderAll();
+      showToast(`Đã chuyển sang điểm bán: ${selected}`);
+    };
+  }
+
+  // Daily Closing button
+  $("#openDailyClosingBtn")?.addEventListener("click", () => {
+    openDailyClosingModal();
+  });
+
+  $("#closeDailyClosingBtn")?.addEventListener("click", () => {
+    $("#dailyClosingDialog")?.close();
+  });
+
+  $("#closeDailyClosingTopBtn")?.addEventListener("click", () => {
+    $("#dailyClosingDialog")?.close();
+  });
+
+  // Read today report button (Speech)
+  $("#readTodayReportBtn")?.addEventListener("click", () => {
+    const report = dailyReport(state.ds || [], todayKey(), state.currentBranch);
+    docLai(report.detailedText || report.text);
+    showToast("Đang phát loa đọc doanh số hôm nay...");
+  });
+
+  // Radio button loai switch (Thu / Chi) in manual form
+  $$("#manualForm input[name='loai']").forEach((radio) => {
+    radio.onchange = () => {
+      const isThu = radio.value === "thu";
+      const catInput = $("#manualCategoryInput");
+      const costGroup = $("#manualCostGroup");
+      if (catInput) {
+        catInput.placeholder = isThu ? "Ví dụ: Nước mía thường, Trà tắc, Cam tươi..." : "Ví dụ: Mua cam, Mua mía, Mua đá, Tiền điện...";
+      }
+      if (costGroup) {
+        costGroup.style.display = isThu ? "grid" : "none";
+      }
+      renderCategoryDatalist();
+    };
+  });
+
+  // Manual Form Submission
+  const manualForm = $("#manualForm");
+  if (manualForm) {
+    manualForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const loai = $("#manualForm input[name='loai']:checked")?.value || "thu";
+      const category = $("#manualCategoryInput")?.value?.trim() || (loai === "thu" ? "Nước mía thường" : "Chi khác");
+      const qty = Number($("#manualQuantity")?.value) || 1;
+      const unit = $("#manualUnitSelect")?.value || (loai === "thu" ? "ly" : "kg");
+      const amount = Number($("#manualAmount")?.value.replace(/[^0-9]/g, "")) || 0;
+      let costPrice = Number($("#manualCostPrice")?.value.replace(/[^0-9]/g, ""));
+      const note = $("#manualNote")?.value?.trim() || "";
+
+      if (amount <= 0) {
+        showToast("Vui lòng nhập số tiền lớn hơn 0", true);
+        return;
+      }
+
+      // If user didn't enter cost price, find matching from quick items
+      if (loai === "thu" && !Number.isFinite(costPrice)) {
+        const match = (state.quickItems || []).find((q) => q.name === category || q.category === category);
+        costPrice = match ? (match.costPrice || 0) : 0;
+      }
+
+      const phuongThuc = $("#manualPaymentMethodGroup input[name='phuongThuc']:checked")?.value || "tien_mat";
+
+      await themGiaoDich({
+        loai,
+        soTien: amount,
+        soLuong: qty,
+        donViTinh: unit,
+        phuongThuc,
+        giaCostDonVi: costPrice || 0,
+        tongGiaCost: qty * (costPrice || 0),
+        danhMuc: category,
+        ghiChu: note,
+        cauNoiGoc: note || `${loai === "thu" ? "Bán" : "Chi"} ${qty} ${unit} ${category}${phuongThuc === "chuyen_khoan" ? " (CK)" : ""}`,
+        daSuaTay: true,
+        chiNhanh: state.currentBranch,
+      });
+
+      state = await docDuLieu();
+      renderAll();
+
+      $("#manualAmount").value = "";
+      $("#manualNote").value = "";
+      $("#manualCostPrice").value = "";
+      $("#manualQuantity").value = "1";
+
+      showToast(`Đã lưu ${loai === "thu" ? "+ Thu" : "- Chi"} ${formatMoney(amount)} vào sổ`);
+      triggerAutoSync();
+    };
+
+    $$("#manualForm input[name='loai']").forEach((radio) => {
+      radio.onchange = () => {
+        const isThu = radio.value === "thu";
+        const catInput = $("#manualCategoryInput");
+        const unitSelect = $("#manualUnitSelect");
+        const costGroup = $("#manualCostGroup");
+        if (catInput) {
+          catInput.placeholder = isThu ? "Ví dụ: Nước mía thường, Trà tắc, Cam tươi..." : "Ví dụ: Mua cam, Mua mía, Mua đá, Tiền điện...";
+        }
+        if (unitSelect) {
+          unitSelect.value = isThu ? "ly" : "kg";
+        }
+        if (costGroup) {
+          costGroup.style.display = isThu ? "grid" : "none";
+        }
+        renderCategoryDatalist();
+      };
+    });
+  }
+
+  // Stats Mode Switcher (Day / Week / Month)
+  $$(".stats-mode-btn").forEach((btn) => {
+    btn.onclick = () => {
+      $$(".stats-mode-btn").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      statsMode = btn.getAttribute("data-stats-mode");
+
+      $("#statsDayGroup").hidden = statsMode !== "day";
+      $("#statsWeekGroup").hidden = statsMode !== "week";
+      $("#statsMonthGroup").hidden = statsMode !== "month";
+
+      renderStats();
+    };
+  });
+
+  // Stats filter changes
+  $("#statsBranchFilter")?.addEventListener("change", (e) => {
+    statsBranch = e.target.value;
+    renderStats();
+  });
+
+  $("#statsDateInput")?.addEventListener("change", (e) => {
+    statsDate = e.target.value || todayKey();
+    renderStats();
+  });
+
+  $("#statsWeekInput")?.addEventListener("change", (e) => {
+    statsWeekDate = e.target.value || todayKey();
+    renderStats();
+  });
+
+  // Month & Year picker setup
+  const mSelect = $("#statsMonthSelect");
+  const ySelect = $("#statsYearSelect");
+  if (mSelect && ySelect) {
+    const curYear = new Date().getFullYear();
+    mSelect.innerHTML = MONTH_NAMES.map((name, i) => `<option value="${String(i + 1).padStart(2, "0")}">${name}</option>`).join("");
+    ySelect.innerHTML = [curYear - 1, curYear, curYear + 1].map((y) => `<option value="${y}">${y}</option>`).join("");
+
+    const [curY, curM] = statsMonth.split("-");
+    mSelect.value = curM;
+    ySelect.value = curY;
+
+    const onMonthChange = () => {
+      statsMonth = `${ySelect.value}-${mSelect.value}`;
+      renderStats();
+    };
+    mSelect.onchange = onMonthChange;
+    ySelect.onchange = onMonthChange;
+  }
+
+  // Mic recording button
+  const micBtn = $("#micBtn");
+  if (micBtn) {
+    micBtn.onclick = async () => {
+      if (micListening) {
+        setMicState(false);
+        await dungNghe();
+        return;
+      }
+
+      setMicState(true);
+      batDauNghe(
+        async (finalText) => {
+          setMicState(false);
+          if (!finalText || !finalText.trim()) return;
+
+          const parsed = phanTichNhieu(finalText, state.quickItems);
+          pendingVoice = parsed;
+
+          // Open voice confirmation dialog
+          openVoiceConfirmDialog(parsed, finalText);
+        },
+        (error) => {
+          setMicState(false);
+          showToast(`Lỗi giọng nói: ${error?.message || error}`, true);
+        },
+      );
+    };
+  }
+
+  // Menu Manager Save & Add buttons
+  $("#addNewMenuItemBtn")?.addEventListener("click", () => {
+    state.quickItems = state.quickItems || [];
+    state.quickItems.push({
+      id: `mon_${Date.now()}`,
+      name: "Món mới",
+      shortName: "Món mới",
+      price: 15000,
+      costPrice: 5000,
+      category: "Món mới",
+      icon: "cane",
+      voiceUnit: "ly",
+    });
+    renderMenuManager();
+  });
+
+  $("#saveMenuBtn")?.addEventListener("click", async () => {
+    const rows = $$("#menuItemsEditor .menu-item-row");
+    const updated = rows.map((row, i) => {
+      const existing = (state.quickItems || [])[i] || {};
+      const name = row.querySelector(".menu-item-name")?.value?.trim() || existing.name || "Món nước";
+      const price = Number(row.querySelector(".menu-item-price")?.value) || existing.price || 10000;
+      const costPrice = Number(row.querySelector(".menu-item-cost")?.value) || 0;
+      return {
+        ...existing,
+        id: existing.id || `item_${i}`,
+        name,
+        shortName: name,
+        category: name,
+        price,
+        costPrice,
+      };
+    });
+
+    await luuDanhSachMenu(updated);
+    state = await docDuLieu();
+    renderAll();
+    showToast("Đã lưu bảng giá Menu và Giá Vốn thành công!");
+    triggerAutoSync();
+  });
+
+  // Branch Manager Save & Add buttons
+  $("#addNewBranchBtn")?.addEventListener("click", () => {
+    state.branches = state.branches || [];
+    state.branches.push({
+      id: `branch_${Date.now()}`,
+      name: `Chi nhánh ${state.branches.length + 1}`,
+    });
+    renderBranchManager();
+  });
+
+  $("#saveBranchesBtn")?.addEventListener("click", async () => {
+    const rows = $$("#branchListEditor .branch-item-row");
+    const updated = rows.map((row, i) => {
+      const existing = (state.branches || [])[i] || {};
+      const name = row.querySelector(".branch-name-input")?.value?.trim() || `Chi nhánh ${i + 1}`;
+      return {
+        id: existing.id || `branch_${i}`,
+        name,
+      };
+    });
+
+    await luuDanhSachChiNhanh(updated);
+    state = await docDuLieu();
+    renderAll();
+    showToast("Đã lưu danh sách chi nhánh thành công!");
+    triggerAutoSync();
+  });
+
+  // Opening Cash Float buttons
+  $("#editOpeningCashBtn")?.addEventListener("click", () => {
+    const dialog = $("#editOpeningCashDialog");
+    const input = $("#todayOpeningCashInput");
+    if (!dialog || !input) return;
+    input.value = getTodayOpeningCash();
+    dialog.showModal();
+  });
+
+  $("#cancelOpeningCashBtn")?.addEventListener("click", () => {
+    $("#editOpeningCashDialog")?.close();
+  });
+
+  $("#saveTodayOpeningCashBtn")?.addEventListener("click", async () => {
+    const input = $("#todayOpeningCashInput");
+    const amount = Number(input?.value?.replace(/[^0-9]/g, "")) || 0;
+    const today = todayKey();
+    const branch = state.currentBranch || "Quán Nhà (Chính)";
+    await luuTienThoiDauNgay(today, amount, branch);
+    state = await docDuLieu();
+    renderAll();
+    $("#editOpeningCashDialog")?.close();
+    showToast(`Đã lưu tiền thối đầu ngày: ${formatMoney(amount)}`);
+    triggerAutoSync();
+  });
+
+  $("#saveDefaultOpeningCashBtn")?.addEventListener("click", async () => {
+    const input = $("#defaultOpeningCashInput");
+    const amount = Number(input?.value?.replace(/[^0-9]/g, "")) || 500000;
+    await luuTienThoiMacDinh(amount);
+    state = await docDuLieu();
+    renderAll();
+    showToast(`Đã lưu tiền thối mặc định: ${formatMoney(amount)}`);
+    triggerAutoSync();
+  });
+
+  // CSV & JSON Backup buttons
+  $("#exportTodayBtn")?.addEventListener("click", () => {
+    const items = (state.ds || []).filter((it) => !it.deleted && it.ngay === todayKey());
+    const header = "Mã,Ngày,Giờ,Điểm bán,Loại,Danh mục,Số lượng,Số tiền (đ),Giá vốn (đ),Ghi chú\n";
+    const rows = items
+      .map(
+        (it) =>
+          `"${it.id}","${it.ngay}","${it.gio || ""}","${it.chiNhanh || "Quán Nhà"}","${it.loai}","${it.danhMuc}","${it.soLuong || 1}","${it.soTien}","${it.tongGiaCost || 0}","${(it.ghiChu || "").replace(/"/g, '""')}"`,
+      )
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + header + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ThuChi_${todayKey()}.csv`;
+    a.click();
+    showToast("Đã xuất bảng tính Excel hôm nay");
+  });
+
+  $("#backupBtn")?.addEventListener("click", async () => {
+    const json = await xuatDuLieuJson();
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `SaoLuu_NuocMia_${todayKey()}.json`;
+    a.click();
+    showToast("Đã tải tệp sao lưu dữ liệu về máy");
+  });
+
+  $("#restoreInput")?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      await nhapDuLieuTuJson(text);
+      state = await docDuLieu();
+      renderAll();
+      showToast("Khôi phục dữ liệu từ tệp thành công!");
+      triggerAutoSync();
+    } catch (err) {
+      showToast(`Lỗi khôi phục: ${err.message}`, true);
+    }
+  });
+
+  $("#clearDataBtn")?.addEventListener("click", async () => {
+    if (!confirm("CẢNH BÁO: Hành động này sẽ xóa toàn bộ giao dịch trên máy này. Bạn có chắc chắn muốn xóa?")) return;
+    await xoaTatCaDuLieu();
+    state = await docDuLieu();
+    renderAll();
+    showToast("Đã xóa tất cả dữ liệu");
+  });
+
+  // Supabase Auth Settings
+  $("#loginBtn")?.addEventListener("click", async () => {
+    const email = $("#loginEmail")?.value?.trim();
+    const pass = $("#loginPassword")?.value?.trim();
+    if (!email || !pass) {
+      showToast("Vui lòng nhập Email và Mật khẩu", true);
+      return;
+    }
+    try {
+      await dangNhap(email, pass);
+      showToast("Đăng nhập thành công!");
+      authLoggedIn = true;
+      $("#authScreen").hidden = true;
+      triggerAutoSync();
+    } catch (err) {
+      showToast(`Lỗi đăng nhập: ${err.message}`, true);
+    }
+  });
+
+  $("#signupBtn")?.addEventListener("click", async () => {
+    const email = $("#loginEmail")?.value?.trim();
+    const pass = $("#loginPassword")?.value?.trim();
+    if (!email || !pass) {
+      showToast("Vui lòng nhập Email và Mật khẩu", true);
+      return;
+    }
+    try {
+      await dangKy(email, pass);
+      showToast("Tạo tài khoản thành công!");
+    } catch (err) {
+      showToast(`Lỗi tạo tài khoản: ${err.message}`, true);
+    }
+  });
+
+  $("#syncNowBtn")?.addEventListener("click", async () => {
+    showToast("Đang đồng bộ...");
+    try {
+      await dongBo();
+      state = await docDuLieu();
+      renderAll();
+      showToast("Đồng bộ hoàn tất!");
+    } catch (err) {
+      showToast(syncErrorMessage(err), true);
+    }
+  });
+
+  // Auth Screen Form
+  $("#authForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("#authEmail")?.value?.trim();
+    const pass = $("#authPassword")?.value?.trim();
+    try {
+      await dangNhap(email, pass);
+      $("#authScreen").hidden = true;
+      $(".app-shell")?.classList.remove("is-auth-locked");
+      authLoggedIn = true;
+      showToast("Đăng nhập thành công!");
+      triggerAutoSync();
+    } catch (err) {
+      showToast(`Lỗi đăng nhập: ${err.message}`, true);
+    }
+  });
+
+  $("#authSignupBtn")?.addEventListener("click", async () => {
+    const email = $("#authEmail")?.value?.trim();
+    const pass = $("#authPassword")?.value?.trim();
+    if (!email || !pass) {
+      showToast("Vui lòng nhập Email và Mật khẩu", true);
+      return;
+    }
+    try {
+      await dangKy(email, pass);
+      showToast("Đã tạo tài khoản! Vui lòng bấm Đăng nhập.");
+    } catch (err) {
+      showToast(`Lỗi tạo tài khoản: ${err.message}`, true);
+    }
+  });
+}
+
+function openVoiceConfirmDialog(parsed, rawText) {
+  const dialog = $("#confirmDialog");
+  if (!dialog) return;
+
+  $("#voiceAmount").textContent = formatMoney(parsed.soTien);
+  $("#voiceTypeBadge").textContent = parsed.loai === "thu" ? "+ Thu" : "- Chi";
+  $("#voiceDetail").textContent = parsed.moTaXacNhan || parsed.danhMuc;
+  $("#voiceCategory").textContent = parsed.danhMuc || "Danh mục";
+  $("#voiceConfidence").textContent = `Độ tin cậy: ${parsed.confidence === "high" ? "Cao" : parsed.confidence === "medium" ? "Trung bình" : "Thấp"}`;
+  $("#voiceQuantity").textContent = `Số lượng: ${parsed.soLuong || 1} ly`;
+  $("#voicePriceMode").textContent = `Cách tính: ${parsed.slots?.priceMode === "unit" ? "Đơn giá x SL" : "Tổng tiền"}`;
+  $("#heardText").textContent = `Đã nghe: "${rawText}"`;
+
+  // Set inputs
+  const confirmTypeRadio = $(`#confirmForm input[name='confirmType'][value='${parsed.loai}']`);
+  if (confirmTypeRadio) confirmTypeRadio.checked = true;
+  $("#confirmAmount").value = parsed.soTien;
+  $("#confirmQuantity").value = parsed.soLuong || 1;
+  $("#confirmNote").value = rawText;
+
+  // Render categories in confirm select
+  const confirmCatSelect = $("#confirmCategory");
+  if (confirmCatSelect) {
+    const cats = parsed.loai === "thu" ? (state.danhMuc?.thu || []) : (state.danhMuc?.chi || []);
+    confirmCatSelect.innerHTML = cats.map((c) => `<option value="${c}" ${c === parsed.danhMuc ? "selected" : ""}>${c}</option>`).join("");
+  }
+
+  // Voice confirmation prompt speech
+  docLai(confirmationSpeech(parsed));
+
+  dialog.showModal();
+
+  $("#confirmForm").onsubmit = async (e) => {
+    if (e.submitter?.value === "save") {
+      const type = $("#confirmForm input[name='confirmType']:checked")?.value || "thu";
+      const amount = Number($("#confirmAmount")?.value) || parsed.soTien;
+      const qty = Number($("#confirmQuantity")?.value) || parsed.soLuong || 1;
+      const cat = $("#confirmCategory")?.value || parsed.danhMuc;
+      const note = $("#confirmNote")?.value || rawText;
+
+      const unitCost = parsed.giaCostDonVi || (state.quickItems || []).find((q) => q.name === cat || q.category === cat)?.costPrice || 0;
+
+      await themGiaoDich({
+        loai: type,
+        soTien: amount,
+        soLuong: qty,
+        giaCostDonVi: unitCost,
+        tongGiaCost: qty * unitCost,
+        danhMuc: cat,
+        ghiChu: note,
+        cauNoiGoc: rawText,
+        daSuaTay: true,
+        chiNhanh: state.currentBranch,
+      });
+
+      state = await docDuLieu();
+      renderAll();
+      showToast(`Đã lưu ${type === "thu" ? "+ Thu" : "- Chi"} ${formatMoney(amount)}`);
+      triggerAutoSync();
+    }
+  };
+}
+
+// ----------------------------------------------------
+// INITIALIZATION
+// ----------------------------------------------------
+
+async function init() {
+  // Set default dates
+  $("#statsDateInput").value = statsDate;
+  $("#statsWeekInput").value = statsWeekDate;
+
+  // Render everything
+  renderAll();
+  initEventListeners();
+
+  // Check auth session
+  if (!isAuthBypassedForTest()) {
+    try {
+      const isAuth = await daDangNhap();
+      if (!isAuth) {
+        $("#authScreen").hidden = false;
+        $(".app-shell")?.classList.add("is-auth-locked");
+      } else {
+        $("#authScreen").hidden = true;
+        $(".app-shell")?.classList.remove("is-auth-locked");
+        authLoggedIn = true;
+        triggerAutoSync();
+      }
+    } catch {
+      $("#authScreen").hidden = false;
+      $(".app-shell")?.classList.add("is-auth-locked");
+    }
+  }
+
+  console.log("Sổ Quán Nước Mía 2.0 đã khởi động thành công!");
+}
+
+init();

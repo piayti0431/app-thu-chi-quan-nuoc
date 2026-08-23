@@ -1,0 +1,22 @@
+# Secrets and local notes
+*.keystore
+*.jks
+android/keystore.properties
+GHI-CHU.md
+
+# Dependencies and build output
+node_modules/
+android/.gradle/
+android/app/build/
+supabase/.branches/
+supabase/.temp/
+dist/
+build/
+.vercel/
+visual-artifacts/
+scratch/
+tests/*.png
+
+# Local editor/OS noise
+.DS_Store
+Thumbs.db

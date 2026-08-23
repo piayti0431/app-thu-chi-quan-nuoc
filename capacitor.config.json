@@ -1,0 +1,10 @@
+{
+  "appId": "com.giadinh.nuocmia",
+  "appName": "So Quan Nuoc Mia",
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 500
+    }
+  }
+}

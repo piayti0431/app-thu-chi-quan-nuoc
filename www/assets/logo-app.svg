@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Logo sổ quán nước mía">
+  <defs>
+    <linearGradient id="bg" x1="18" x2="110" y1="12" y2="118" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f8f68"/>
+      <stop offset="0.58" stop-color="#0a6a73"/>
+      <stop offset="1" stop-color="#f2762e"/>
+    </linearGradient>
+    <linearGradient id="cup" x1="41" x2="87" y1="52" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fffdf2"/>
+      <stop offset="1" stop-color="#d9f3e8"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#bg)"/>
+  <path d="M33 29 77 101" fill="none" stroke="#f7d66b" stroke-linecap="round" stroke-width="10"/>
+  <path d="M48 22 92 94" fill="none" stroke="#c7e95a" stroke-linecap="round" stroke-width="10"/>
+  <path d="M28 51h32M42 75h33M56 99h33" fill="none" stroke="#fff8cf" stroke-linecap="round" stroke-width="7"/>
+  <path d="M39 55h50l-7 55H46L39 55Z" fill="url(#cup)" opacity="0.96"/>
+  <path d="M45 66h38M49 94h30" fill="none" stroke="#0f766e" stroke-linecap="round" stroke-width="6" opacity="0.8"/>
+  <circle cx="90" cy="38" r="13" fill="#ff9a3d"/>
+  <path d="M90 25c3-9 11-12 21-9-3 10-10 14-21 9Z" fill="#b5df49"/>
+</svg>

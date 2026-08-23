@@ -1,0 +1,45 @@
+{
+  "name": "app-thu-chi-quan-nuoc",
+  "version": "1.0.0",
+  "description": "App thu chi quan nuoc mia, chay web va dong goi APK bang Capacitor.",
+  "main": "www/js/app.js",
+  "scripts": {
+    "start": "npx http-server www -p 4173 -c-1",
+    "test": "node tests/branch-menu-stats.test.mjs && node tests/daily-report.test.mjs && node tests/vietnamese-speech-report.test.mjs && node tests/parser.test.mjs && node tests/voice-products.test.mjs && node tests/voice-sensitive.test.mjs && node tests/voice-fuzzy-products.test.mjs && node tests/voice-semantic-parser.test.mjs && node tests/voice-batch.test.mjs && node tests/voice-resilience.test.mjs && node tests/voice-expenses.test.mjs && node tests/speech.test.mjs && node tests/speech-stress.test.mjs && node tests/sync-model.test.mjs && node tests/clear-all-sync.test.mjs && node tests/auth-remember.test.mjs && node tests/production-guardrails.test.mjs && node tests/realtime-sync.test.mjs && node tests/updater.test.mjs",
+    "test:smoke": "node tests/smoke.test.mjs && node tests/sync-flow-smoke.test.mjs",
+    "test:mic-ui": "node tests/mic-click-stress.test.mjs && node tests/category-picker.test.mjs",
+    "test:visual": "node tests/auth-screen.test.mjs && node tests/visual-check.mjs && node tests/responsive-audit.test.mjs && node tests/vietnamese-ui.test.mjs",
+    "cap:init": "npx cap init \"So Quan Nuoc Mia\" \"com.giadinh.nuocmia\" --web-dir=www",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "android:build:debug": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-debug-apk.ps1",
+    "android:build:release": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-release-apk.ps1",
+    "android:publish:update": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-update.ps1",
+    "android:emulator": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-emulator.ps1",
+    "android:install:emulator": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-on-emulator.ps1",
+    "supabase:link": "npx supabase link --project-ref",
+    "supabase:push": "npx supabase db push"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.1",
+    "@supabase/supabase-js": "^2.110.5",
+    "chart.js": "^4.5.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "http-server": "^14.1.1",
+    "supabase": "^2.109.1"
+  }
+}

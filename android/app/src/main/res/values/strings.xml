@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sổ Quán Nước Mía</string>
+    <string name="title_activity_main">Sổ Quán Nước Mía</string>
+    <string name="package_name">com.giadinh.nuocmia</string>
+    <string name="custom_url_scheme">com.giadinh.nuocmia</string>
+</resources>
