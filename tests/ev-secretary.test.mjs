@@ -386,4 +386,79 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Executive Finance: P&L Report, COGS analysis, and Break-Even calculations");
 }
 
+// Test 17: "khách vừa chuyển khoản 169k tiền trà tắc" -> Không chia hết cho 10k -> EV hỏi lại, sau đó user đáp "17 ly" -> Ghi sổ 17 ly
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    quickItems: [{ id: "tra_tac", name: "Trà tắc", price: 10000, costPrice: 7000 }],
+    ds: [],
+  };
+
+  const res1 = phanTichTaiChinhNoiBo("khách vừa chuyển khoản 169k tiền trà tắc", mockState);
+  assert.equal(res1.type, "question", "Số tiền 169k không chia hết cho 10k -> EV phải hỏi lại làm rõ");
+  assert.ok(res1.reply.includes("169.000"), "Phải chứa số tiền 169k");
+  assert.ok(res1.reply.toLowerCase().includes("trà tắc"), "Phải nhắc đúng món Trà tắc");
+
+  // User trả lời làm rõ: "17 ly"
+  const res2 = phanTichTaiChinhNoiBo("17 ly", mockState);
+  assert.equal(res2.type, "command");
+  assert.equal(res2.parsed.loai, "thu");
+  assert.equal(res2.parsed.danhMuc, "Trà tắc");
+  assert.equal(res2.parsed.soLuong, 17);
+  assert.equal(res2.parsed.soTien, 169000);
+  assert.equal(res2.parsed.tongGiaCost, 119000, "17 ly x 7k vốn = 119.000đ");
+
+  console.log("PASS EV Discrepancy: '169k trà tắc' -> asks clarification -> '17 ly' -> records 17 ly with 169k");
+}
+
+// Test 18: "khách mua 3k nước đá" -> + Thu tiền bán: Nước đá (3.000đ)
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    quickItems: [],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("khách mua 3k nước đá", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.loai, "thu");
+  assert.equal(res.parsed.danhMuc, "Nước đá");
+  assert.equal(res.parsed.soTien, 3000);
+  assert.equal(res.parsed.tongGiaCost, 0);
+
+  console.log("PASS EV Ice Sale: 'khách mua 3k nước đá' -> + Thu 3k Nước đá");
+}
+
+// Test 19: Đơn nhiều món trong 1 câu: "khách mua 8 ly cam, 2 ly rau má, 1 rau má đuậ, 3 trà tắc, 4 ly mía"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [
+      { id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 3000, voiceUnit: "ly" },
+      { id: "nuoc_cam", name: "Nước cam", price: 15000, costPrice: 7000, voiceUnit: "ly" },
+      { id: "rau_ma", name: "Rau má tươi", price: 10000, costPrice: 4000, voiceUnit: "ly" },
+      { id: "rau_ma_dau_xanh", name: "Rau má đậu xanh", price: 15000, costPrice: 6000, voiceUnit: "ly" },
+      { id: "tra_tac", name: "Trà tắc", price: 10000, costPrice: 7000, voiceUnit: "ly" },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("khách mua 8 ly cam, 2 ly rau má, 1 rau má đuậ, 3 trà tắc, 4 ly mía", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.action, "add_batch_transactions");
+  assert.equal(res.items.length, 5, "Phải bóc tách được đúng 5 món");
+  assert.equal(res.items[0].danhMuc, "Nước cam", "Món 1 phải là Nước cam (không được nhầm thành Mía cam)");
+  assert.equal(res.items[0].soLuong, 8);
+  assert.equal(res.items[1].danhMuc, "Rau má tươi");
+  assert.equal(res.items[1].soLuong, 2);
+  assert.equal(res.items[2].danhMuc, "Rau má đậu xanh", "Món 3 phải nhận ra Rau má đậu xanh dù gõ lỗi đuậ");
+  assert.equal(res.items[2].soLuong, 1);
+  assert.equal(res.items[3].danhMuc, "Trà tắc");
+  assert.equal(res.items[3].soLuong, 3);
+  assert.equal(res.items[4].danhMuc, "Nước mía thường");
+  assert.equal(res.items[4].soLuong, 4);
+
+  console.log("PASS EV Multi-item Batch: '8 cam, 2 rau má, 1 rau má đuậ, 3 trà tắc, 4 mía' -> all 5 items parsed accurately!");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

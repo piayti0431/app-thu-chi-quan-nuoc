@@ -1694,6 +1694,34 @@ function setupAIAssistant() {
       }
 
       // 2. Lệnh ghi chép giao dịch thực tế của Thư Ký EV
+      if (result.type === "command" && result.action === "add_batch_transactions" && Array.isArray(result.items)) {
+        for (const item of result.items) {
+          const branchToUse = item.chiNhanh || result.branch || state.currentBranch || "Quán Nhà (Chính)";
+          await themGiaoDich({
+            loai: item.loai,
+            soTien: item.soTien,
+            soLuong: item.soLuong || 1,
+            donViTinh: item.donViTinh || "ly",
+            phuongThuc: item.phuongThuc || "tien_mat",
+            giaCostDonVi: item.giaCostDonVi || 0,
+            tongGiaCost: item.tongGiaCost || 0,
+            danhMuc: item.danhMuc,
+            ghiChu: item.ghiChu || q,
+            cauNoiGoc: q,
+            daSuaTay: false,
+            chiNhanh: branchToUse,
+          });
+        }
+        state = await docDuLieu();
+        renderAll();
+        triggerAutoSync();
+
+        loadingDiv.remove();
+        appendBotMessage(result.reply);
+        showToast(`Đã ghi sổ ${result.items.length} món (${formatMoney(result.total || 0)})`);
+        return;
+      }
+
       if (result.type === "command") {
         const parsed = result.parsed || phanTichChiTiet(q, state.quickItems || []);
         if (parsed.soTien > 0) {

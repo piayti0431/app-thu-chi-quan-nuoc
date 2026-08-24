@@ -100,8 +100,11 @@ function editDistance(a, b) {
   return previous[right.length];
 }
 
+const STOP_WORDS = new Set(["mua", "ban", "cho", "lay", "tra", "tien", "them", "khach", "moi", "nho", "hoc"]);
+
 function tokenMatches(token, words) {
   if (words.has(token)) return true;
+  if (STOP_WORDS.has(token)) return false;
   return [...words].some(
     (word) => word.length >= 3 && token[0] === word[0] && editDistance(token, word) <= 1,
   );
@@ -343,7 +346,12 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
   const hasMia = normalized.includes("mia") || hasToken(tokens, MIA_WORDS);
   const hasCam = normalized.includes("cam") || hasToken(tokens, CAM_WORDS);
   const hasRauMa = normalized.includes("rau ma") || normalized.includes("ma") || normalized.includes("rauma");
-  const hasDauXanh = normalized.includes("dau xanh") || normalized.includes("dau") || normalized.includes("dauxanh");
+  const hasDauXanh =
+    normalized.includes("dau xanh") ||
+    normalized.includes("dau") ||
+    normalized.includes("dauxanh") ||
+    normalized.includes("dua") ||
+    normalized.includes("duan");
   const hasSua = normalized.includes("sua");
   const hasTac = normalized.includes("tac") || normalized.includes("quat") || normalized.includes("tra tac");
   const hasNuoc = normalized.includes("nuoc") || hasToken(tokens, NUOC_WORDS);
@@ -361,11 +369,29 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
   ];
 
   const candidates = [];
+
+  // Hỗ trợ món bán Nước đá (Ví dụ: "khách mua 3k nước đá")
+  const hasNuocDa = (normalized.includes("nuoc da") || normalized.includes("da bi") || normalized.includes("da")) && !hasMia && !hasCam && !hasRauMa && !hasTac;
+  if (hasNuocDa) {
+    candidates.push({
+      id: "nuoc_da",
+      name: "Nước đá",
+      unit: "bịch",
+      spokenUnit: "bịch",
+      category: "Nước đá",
+      price: 3000,
+      costPrice: 0,
+      quantity: 1,
+      score: 95,
+      reasons: ["có từ nước đá"],
+    });
+  }
+
   for (const item of productList) {
     let score = 0;
     const reasons = [];
 
-    if (item.id === "rau_ma_dau_xanh" && (normalized.includes("dau xanh") || (hasRauMa && hasDauXanh) || normalized.includes("ma dau"))) {
+    if (item.id === "rau_ma_dau_xanh" && (normalized.includes("dau xanh") || (hasRauMa && hasDauXanh) || normalized.includes("ma dau") || normalized.includes("ma dua"))) {
       score += 100;
       reasons.push("có từ rau má đậu xanh");
     } else if (item.id === "rau_ma_sua" && (normalized.includes("rau ma sua") || normalized.includes("ma sua") || (hasRauMa && hasSua))) {
@@ -544,9 +570,14 @@ function parseMoney(normalized, tokens, type, product) {
     // Tự động suy luận số lượng món dựa theo đơn giá trên Menu
     // Ví dụ: "khách chuyển khoản 100k trà tắc" -> tự suy ra 10 ly
     if (type === "thu" && product && !product.spokenUnit) {
-      if (product.price > 0 && explicitMoney > product.price && explicitMoney % product.price === 0) {
-        product.quantity = Math.round(explicitMoney / product.price);
-        return { amount: explicitMoney, priceMode: "total", explicitMoney };
+      if (product.price > 0 && explicitMoney > product.price) {
+        if (explicitMoney % product.price === 0) {
+          product.quantity = Math.round(explicitMoney / product.price);
+          return { amount: explicitMoney, priceMode: "total", explicitMoney };
+        } else {
+          // Số tiền KHÔNG chia hết cho đơn giá menu (VD: 169k trà tắc, 145k, 176k)
+          return { amount: explicitMoney, priceMode: "discrepancy", explicitMoney };
+        }
       }
       if (explicitMoney >= 50000 && explicitMoney % 10000 === 0) {
         product.quantity = Math.round(explicitMoney / 10000);
