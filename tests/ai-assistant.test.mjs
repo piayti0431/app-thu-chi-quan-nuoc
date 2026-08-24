@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { phanTichTaiChinhNoiBo } from "../www/js/ai-assistant.js";
 
+const today = (() => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+})();
+
 const mockState = {
   defaultOpeningCash: 500000,
   quickItems: [
@@ -10,7 +18,7 @@ const mockState = {
   ds: [
     {
       id: 1,
-      ngay: new Date().toISOString().split("T")[0],
+      ngay: today,
       loai: "thu",
       danhMuc: "Nước mía thường",
       soLuong: 10,
@@ -22,7 +30,7 @@ const mockState = {
     },
     {
       id: 2,
-      ngay: new Date().toISOString().split("T")[0],
+      ngay: today,
       loai: "thu",
       danhMuc: "Nước cam",
       soLuong: 4,
@@ -34,7 +42,7 @@ const mockState = {
     },
     {
       id: 3,
-      ngay: new Date().toISOString().split("T")[0],
+      ngay: today,
       loai: "chi",
       danhMuc: "Mua đá",
       soLuong: 1,

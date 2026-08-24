@@ -39,8 +39,51 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Voice Transaction Parsing with Branch Binding");
 }
 
-// Test 3: Multi-branch financial report with EV persona
+// Test 3: Thêm món vào Menu qua câu lệnh tự nhiên của người dùng
 {
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 10000, costPrice: 3000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("thêm vào menu món Mía Thơm, tiền bán 1 ly là 10k", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "add_menu_item");
+  assert.equal(res.item.name, "Mía Thơm");
+  assert.equal(res.item.price, 10000);
+  assert.equal(res.item.costPrice, 4000);
+  assert.equal(res.item.voiceUnit, "ly");
+  assert.ok(res.reply.includes("Mía Thơm"), "Phải có thông báo thêm món Mía Thơm");
+
+  console.log("PASS EV Add Menu Item via natural user command: Mía Thơm 10k");
+}
+
+// Test 4: Đính chính ngữ cảnh (Correction / Clarification)
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("tôi bảo là thêm vào menu không phải doanh thu", mockState);
+  assert.equal(res.type, "clarification");
+  assert.ok(res.reply.includes("xin lỗi"), "Phải nhận ra đây là câu đính chính và phản hồi tế nhị");
+
+  console.log("PASS EV Intent Clarification: Correcting false assumptions politely");
+}
+
+// Test 5: Multi-branch financial report with EV persona
+{
+  const today = (() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  })();
+
   const mockState = {
     currentBranch: "Quán Nhà (Chính)",
     defaultOpeningCash: 500000,
@@ -48,7 +91,7 @@ console.log("Starting ev-secretary.test.mjs...");
     ds: [
       {
         id: 1,
-        ngay: new Date().toISOString().split("T")[0],
+        ngay: today,
         loai: "thu",
         danhMuc: "Nước mía thường",
         soLuong: 10,
@@ -60,7 +103,7 @@ console.log("Starting ev-secretary.test.mjs...");
       },
       {
         id: 2,
-        ngay: new Date().toISOString().split("T")[0],
+        ngay: today,
         loai: "thu",
         danhMuc: "Nước mía thường",
         soLuong: 5,

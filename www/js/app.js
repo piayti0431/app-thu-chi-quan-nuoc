@@ -1556,7 +1556,65 @@ function setupAIAssistant() {
       const apiKey = state.sync?.geminiApiKey || "";
       const result = await hoiGeminiAI(q, state, apiKey);
 
-      // Nếu là lệnh ghi chép giao dịch của Thư Ký EV
+      // 1. Lệnh hành động quản lý (Thêm món, Sửa món, Xóa món, Chuyển quán)
+      if (result.type === "action") {
+        if (result.action === "add_menu_item") {
+          state.quickItems = state.quickItems || [];
+          const existingIdx = state.quickItems.findIndex(
+            (i) => i.name.toLowerCase() === result.item.name.toLowerCase()
+          );
+          if (existingIdx >= 0) {
+            state.quickItems[existingIdx] = result.item;
+          } else {
+            state.quickItems.push(result.item);
+          }
+
+          state.danhMuc = state.danhMuc || { thu: [], chi: [] };
+          state.danhMuc.thu = state.danhMuc.thu || [];
+          if (!state.danhMuc.thu.includes(result.item.name)) {
+            state.danhMuc.thu.push(result.item.name);
+          }
+
+          await luuDuLieu(state);
+          state = await docDuLieu();
+          renderAll();
+          triggerAutoSync();
+
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          docLai(`Dạ EV đã thêm món ${result.item.name} giá ${docSoTienTiengViet(result.item.price)} vào Menu rồi ạ.`);
+          showToast(`Đã thêm món ${result.item.name}`);
+          return;
+        }
+
+        if (result.action === "delete_menu_item") {
+          state.quickItems = (state.quickItems || []).filter((i) => i.id !== result.itemId);
+          await luuDuLieu(state);
+          state = await docDuLieu();
+          renderAll();
+          triggerAutoSync();
+
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          docLai(`Dạ EV đã xóa món ${result.itemName} khỏi Menu rồi ạ.`);
+          showToast(`Đã xóa món ${result.itemName}`);
+          return;
+        }
+
+        if (result.action === "switch_branch") {
+          await capNhatCurrentBranch(result.branch);
+          state = await docDuLieu();
+          renderAll();
+
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          docLai(`Dạ EV đã chuyển sang ${result.branch} rồi ạ.`);
+          showToast(`Đã chuyển sang ${result.branch}`);
+          return;
+        }
+      }
+
+      // 2. Lệnh ghi chép giao dịch thực tế của Thư Ký EV
       if (result.type === "command") {
         const parsed = phanTichChiTiet(q, state.quickItems || []);
         if (parsed.soTien > 0) {
@@ -1599,6 +1657,7 @@ function setupAIAssistant() {
 
       loadingDiv.remove();
       appendBotMessage(result.reply);
+      docLai(result.reply);
     } catch (e) {
       loadingDiv.remove();
       appendBotMessage("Dạ EV xin lỗi, đã xảy ra lỗi khi phân tích. Bạn vui lòng thử lại câu hỏi khác nhé!");
