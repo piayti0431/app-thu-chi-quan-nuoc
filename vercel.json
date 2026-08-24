@@ -3,12 +3,6 @@
   "public": true,
   "cleanUrls": true,
   "trailingSlash": false,
-  "buildCommand": null,
-  "outputDirectory": "www",
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ]
+  "buildCommand": "npm run build",
+  "outputDirectory": "www"
 }
