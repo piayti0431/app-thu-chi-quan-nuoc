@@ -127,7 +127,53 @@ export const DEFAULT_DATA = {
       voiceUnit: "ly",
     },
   ],
-  quickPrices: [8000, 15000, 15000, 10000, 15000, 15000, 15000, 15000],
+  crmCustomers: [
+    {
+      id: "cust_chu_a",
+      name: "Chú A (Chú đối diện)",
+      aliases: ["chú a", "chu a", "chú đối diện", "chu doi dien", "chú tư", "chu tu", "chú xe ôm"],
+      defaultDrink: "Nước mía thường",
+      defaultQty: 1,
+      price: 8000,
+      paymentMethod: "tien_mat",
+      note: "Uống mía ít đường",
+      debt: 0,
+    },
+    {
+      id: "cust_anh_b",
+      name: "Anh B (Anh kế bên)",
+      aliases: ["anh b", "anh kế bên", "anh ke ben", "anh sửa xe", "anh sua xe", "anh hùng", "anh hung"],
+      defaultDrink: "Mía cam",
+      defaultQty: 2,
+      price: 30000,
+      paymentMethod: "chuyen_khoan",
+      note: "Thường lấy 2 ly mía cam",
+      debt: 0,
+    },
+    {
+      id: "cust_chi_lan",
+      name: "Chị Lan (Tiệm nail)",
+      aliases: ["chị lan", "chi lan", "chị tiệm tóc", "chi tiem toc", "chị tiệm nail", "chi tiem nail"],
+      defaultDrink: "Trà tắc",
+      defaultQty: 1,
+      price: 10000,
+      paymentMethod: "chuyen_khoan",
+      note: "Uống trà tắc nhiều đá ít ngọt",
+      debt: 0,
+    },
+  ],
+  knowledgeBase: {
+    suppliers: [
+      { name: "Anh Ba đá", category: "Mua đá", defaultPrice: 15000, unit: "bao", keywords: ["anh ba", "da anh ba"] },
+      { name: "Vựa mía Năm", category: "Mua mía", defaultPrice: 180000, unit: "bó", keywords: ["vua nam", "vua mia nam", "chu nam"] },
+    ],
+    rules: [
+      "Tỷ lệ giá vốn COGS mục tiêu: 28% - 35% doanh thu",
+      "Khách quen có thể dùng từ 'như cũ' để order món quen",
+      "Tiền nợ không tính vào tiền mặt trong két cho tới khi khách trả nợ",
+      "Điểm hòa vốn ước tính toàn hệ thống: 120 ly / ngày",
+    ],
+  },
   sync: {
     supabaseUrl: "https://rbvpsaotqmddtvcxkyxz.supabase.co",
     supabaseAnon:
@@ -580,3 +626,35 @@ export async function luuTienThoiMacDinh(soTien) {
 export async function xuatDuLieuJson() {
   return JSON.stringify(await docDuLieu(), null, 2);
 }
+
+export async function luuKhachQuen(customer) {
+  const data = await docDuLieu();
+  data.crmCustomers = data.crmCustomers || [];
+  const idx = data.crmCustomers.findIndex((c) => c.id === customer.id || c.name.toLowerCase() === customer.name.toLowerCase());
+  if (idx >= 0) {
+    data.crmCustomers[idx] = { ...data.crmCustomers[idx], ...customer };
+  } else {
+    data.crmCustomers.push({
+      id: customer.id || `cust_${Date.now()}`,
+      ...customer,
+    });
+  }
+  await luuDuLieu(data);
+  return data.crmCustomers;
+}
+
+export async function xoaKhachQuen(customerId) {
+  const data = await docDuLieu();
+  data.crmCustomers = (data.crmCustomers || []).filter((c) => c.id !== customerId);
+  await luuDuLieu(data);
+  return data.crmCustomers;
+}
+
+export async function luuTriThucEV(key, value) {
+  const data = await docDuLieu();
+  data.knowledgeBase = data.knowledgeBase || {};
+  data.knowledgeBase[key] = value;
+  await luuDuLieu(data);
+  return data.knowledgeBase;
+}
+

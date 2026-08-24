@@ -280,4 +280,110 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV: 'ý là khách vừa chuyển 150k tiền mua 10 ly trà tắc' -> + Thu 150k 10 ly Trà tắc, vốn 70k");
 }
 
+// Test 13: Trí nhớ Khách quen: "chú đối diện lấy 2 ly" -> Tự hiểu Chú A lấy 2 ly Mía thường (16k), tiền mặt
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 3000, voiceUnit: "ly" }],
+    crmCustomers: [
+      {
+        id: "cust_chu_a",
+        name: "Chú A (Chú đối diện)",
+        aliases: ["chú a", "chú đối diện", "chú tư"],
+        defaultDrink: "Nước mía thường",
+        defaultQty: 1,
+        paymentMethod: "tien_mat",
+      },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("chú đối diện lấy 2 ly", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.loai, "thu");
+  assert.equal(res.parsed.danhMuc, "Nước mía thường");
+  assert.equal(res.parsed.soLuong, 2);
+  assert.equal(res.parsed.soTien, 16000);
+  assert.equal(res.parsed.tongGiaCost, 6000);
+  assert.equal(res.parsed.phuongThuc, "tien_mat");
+  assert.ok(res.reply.includes("Chú A"));
+
+  console.log("PASS EV CRM Memory: 'chú đối diện lấy 2 ly' -> 2 ly Nước mía thường (16k), TM");
+}
+
+// Test 14: Tự học khách quen qua chat: "EV nhớ là chú Ba bảo vệ hay uống 1 ly rau má đậu 15k nhé"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [],
+    crmCustomers: [],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV nhớ là chú Ba bảo vệ hay uống 1 ly rau má đậu 15k nhé", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "learn_customer");
+  assert.ok(res.customer.name.includes("Chú Ba"));
+  assert.equal(res.customer.defaultDrink, "Rau má đậu xanh");
+  assert.equal(res.customer.price, 15000);
+  assert.ok(res.reply.includes("Sổ tay Khách Quen"));
+
+  console.log("PASS EV In-Chat Learning: 'EV nhớ là chú Ba...' -> learns customer profile");
+}
+
+// Test 15: Ghi nợ khách quen: "anh B thiếu 30k mai trả"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "mia_cam", name: "Mía cam", price: 15000, costPrice: 6000, voiceUnit: "ly" }],
+    crmCustomers: [
+      {
+        id: "cust_anh_b",
+        name: "Anh B",
+        aliases: ["anh b", "anh kế bên"],
+        defaultDrink: "Mía cam",
+        defaultQty: 2,
+        paymentMethod: "chuyen_khoan",
+      },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("anh B thiếu 30k mai trả", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "customer_debt");
+  assert.equal(res.debtAmount, 15000); // 1 ly default hoặc trích xuất
+  assert.ok(res.reply.includes("Sổ Nợ"));
+
+  console.log("PASS EV Debt Tracking: 'anh B thiếu 30k mai trả' -> records debt");
+}
+
+// Test 16: Phân tích Tài chính F&B, P&L và Điểm hòa vốn
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [],
+    ds: [
+      { id: 1, loai: "thu", soTien: 800000, tongGiaCost: 250000, deleted: false, ngay: new Date().toISOString().split("T")[0] },
+      { id: 2, loai: "chi", soTien: 100000, deleted: false, ngay: new Date().toISOString().split("T")[0] },
+    ],
+  };
+
+  const resPnl = phanTichTaiChinhNoiBo("báo cáo P&L hôm nay", mockState);
+  assert.equal(resPnl.type, "financial_report");
+  assert.ok(resPnl.reply.includes("DOANH THU THUẦN"));
+  assert.ok(resPnl.reply.includes("GIÁ VỐN NGUYÊN LIỆU (COGS)"));
+  assert.ok(resPnl.reply.includes("LỢI NHUẬN RÒNG"));
+
+  const resCogs = phanTichTaiChinhNoiBo("tỷ lệ giá vốn COGS hôm nay", mockState);
+  assert.equal(resCogs.type, "financial_advice");
+  assert.ok(resCogs.reply.includes("COGS"));
+
+  const resBEP = phanTichTaiChinhNoiBo("hôm nay hòa vốn chưa", mockState);
+  assert.equal(resBEP.type, "financial_advice");
+  assert.ok(resBEP.reply.includes("Điểm Hòa Vốn"));
+
+  console.log("PASS EV Executive Finance: P&L Report, COGS analysis, and Break-Even calculations");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

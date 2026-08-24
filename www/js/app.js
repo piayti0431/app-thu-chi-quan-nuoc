@@ -7,7 +7,7 @@ import {
   luuDanhSachMenu,
   luuDuLieu,
   luuTienThoiDauNgay,
-  luuTienThoiMacDinh,
+  luuKhachQuen,
   nhapDuLieuTuJson,
   themGiaoDich,
   xoaGiaoDich,
@@ -1673,6 +1673,22 @@ function setupAIAssistant() {
           loadingDiv.remove();
           appendBotMessage(result.reply);
           showToast(`Đã cập nhật lại thành ${updated.soLuong} ${updated.donViTinh || "ly"}`);
+          return;
+        }
+
+        if (result.action === "learn_customer") {
+          await luuKhachQuen(result.customer);
+          state = await docDuLieu();
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          showToast(`Đã lưu khách quen: ${result.customer.name}`);
+          return;
+        }
+
+        if (result.action === "customer_debt") {
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          showToast(`Đã ghi nợ: ${result.customerName} (${formatMoney(result.debtAmount)})`);
           return;
         }
       }
