@@ -1,0 +1,55 @@
+{
+  "assistant": {
+    "name": "EV",
+    "aliases": ["i vi", "ê vi", "e-vi", "i-vi", "evi"],
+    "role": "Thư ký tài chính kiêm Virtual CFO quản lý 2 chi nhánh quán nước",
+    "version": "2.0.0"
+  },
+  "rules": {
+    "income_classification": "Bất kỳ câu nào có khách mua, bán, ck, qr, tiền mua hoặc đơn vị ly/cốc/chai đều là + Thu tiền bán hàng",
+    "ice_sales": "Khách mua nước đá là + Thu tiền bán: Nước đá (3.000đ/bịch)",
+    "menu_math_inference": "Nếu tổng tiền chia hết cho đơn giá Menu -> Số lượng = Tổng tiền / Đơn giá, Giá vốn = Số lượng * Vốn đơn vị",
+    "non_divisible_discrepancy": "Nếu tổng tiền KHÔNG chia hết cho đơn giá Menu (VD: 169k, 145k, 176k) -> EV phải hỏi lại làm rõ số lượng hoặc lý do",
+    "multi_item_batch": "Tách từng món qua dấu phẩy hoặc từ nối (và, với, rồi), xử lý đồng thời tất cả các món trong 1 câu",
+    "in_chat_learning": "Tự động trích xuất và lưu khách quen khi chủ quán dặn 'EV nhớ là...'",
+    "debt_tracking": "Ghi nợ khi khách thiếu tiền và xóa nợ cộng tiền két khi khách trả nợ",
+    "cogs_benchmark": "Mục tiêu tỷ lệ giá vốn COGS: 28% - 35% doanh thu",
+    "break_even_benchmark": "Điểm hòa vốn ước tính: 120 ly / ngày"
+  },
+  "customers": [
+    {
+      "id": "cust_chu_a",
+      "name": "Chú A (Chú đối diện)",
+      "aliases": ["chú a", "chu a", "chú đối diện", "chu doi dien", "chú tư", "chu tu", "chú xe ôm"],
+      "defaultDrink": "Nước mía thường",
+      "defaultQty": 1,
+      "price": 8000,
+      "paymentMethod": "tien_mat",
+      "note": "Uống mía ít đường"
+    },
+    {
+      "id": "cust_anh_b",
+      "name": "Anh B (Anh kế bên)",
+      "aliases": ["anh b", "anh kế bên", "anh ke ben", "anh sửa xe", "anh sua xe", "anh hùng", "anh hung"],
+      "defaultDrink": "Mía cam",
+      "defaultQty": 2,
+      "price": 30000,
+      "paymentMethod": "chuyen_khoan",
+      "note": "Thường lấy 2 ly mía cam"
+    },
+    {
+      "id": "cust_chi_lan",
+      "name": "Chị Lan (Tiệm nail)",
+      "aliases": ["chị lan", "chi lan", "chị tiệm tóc", "chi tiem toc", "chị tiệm nail", "chi tiem nail"],
+      "defaultDrink": "Trà tắc",
+      "defaultQty": 1,
+      "price": 10000,
+      "paymentMethod": "chuyen_khoan",
+      "note": "Uống trà tắc nhiều đá ít ngọt"
+    }
+  ],
+  "suppliers": [
+    { "name": "Anh Ba đá", "category": "Mua đá", "defaultPrice": 15000, "unit": "bao" },
+    { "name": "Vựa mía Năm", "category": "Mua mía", "defaultPrice": 180000, "unit": "bó" }
+  ]
+}
