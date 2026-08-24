@@ -254,11 +254,33 @@ export function mergeData(data) {
   const rawBranches = Array.isArray(data?.branches) && data.branches.length ? data.branches : base.branches;
   const currentBranch = data?.currentBranch || rawBranches[0]?.name || base.currentBranch;
 
+  const costMap = new Map();
+  mergedQuickItems.forEach((m) => {
+    const cost = Number(m.costPrice) >= 0 ? Number(m.costPrice) : 0;
+    if (m.name) costMap.set(m.name.toLowerCase().trim(), cost);
+    if (m.shortName) costMap.set(m.shortName.toLowerCase().trim(), cost);
+    if (m.category) costMap.set(m.category.toLowerCase().trim(), cost);
+  });
+
   const normalizedTransactions = Array.isArray(data?.ds)
     ? data.ds.map((item) => {
         const qty = Number(item.soLuong) || 1;
-        const costPerUnit = Number(item.giaCostDonVi) >= 0 ? Number(item.giaCostDonVi) : 0;
-        const totalCost = Number(item.tongGiaCost) >= 0 ? Number(item.tongGiaCost) : qty * costPerUnit;
+        let costPerUnit = Number(item.giaCostDonVi) >= 0 ? Number(item.giaCostDonVi) : 0;
+
+        if (item.loai === "thu") {
+          const name = (item.tenMon || item.danhMuc || item.ghiChu || item.cauNoiGoc || "").toLowerCase().trim();
+          for (const [key, costVal] of costMap.entries()) {
+            if (key && (name === key || name.includes(key) || key.includes(name))) {
+              costPerUnit = costVal;
+              break;
+            }
+          }
+        }
+
+        const totalCost = Number(item.tongGiaCost) >= 0 && item.tongGiaCost > 0 && item.giaCostDonVi === costPerUnit
+          ? Number(item.tongGiaCost)
+          : qty * costPerUnit;
+
         return {
           ...item,
           danhMuc: canonicalCategory(item.danhMuc),
@@ -461,6 +483,40 @@ export async function luuDanhSachMenu(menuItems) {
   data.quickPrices = menuItems.map((item) => Number(item.price) || 0);
   const thuCats = menuItems.map((m) => m.category || m.name);
   data.danhMuc.thu = [...new Set([...thuCats, "Thu khác"])];
+
+  const costMap = new Map();
+  menuItems.forEach((m) => {
+    const cost = Number(m.costPrice) >= 0 ? Number(m.costPrice) : 0;
+    if (m.name) costMap.set(m.name.toLowerCase().trim(), cost);
+    if (m.shortName) costMap.set(m.shortName.toLowerCase().trim(), cost);
+    if (m.category) costMap.set(m.category.toLowerCase().trim(), cost);
+  });
+
+  const now = new Date().toISOString();
+  data.ds = (data.ds || []).map((tx) => {
+    if (tx.loai === "thu" && !tx.deleted) {
+      const name = (tx.tenMon || tx.danhMuc || tx.ghiChu || tx.cauNoiGoc || "").toLowerCase().trim();
+      let matchedCost = null;
+      for (const [key, costVal] of costMap.entries()) {
+        if (key && (name === key || name.includes(key) || key.includes(name))) {
+          matchedCost = costVal;
+          break;
+        }
+      }
+      if (matchedCost !== null) {
+        const qty = Number(tx.soLuong) || 1;
+        return {
+          ...tx,
+          giaCostDonVi: matchedCost,
+          tongGiaCost: matchedCost * qty,
+          daSync: false,
+          updatedAt: now,
+        };
+      }
+    }
+    return tx;
+  });
+
   await luuDuLieu(data);
   return data.quickItems;
 }
