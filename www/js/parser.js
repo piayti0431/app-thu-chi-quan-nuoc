@@ -201,24 +201,69 @@ function parseVietnameseNumber(words) {
 }
 
 function detectType(normalized) {
+  // 1. Dấu hiệu chắc chắn là Thu tiền bán hàng:
+  // - Có từ khóa khách, bán, thu, ck, order, tiền mua nước...
+  // - Hoặc có đơn vị ly/cốc/chai của món nước (trừ khi là 'mua ly', 'mua cốc', 'mua chai')
+  const hasDrinkUnit =
+    /\b(ly|coc|cốc|chai)\b/.test(normalized) &&
+    !normalized.includes("mua ly") &&
+    !normalized.includes("mua coc") &&
+    !normalized.includes("mua chai") &&
+    !normalized.includes("tien ly");
+
+  const incomeHints = [
+    "khach",
+    "ban",
+    "thu",
+    "chuyen khoan",
+    "ck",
+    "qr",
+    "lay cho",
+    "cho khach",
+    "nguoi ta mua",
+    "tra tien mua",
+    "tien mua",
+    "order",
+    "mua tra tac",
+    "mua nuoc mia",
+    "mua nuoc cam",
+    "mua mia cam",
+    "mua rau ma",
+  ];
+  if (hasDrinkUnit || incomeHints.some((hint) => normalized.includes(hint))) return "thu";
+
+  // 2. Dấu hiệu Chi tiền (Quán mua nguyên liệu mía, đá, cam, tắc quả, ly, ống hút, tiền điện, xăng xe...)
   const expenseHints = [
-    "mua",
-    "tra tien",
+    "mua da",
+    "tra tien da",
+    "tien da",
+    "mua mia",
+    "nhap mia",
+    "mia cay",
+    "mua cam",
+    "cam tuoi",
+    "mua tac",
+    "mua quat",
+    "tac tuoi",
+    "mua sua",
+    "mua duong",
+    "mua dau",
+    "mua ong hut",
+    "ong hut",
+    "mua ly",
+    "mua tui",
+    "mua boc",
     "tien dien",
     "tien nuoc",
+    "tra tien nuoc",
     "do xang",
-    "xang",
-    "da cay",
-    "ong hut",
-    "tui",
+    "xang xe",
     "nhap",
-    "chi",
-    "het",
+    "chi ",
+    "het ",
+    "mua ",
   ];
   if (expenseHints.some((hint) => normalized.includes(hint))) return "chi";
-
-  const incomeHints = ["ban", "thu", "khach", "duoc", "lay", "cho khach"];
-  if (incomeHints.some((hint) => normalized.includes(hint))) return "thu";
 
   return "thu";
 }

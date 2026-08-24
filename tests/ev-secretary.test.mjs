@@ -240,4 +240,44 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Multi-turn Missing Info: 'mới mua 2 bao đá' -> asks price -> '1 bao là 15k' -> records 30k expense");
 }
 
+// Test 11: "khách vừa mới chuyển khoản 100k tiền mua trà tắc" (Trà tắc 10k, vốn 7k -> Thu 100k, 10 ly, vốn 70k)
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    quickItems: [{ id: "tra_tac", name: "Trà tắc", price: 10000, costPrice: 7000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("khách vừa mới chuyển khoản 100k tiền mua trà tắc", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.loai, "thu", "Khách mua trà tắc phải là THU tiền bán");
+  assert.equal(res.parsed.danhMuc, "Trà tắc", "Món phải là Trà tắc, không được là Tắc tươi");
+  assert.equal(res.parsed.soLuong, 10, "100k chia 10k/ly = 10 ly");
+  assert.equal(res.parsed.soTien, 100000);
+  assert.equal(res.parsed.tongGiaCost, 70000, "10 ly x 7k vốn = 70.000đ");
+  assert.equal(res.parsed.phuongThuc, "chuyen_khoan");
+
+  console.log("PASS EV: 'khách vừa mới chuyển khoản 100k tiền mua trà tắc' -> + Thu 100k 10 ly Trà tắc, vốn 70k");
+}
+
+// Test 12: "ý là khách vừa chuyển 150k tiền mua 10 ly trà tắc"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    quickItems: [{ id: "tra_tac", name: "Trà tắc", price: 10000, costPrice: 7000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("ý là khách vừa chuyển 150k tiền mua 10 ly trà tắc", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.loai, "thu");
+  assert.equal(res.parsed.danhMuc, "Trà tắc");
+  assert.equal(res.parsed.soLuong, 10);
+  assert.equal(res.parsed.soTien, 150000);
+  assert.equal(res.parsed.tongGiaCost, 70000);
+  assert.equal(res.parsed.phuongThuc, "chuyen_khoan");
+
+  console.log("PASS EV: 'ý là khách vừa chuyển 150k tiền mua 10 ly trà tắc' -> + Thu 150k 10 ly Trà tắc, vốn 70k");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

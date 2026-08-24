@@ -604,8 +604,17 @@ Anh/Chị có thể ra lệnh tự nhiên cho EV:
 }
 
 export async function hoiGeminiAI(userQuery, state, apiKey) {
+  // Ưu tiên chạy phân tích cục bộ tốc độ cao trước
+  const localAnalysis = phanTichTaiChinhNoiBo(userQuery, state);
+
+  // Nếu phân tích cục bộ nhận diện ra lệnh giao dịch, câu hỏi giá tiền hoặc cập nhật đính chính -> trả về ngay để xử lý tức thì
+  if (localAnalysis.type === "command" || localAnalysis.type === "question" || localAnalysis.type === "action") {
+    return localAnalysis;
+  }
+
+  // Nếu không có API Key, trả về kết quả phân tích nội bộ
   if (!apiKey) {
-    return phanTichTaiChinhNoiBo(userQuery, state);
+    return localAnalysis;
   }
 
   const today = todayKey();
@@ -621,11 +630,13 @@ Bối cảnh tài chính thời gian thực:
 - Chi nhánh 2: Thu ${b2Report.income}đ (${b2Report.totalDrinks} ly), Chi ${b2Report.expense}đ, Lời ${b2Report.balance}đ
 - Tổng cộng 2 chi nhánh: Thu ${todayReport.income}đ, Chi ${todayReport.expense}đ, Vốn cost ${todayReport.cost}đ, Lời gộp ${todayReport.grossProfit}đ, Lời ròng ${todayReport.balance}đ
 - Két tiền mặt dự kiến: ${todayReport.expectedCashInDrawer}đ
-- Danh sách Menu hiện tại: ${JSON.stringify((state.quickItems || []).map((i) => ({ ten: i.name, giaBan: i.price, giaCost: i.costPrice })))}
+- Danh sách Menu & Giá vốn hiện tại: ${JSON.stringify((state.quickItems || []).map((i) => ({ ten: i.name, giaBan: i.price, giaCost: i.costPrice })))}
 
-Nếu người dùng yêu cầu thêm món vào menu, hãy trả lời rõ ràng rằng bạn đồng ý và hướng dẫn họ.
-Nếu người dùng nói chuyện phiếm hoặc hỏi thời tiết, hãy trả lời vui vẻ, lịch sự và chúc quán buôn may bán đắt, không tự ý đưa báo cáo tài chính nếu không được hỏi.
-Hãy xưng là "EV" hoặc "Dạ EV", trả lời thân thiện, chuẩn xác số liệu và có định dạng Markdown:`;
+QUY TẮC PHÂN TÍCH BẮT BUỘC:
+1. "Khách mua / khách chuyển khoản / khách trả tiền mua..." là THU TIỀN BÁN HÀNG (+ Thu), KHÔNG PHẢI là chi tiền.
+2. "Trà tắc" là MÓN NƯỚC UỐNG trong Menu, không bao giờ được nhầm thành "Tắc tươi (Quất)" nguyên liệu thô.
+3. Khi khách trả tiền một món nước mà không nói số ly (ví dụ: "chuyển 100k trà tắc"), hãy tra đơn giá trong Menu (VD: 10k/ly) để suy ra số ly = 100k / 10k = 10 ly, và tính giá vốn = 10 ly * giá vốn 1 ly.
+4. Trả lời bằng Markdown với phong thái thư ký chuyên nghiệp, chu đáo, xưng là "EV" hoặc "Dạ EV".`;
 
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
@@ -636,11 +647,11 @@ Hãy xưng là "EV" hoặc "Dạ EV", trả lời thân thiện, chuẩn xác s�
         contents: [
           {
             role: "user",
-            parts: [{ text: `${contextPrompt}\n\nCâu hỏi/Yêu cầu của chủ quán: "${userQuery}"` }],
+            parts: [{ text: `${contextPrompt}\n\nCâu nói/yêu cầu của chủ quán: "${userQuery}"` }],
           },
         ],
         generationConfig: {
-          temperature: 0.4,
+          temperature: 0.3,
           maxOutputTokens: 800,
         },
       }),
@@ -648,7 +659,7 @@ Hãy xưng là "EV" hoặc "Dạ EV", trả lời thân thiện, chuẩn xác s�
 
     if (!response.ok) {
       console.warn("Gemini API returned error, fallback to local NLP", response.status);
-      return phanTichTaiChinhNoiBo(userQuery, state);
+      return localAnalysis;
     }
 
     const data = await response.json();
@@ -659,9 +670,9 @@ Hãy xưng là "EV" hoặc "Dạ EV", trả lời thân thiện, chuẩn xác s�
         reply: replyText,
       };
     }
-    return phanTichTaiChinhNoiBo(userQuery, state);
+    return localAnalysis;
   } catch (error) {
     console.warn("Gemini request failed, using local analyst", error);
-    return phanTichTaiChinhNoiBo(userQuery, state);
+    return localAnalysis;
   }
 }
