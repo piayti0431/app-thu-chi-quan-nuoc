@@ -20,3 +20,5 @@ tests/*.png
 # Local editor/OS noise
 .DS_Store
 Thumbs.db
+
+.vercel

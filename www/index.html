@@ -15,22 +15,36 @@
     <!-- MÀN HÌNH ĐĂNG NHẬP -->
     <section class="auth-screen" id="authScreen" hidden>
       <div class="auth-card">
-        <img class="auth-logo" src="./assets/logo-app.svg" alt="Biểu trưng ứng dụng">
-        <p class="eyebrow">Sổ Quán Nước Gia Đình</p>
-        <h1>Đăng nhập sổ quán</h1>
+        <div class="auth-header">
+          <div class="auth-logo-wrap">
+            <img class="auth-logo" src="./assets/logo-app.svg" alt="Biểu trưng ứng dụng">
+          </div>
+          <span class="auth-badge">✨ Sổ Quán Nước 2.0</span>
+          <h1 class="auth-title">Đăng nhập sổ quán</h1>
+          <p class="auth-subtitle">Đồng bộ doanh thu & thu chi trực tiếp trên đám mây</p>
+        </div>
         <form class="auth-form" id="authForm">
-          <label>
-            Tên đăng nhập (Email)
+          <div class="auth-field">
+            <label for="authEmail">
+              <span class="auth-label-text">📧 Tên đăng nhập (Email)</span>
+            </label>
             <input id="authEmail" type="email" autocomplete="username" enterkeyhint="next" required placeholder="ví dụ: quannuoc@gmail.com">
-          </label>
-          <label>
-            Mật khẩu
-            <input id="authPassword" type="password" autocomplete="current-password" enterkeyhint="done" required placeholder="Ít nhất 6 ký tự">
-          </label>
-          <button class="primary-action" id="authLoginBtn" type="submit">Đăng nhập</button>
-          <button class="ghost-button" id="authSignupBtn" type="button">Tạo tài khoản mới</button>
+          </div>
+          <div class="auth-field">
+            <label for="authPassword">
+              <span class="auth-label-text">🔒 Mật khẩu</span>
+            </label>
+            <input id="authPassword" type="password" autocomplete="current-password" enterkeyhint="done" required placeholder="Nhập ít nhất 6 ký tự">
+          </div>
+          <div class="auth-actions">
+            <button class="primary-action auth-submit-btn" id="authLoginBtn" type="submit">Đăng nhập</button>
+            <button class="ghost-button auth-secondary-btn" id="authSignupBtn" type="button">Tạo tài khoản mới</button>
+          </div>
         </form>
-        <p class="auth-note">Dữ liệu sẽ tự động đồng bộ khi các điện thoại trong gia đình đăng nhập cùng tài khoản.</p>
+        <div class="auth-note-box">
+          <span class="auth-note-icon">☁️</span>
+          <p class="auth-note">Dữ liệu tự động đồng bộ thời gian thực giữa các điện thoại trong gia đình.</p>
+        </div>
       </div>
     </section>
 
