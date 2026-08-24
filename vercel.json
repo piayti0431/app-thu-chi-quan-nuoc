@@ -1,8 +1,5 @@
 {
-  "version": 2,
-  "public": true,
+  "outputDirectory": "www",
   "cleanUrls": true,
-  "trailingSlash": false,
-  "buildCommand": "npm run build",
-  "outputDirectory": "www"
+  "trailingSlash": false
 }

@@ -4,7 +4,7 @@
   "description": "App thu chi quan nuoc mia, chay web va dong goi APK bang Capacitor.",
   "main": "www/js/app.js",
   "scripts": {
-    "build": "echo Static site ready in www",
+    "build": "node -e \"console.log('Build static www OK')\"",
     "start": "npx http-server www -p 4173 -c-1",
     "test": "node tests/branch-menu-stats.test.mjs && node tests/daily-report.test.mjs && node tests/vietnamese-speech-report.test.mjs && node tests/parser.test.mjs && node tests/voice-products.test.mjs && node tests/voice-sensitive.test.mjs && node tests/voice-fuzzy-products.test.mjs && node tests/voice-semantic-parser.test.mjs && node tests/voice-batch.test.mjs && node tests/voice-resilience.test.mjs && node tests/voice-expenses.test.mjs && node tests/speech.test.mjs && node tests/speech-stress.test.mjs && node tests/sync-model.test.mjs && node tests/clear-all-sync.test.mjs && node tests/auth-remember.test.mjs && node tests/production-guardrails.test.mjs && node tests/realtime-sync.test.mjs && node tests/updater.test.mjs && node tests/ai-assistant.test.mjs && node tests/ev-secretary.test.mjs",
     "test:smoke": "node tests/smoke.test.mjs && node tests/sync-flow-smoke.test.mjs",
