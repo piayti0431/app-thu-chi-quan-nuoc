@@ -367,19 +367,21 @@ export async function phatAmThanhGoogleTTS(text) {
 
   try {
     for (const chunk of chunks) {
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(chunk)}`;
+      const url = `/api/tts?text=${encodeURIComponent(chunk)}`;
       const audio = new Audio(url);
       currentAudio = audio;
 
-      await new Promise((resolve, reject) => {
+      const ok = await new Promise((resolve) => {
         audio.onended = () => resolve(true);
-        audio.onerror = (e) => reject(e);
-        audio.play().catch((err) => reject(err));
+        audio.onerror = () => resolve(false);
+        audio.play().catch(() => resolve(false));
       });
+
+      if (!ok) return false;
     }
     return true;
   } catch (err) {
-    console.warn("Google TTS audio error, falling back to Web Speech", err);
+    console.warn("TTS Audio error:", err);
     return false;
   }
 }
@@ -444,23 +446,23 @@ export async function docLai(text) {
     }
   }
 
-  // 2. Google Vietnamese Neural TTS Audio (100% chuẩn dấu tiếng Việt)
+  // 2. High Definition Vietnamese Neural TTS Audio (via Serverless API /api/tts)
   const played = await phatAmThanhGoogleTTS(spokenText);
   if (played) return;
 
-  // 3. Fallback: Web SpeechSynthesis
+  // 3. Fallback: Web SpeechSynthesis - CHỈ CHẠY NẾU CÓ GIỌNG TIẾNG VIỆT THẬT (CHẶN GIỌNG NƯỚC NGOÀI)
   if (typeof window !== "undefined" && window.speechSynthesis && window.SpeechSynthesisUtterance) {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(spokenText);
-    utterance.lang = "vi-VN";
-    utterance.rate = 0.92;
-    utterance.pitch = 1.0;
-
     const vnVoice = cachedVnVoice || timGiongDocTiengViet();
     if (vnVoice) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(spokenText);
+      utterance.lang = "vi-VN";
       utterance.voice = vnVoice;
+      utterance.rate = 0.92;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    } else {
+      console.log("No native Vietnamese voice installed on OS; foreign voice fallback suppressed to avoid broken pronunciation.");
     }
-
-    window.speechSynthesis.speak(utterance);
   }
 }

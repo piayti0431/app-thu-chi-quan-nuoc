@@ -1582,7 +1582,6 @@ function setupAIAssistant() {
 
           loadingDiv.remove();
           appendBotMessage(result.reply);
-          docLai(`Dạ EV đã thêm món ${result.item.name} giá ${docSoTienTiengViet(result.item.price)} vào Menu rồi ạ.`);
           showToast(`Đã thêm món ${result.item.name}`);
           return;
         }
@@ -1596,7 +1595,6 @@ function setupAIAssistant() {
 
           loadingDiv.remove();
           appendBotMessage(result.reply);
-          docLai(`Dạ EV đã xóa món ${result.itemName} khỏi Menu rồi ạ.`);
           showToast(`Đã xóa món ${result.itemName}`);
           return;
         }
@@ -1608,7 +1606,6 @@ function setupAIAssistant() {
 
           loadingDiv.remove();
           appendBotMessage(result.reply);
-          docLai(`Dạ EV đã chuyển sang ${result.branch} rồi ạ.`);
           showToast(`Đã chuyển sang ${result.branch}`);
           return;
         }
@@ -1647,9 +1644,6 @@ function setupAIAssistant() {
 *Dữ liệu đã được cập nhật vào bảng doanh thu hôm nay!*`;
           loadingDiv.remove();
           appendBotMessage(confirmationMsg);
-
-          const speakText = `Dạ EV đã ghi nhận ${parsed.loai === "thu" ? "bán" : "chi"} ${parsed.soLuong} ${parsed.donViTinh} ${parsed.danhMuc}, số tiền ${docSoTienTiengViet(parsed.soTien)} vào ${branchToUse}.`;
-          docLai(speakText);
           showToast(`EV đã ghi vào ${branchToUse}`);
           return;
         }
@@ -1657,7 +1651,6 @@ function setupAIAssistant() {
 
       loadingDiv.remove();
       appendBotMessage(result.reply);
-      docLai(result.reply);
     } catch (e) {
       loadingDiv.remove();
       appendBotMessage("Dạ EV xin lỗi, đã xảy ra lỗi khi phân tích. Bạn vui lòng thử lại câu hỏi khác nhé!");
