@@ -2384,3 +2384,31 @@ dialog::backdrop {
   font-weight: 700;
   flex: 0 0 auto;
 }
+
+.ai-voice-setting-btn {
+  margin-left: auto;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  background: #f0fdfa;
+  color: #0d9488;
+  border: 1.5px solid #99f6e4;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.ai-voice-setting-btn:hover {
+  background: #ccfbf1;
+  transform: translateY(-1px);
+}
+
+.voice-settings-dialog {
+  max-width: 440px;
+  width: 90vw;
+  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+}

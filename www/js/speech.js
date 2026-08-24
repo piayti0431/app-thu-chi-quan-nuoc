@@ -351,7 +351,54 @@ function tachCauNho(text, maxLen = 140) {
   return chunks.filter((c) => c.length > 0);
 }
 
-export async function phatAmThanhGoogleTTS(text) {
+export function getVoiceSettings() {
+  try {
+    const raw = localStorage.getItem("ev_voice_settings");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        voice: parsed.voice || "google_vi",
+        rate: Number(parsed.rate) || 1.0,
+        pitch: Number(parsed.pitch) || 1.0,
+        autoSpeak: Boolean(parsed.autoSpeak),
+      };
+    }
+  } catch (_) {}
+  return {
+    voice: "google_vi",
+    rate: 1.0,
+    pitch: 1.0,
+    autoSpeak: false,
+  };
+}
+
+export function saveVoiceSettings(settings) {
+  try {
+    localStorage.setItem("ev_voice_settings", JSON.stringify(settings));
+  } catch (_) {}
+}
+
+export function getAvailableDeviceVoices() {
+  if (typeof window === "undefined" || !window.speechSynthesis) return [];
+  const voices = window.speechSynthesis.getVoices() || [];
+  return voices.filter((v) => {
+    const lang = (v.lang || "").toLowerCase();
+    const name = (v.name || "").toLowerCase();
+    return (
+      lang.startsWith("vi") ||
+      name.includes("vietnam") ||
+      name.includes("tiếng việt") ||
+      name.includes("vietnamese") ||
+      name.includes("hoaimy") ||
+      name.includes("namminh") ||
+      name.includes("linh") ||
+      name.includes("mai") ||
+      name.includes("an")
+    );
+  });
+}
+
+export async function phatAmThanhGoogleTTS(text, options = {}) {
   if (typeof window === "undefined" || typeof Audio === "undefined") return false;
 
   if (currentAudio) {
@@ -365,10 +412,14 @@ export async function phatAmThanhGoogleTTS(text) {
   const chunks = tachCauNho(text, 140);
   if (!chunks.length) return false;
 
+  const settings = { ...getVoiceSettings(), ...options };
+  const speedParam = settings.rate > 1.0 ? "0.24" : "1.0"; // Google TTS speed factor
+
   try {
     for (const chunk of chunks) {
-      const url = `/api/tts?text=${encodeURIComponent(chunk)}`;
+      const url = `/api/tts?text=${encodeURIComponent(chunk)}&voice=${encodeURIComponent(settings.voice)}&speed=${speedParam}`;
       const audio = new Audio(url);
+      audio.playbackRate = settings.rate || 1.0;
       currentAudio = audio;
 
       const ok = await new Promise((resolve) => {
@@ -388,10 +439,15 @@ export async function phatAmThanhGoogleTTS(text) {
 
 let cachedVnVoice = null;
 
-function timGiongDocTiengViet() {
+function timGiongDocTiengViet(selectedVoiceURI = "") {
   if (typeof window === "undefined" || !window.speechSynthesis) return null;
   const voices = window.speechSynthesis.getVoices() || [];
   if (!voices.length) return null;
+
+  if (selectedVoiceURI) {
+    const matched = voices.find((v) => v.voiceURI === selectedVoiceURI || v.name === selectedVoiceURI);
+    if (matched) return matched;
+  }
 
   // 1. Ưu tiên giọng vi-VN chuẩn
   const exactVi = voices.find((v) => v.lang === "vi-VN" || v.lang === "vi_VN");
@@ -426,18 +482,19 @@ if (typeof window !== "undefined" && window.speechSynthesis) {
   };
 }
 
-export async function docLai(text) {
+export async function docLai(text, customOptions = {}) {
   const spokenText = chuanHoaLoiNoiTiengViet(text);
+  const settings = { ...getVoiceSettings(), ...customOptions };
   const { TextToSpeech } = nativePlugins();
 
-  // 1. Android Capacitor Native TTS (has full Vietnamese language pack on phone)
+  // 1. Android Capacitor Native TTS
   if (isNative() && TextToSpeech?.speak) {
     try {
       await TextToSpeech.speak({
         text: spokenText,
         lang: "vi-VN",
-        rate: 0.92,
-        pitch: 1.0,
+        rate: settings.rate || 0.95,
+        pitch: settings.pitch || 1.0,
         volume: 1.0,
       });
       return;
@@ -446,20 +503,22 @@ export async function docLai(text) {
     }
   }
 
-  // 2. High Definition Vietnamese Neural TTS Audio (via Serverless API /api/tts)
-  const played = await phatAmThanhGoogleTTS(spokenText);
-  if (played) return;
+  // 2. High Definition Neural / Cloud TTS
+  if (settings.voice !== "device") {
+    const played = await phatAmThanhGoogleTTS(spokenText, settings);
+    if (played) return;
+  }
 
-  // 3. Fallback: Web SpeechSynthesis - CHỈ CHẠY NẾU CÓ GIỌNG TIẾNG VIỆT THẬT (CHẶN GIỌNG NƯỚC NGOÀI)
+  // 3. Device SpeechSynthesis fallback
   if (typeof window !== "undefined" && window.speechSynthesis && window.SpeechSynthesisUtterance) {
-    const vnVoice = cachedVnVoice || timGiongDocTiengViet();
+    const vnVoice = timGiongDocTiengViet(settings.deviceVoiceURI || "");
     if (vnVoice) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.lang = "vi-VN";
       utterance.voice = vnVoice;
-      utterance.rate = 0.92;
-      utterance.pitch = 1.0;
+      utterance.rate = settings.rate || 0.95;
+      utterance.pitch = settings.pitch || 1.0;
       window.speechSynthesis.speak(utterance);
     } else {
       console.log("No native Vietnamese voice installed on OS; foreign voice fallback suppressed to avoid broken pronunciation.");

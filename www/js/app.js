@@ -16,7 +16,7 @@ import {
 } from "./db.js";
 import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
 import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney } from "./report.js";
-import { batDauNghe, docLai, dungNghe, yeuCauQuyenMicro } from "./speech.js";
+import { batDauNghe, docLai, dungNghe, getVoiceSettings, saveVoiceSettings, yeuCauQuyenMicro } from "./speech.js";
 import { hoiGeminiAI, phanTichTaiChinhNoiBo } from "./ai-assistant.js";
 import {
   batDauRealtime,
@@ -1535,6 +1535,52 @@ function setupAIAssistant() {
     }
     chatBox.appendChild(msgDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  // Cài đặt giọng đọc Thư Ký EV
+  const openVoiceModalBtn = $("#openVoiceModalBtn");
+  const voiceModal = $("#voiceSettingsDialog");
+  const voiceSelect = $("#voiceSelect");
+  const voiceRateSelect = $("#voiceRateSelect");
+  const previewVoiceBtn = $("#previewVoiceBtn");
+  const cancelVoiceSettingsBtn = $("#cancelVoiceSettingsBtn");
+  const saveVoiceSettingsBtn = $("#saveVoiceSettingsBtn");
+
+  if (openVoiceModalBtn && voiceModal) {
+    openVoiceModalBtn.onclick = () => {
+      const current = getVoiceSettings();
+      if (voiceSelect) voiceSelect.value = current.voice || "google_vi";
+      if (voiceRateSelect) voiceRateSelect.value = String(current.rate || "1.0");
+      voiceModal.showModal();
+    };
+
+    if (cancelVoiceSettingsBtn) {
+      cancelVoiceSettingsBtn.onclick = () => voiceModal.close();
+    }
+
+    if (previewVoiceBtn) {
+      previewVoiceBtn.onclick = () => {
+        const previewVoice = voiceSelect ? voiceSelect.value : "google_vi";
+        const previewRate = voiceRateSelect ? Number(voiceRateSelect.value) : 1.0;
+        docLai("Dạ em là Thư Ký EV, luôn sẵn sàng phục vụ quán của anh chị ạ!", {
+          voice: previewVoice,
+          rate: previewRate,
+        });
+      };
+    }
+
+    if (saveVoiceSettingsBtn) {
+      saveVoiceSettingsBtn.onclick = () => {
+        const newSettings = {
+          voice: voiceSelect ? voiceSelect.value : "google_vi",
+          rate: voiceRateSelect ? Number(voiceRateSelect.value) : 1.0,
+          pitch: 1.0,
+        };
+        saveVoiceSettings(newSettings);
+        voiceModal.close();
+        showToast("Đã lưu cài đặt giọng đọc Thư Ký EV!");
+      };
+    }
   }
 
   async function handleSend(text) {

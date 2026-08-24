@@ -373,6 +373,9 @@
                 <h2>Thư Ký EV (Khẩu lệnh "i vi")</h2>
                 <p>Quản lý toàn bộ doanh thu & thu chi 2 chi nhánh tự động</p>
               </div>
+              <button class="ai-voice-setting-btn" id="openVoiceModalBtn" type="button" title="Tùy chọn giọng đọc">
+                🎙️ Đổi giọng đọc
+              </button>
             </div>
 
             <!-- DANH SÁCH TIN NHẮN CHAT -->
@@ -710,6 +713,43 @@
           <button class="ghost-button" id="updateLaterBtn" value="later" type="submit">Để sau</button>
           <button class="primary-action slim" id="updateNowBtn" value="update" type="submit">Cập nhật ngay</button>
         </menu>
+      </form>
+    </dialog>
+
+    <!-- HỘP THOẠI CÀI ĐẶT GIỌNG ĐỌC THƯ KÝ EV -->
+    <dialog class="confirm-dialog voice-settings-dialog" id="voiceSettingsDialog">
+      <form method="dialog" id="voiceSettingsForm">
+        <h2>🎙️ Cài Đặt Giọng Đọc Thư Ký EV</h2>
+        <p class="subtitle" style="margin: 0.2rem 0 0.8rem; font-size: 0.86rem; color: var(--muted);">Tùy chỉnh chất giọng và tốc độ phát âm thanh theo sở thích của bạn.</p>
+        
+        <label>
+          Chọn chất giọng:
+          <select id="voiceSelect" style="font-size: 0.95rem; font-weight: 600; padding: 0.55rem;">
+            <option value="google_vi" selected>👩 Google Tiếng Việt (Nữ chuẩn truyền cảm)</option>
+            <option value="hoaimy">👩 Hoài My (Nữ miền Bắc - Dịu dàng)</option>
+            <option value="namminh">👨 Nam Minh (Nam miền Bắc - Rõ ràng)</option>
+            <option value="device">📱 Giọng hệ thống thiết bị (Tự động theo điện thoại/máy tính)</option>
+          </select>
+        </label>
+
+        <label style="margin-top: 0.75rem;">
+          Tốc độ đọc:
+          <select id="voiceRateSelect" style="font-size: 0.95rem; font-weight: 600; padding: 0.55rem;">
+            <option value="0.85">🐢 Chậm rãi (0.85x)</option>
+            <option value="1.0" selected>⚡ Bình thường (1.0x - Chuẩn)</option>
+            <option value="1.15">🚀 Nhanh nhẹn (1.15x)</option>
+          </select>
+        </label>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; padding: 0.75rem; background: #f8fafc; border-radius: var(--radius-md); border: 1px solid #e2e8f0;">
+          <span style="font-size: 0.88rem; font-weight: 600; color: #334155;">Nghe thử chất giọng</span>
+          <button class="ghost-button" id="previewVoiceBtn" type="button" style="font-weight: 700;">🔊 Nghe thử</button>
+        </div>
+
+        <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.25rem;">
+          <button class="ghost-button" id="cancelVoiceSettingsBtn" type="button">Hủy bỏ</button>
+          <button class="primary-action" id="saveVoiceSettingsBtn" type="button">Lưu cài đặt</button>
+        </div>
       </form>
     </dialog>
 
