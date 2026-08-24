@@ -126,4 +126,26 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Multi-branch 2-branch combined financial report");
 }
 
+// Test 6: Câu nói tự nhiên thực tế của người dùng: "có khách vừa chuyển 16k cho 2 ly mía thường"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 10000, costPrice: 3000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("có khách vừa chuyển 16k cho 2 ly mía thường", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.action, "add_transaction");
+  assert.equal(res.parsed.loai, "thu");
+  assert.equal(res.parsed.soTien, 16000);
+  assert.equal(res.parsed.soLuong, 2);
+  assert.equal(res.parsed.phuongThuc, "chuyen_khoan");
+  assert.equal(res.parsed.danhMuc, "Nước mía thường");
+  assert.ok(res.reply.includes("16.000"), "Phải có số tiền 16.000đ");
+  assert.ok(res.reply.includes("Chuyển khoản"), "Phải nhận ra phương thức Chuyển khoản QR");
+
+  console.log("PASS EV Natural Conversation: 'có khách vừa chuyển 16k cho 2 ly mía thường' recorded seamlessly");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

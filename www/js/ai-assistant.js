@@ -1,5 +1,5 @@
 import { dailyReport, docSoTienTiengViet, formatReportDate } from "./report.js";
-import { stripWakeWordAndBranch } from "./parser.js";
+import { phanTichChiTiet, stripWakeWordAndBranch } from "./parser.js";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -212,21 +212,7 @@ EV sẽ cập nhật thẳng vào Menu bán hàng của quán ngay lập tức �
     };
   }
 
-  // 5. LỆNH BÁN HÀNG HOẶC CHI TIỀN (TRANSACTION COMMANDS)
-  const isSellCommand = norm.startsWith("ban ") || norm.startsWith("vua ban") || norm.startsWith("khach mua") || norm.startsWith("khach lay") || norm.startsWith("ghi thu ");
-  const isExpenseCommand = norm.startsWith("mua ") || norm.startsWith("ghi chi ") || norm.startsWith("chi ") || norm.startsWith("tra tien ") || norm.startsWith("do xang");
-
-  if (isSellCommand || isExpenseCommand || norm.startsWith("ghi ")) {
-    return {
-      type: "command",
-      action: "add_transaction",
-      rawQuery: query,
-      branch: targetBranch,
-      reply: `Dạ EV đã nhận lệnh ghi sổ: "${query}".`,
-    };
-  }
-
-  // 6. BÁO CÁO SO SÁNH 2 CHI NHÁNH
+  // 5. BÁO CÁO SO SÁNH 2 CHI NHÁNH
   if (isAllBranches || norm.includes("so sanh 2 quan")) {
     return {
       type: "financial_multi_branch",
@@ -250,7 +236,7 @@ EV sẽ cập nhật thẳng vào Menu bán hàng của quán ngay lập tức �
     };
   }
 
-  // 7. BẢNG XẾP HẠNG MÓN BÁN CHẠY (MENU RANKING)
+  // 6. BẢNG XẾP HẠNG MÓN BẢN CHẠY (MENU RANKING)
   if (
     norm.includes("mon nao ban chay") ||
     norm.includes("ban chay nhat") ||
@@ -299,8 +285,23 @@ ${breakdownText}
     };
   }
 
-  // 8. CHI PHÍ NGUYÊN VẬT LIỆU
-  if (norm.includes("tien da") || norm.includes("mua da") || norm.includes("mua mia") || norm.includes("nguyen lieu") || norm.includes("chi phi") || norm.includes("tong chi")) {
+  // 7. CHI PHÍ NGUYÊN VẬT LIỆU (HỎI BÁO CÁO CHI PHÍ)
+  const isExpenseReportQuery =
+    (norm.includes("ton bao nhieu") ||
+      norm.includes("het bao nhieu") ||
+      norm.includes("chi bao nhieu") ||
+      norm.includes("tong chi") ||
+      norm.includes("chi phi") ||
+      norm.includes("nguyen vat lieu") ||
+      norm.includes("nguyen lieu") ||
+      norm.includes("bao nhieu tien da") ||
+      norm.includes("bao nhieu tien mia")) &&
+    !norm.startsWith("ghi ") &&
+    !norm.startsWith("chi ") &&
+    !norm.startsWith("mua ") &&
+    !norm.startsWith("tra ");
+
+  if (isExpenseReportQuery) {
     const expenses = todayReport.items.filter((it) => it.loai === "chi");
     if (!expenses.length) {
       return {
@@ -329,7 +330,7 @@ ${expText}
     };
   }
 
-  // 9. KIỂM TRA KÉT TIỀN MẶT / TIỀN THỐI
+  // 8. KIỂM TRA KÉT TIỀN MẶT / TIỀN THỐI
   if (norm.includes("ket") || norm.includes("tien mat") || norm.includes("thoi") || norm.includes("doi soat")) {
     return {
       type: "drawer",
@@ -343,7 +344,7 @@ ${expText}
     };
   }
 
-  // 10. TƯ VẤN CHIẾN LƯỢC KINH DOANH
+  // 9. TƯ VẤN CHIẾN LƯỢC KINH DOANH
   if (norm.includes("tu van") || norm.includes("chien luoc") || norm.includes("loi khuyen") || norm.includes("kinh doanh")) {
     const totalTransactions = transactions.filter((t) => t.loai === "thu").length;
     const totalRevenue = transactions.filter((t) => t.loai === "thu").reduce((s, t) => s + Number(t.soTien || 0), 0);
@@ -361,7 +362,7 @@ ${expText}
     };
   }
 
-  // 11. BÁO CÁO DOANH THU & TIỀN LỜI HÔM NAY
+  // 10. BÁO CÁO DOANH THU & TIỀN LỜI HÔM NAY
   if (
     norm.includes("hom nay") ||
     norm.includes("ngay nay") ||
@@ -398,15 +399,39 @@ ${expText}
     };
   }
 
-  // Phản hồi mặc định thông minh của Thư ký EV
+  // 11. PHÂN TÍCH TẤT CẢ CÂU NÓI TỰ NHIÊN GIAO DỊCH (BÁN NƯỚC / CHI TIỀN / CHUYỂN KHOẢN)
+  const parsed = phanTichChiTiet(query, state.quickItems || []);
+  if (parsed && (parsed.soTien > 0 || parsed.confidence !== "low" || parsed.slots?.productId)) {
+    const branchToUse = parsed.chiNhanh || targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+    const paymentText = parsed.phuongThuc === "chuyen_khoan" ? " (Chuyển khoản QR)" : " (Tiền mặt)";
+    const isThu = parsed.loai === "thu";
+
+    return {
+      type: "command",
+      action: "add_transaction",
+      rawQuery: query,
+      branch: branchToUse,
+      parsed,
+      reply: `✅ **Dạ EV đã ghi sổ thành công**:
+- **Loại**: ${isThu ? "+ Thu tiền bán" : "- Chi tiền"}
+- **Món/Khoản**: **${parsed.danhMuc}** (${parsed.soLuong} ${parsed.donViTinh})
+- **Số tiền**: **${formatMoney(parsed.soTien)}**${paymentText}
+- **Điểm bán**: **${branchToUse}**
+- **Giá vốn (Cost)**: ${formatMoney(parsed.tongGiaCost)}
+
+*Dữ liệu đã được lưu vào sổ và cập nhật vào bảng doanh thu hôm nay!*`,
+    };
+  }
+
+  // 12. Phản hồi mặc định thông minh của Thư ký EV
   return {
     type: "general",
     reply: `Dạ em là **Thư ký EV**, luôn sẵn sàng hỗ trợ anh/chị quản lý toàn diện 2 chi nhánh!
 
-Anh/Chị có thể ra lệnh cho EV thực hiện bất kỳ việc gì:
-- 🥤 *"Thêm vào menu món Mía Thơm giá 10k"* ➔ EV tự động tạo món vào Menu.
-- 💵 *"i vi bán 2 ly nước mía 20k"* ➔ EV tự động ghi đơn bán hàng.
-- 🧊 *"ê vi mua 3 bao đá 30k"* ➔ EV tự động ghi chi tiền.
+Anh/Chị có thể ra lệnh tự nhiên cho EV:
+- 🥤 *"có khách vừa chuyển 16k cho 2 ly mía thường"* ➔ EV tự động ghi bán nước (Chuyển khoản).
+- 🍹 *"Thêm vào menu món Mía Thơm giá 10k"* ➔ EV tự động tạo món vào Menu.
+- 🧊 *"mua 3 bao đá 30k"* ➔ EV tự động ghi chi tiền.
 - 📊 *"EV hôm nay 2 quán lời bao nhiêu?"* ➔ EV tổng hợp doanh thu 2 chi nhánh.
 - 🏢 *"Chuyển sang Chi nhánh 2"* ➔ EV chuyển điểm bán ngay lập tức.`,
   };

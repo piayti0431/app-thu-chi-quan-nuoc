@@ -557,6 +557,7 @@ function detectExpenseUnitAndQuantity(normalized, tokens, category) {
 function detectPaymentMethod(normalized) {
   if (
     normalized.includes("chuyen khoan") ||
+    normalized.includes("chuyen") ||
     normalized.includes("ck") ||
     normalized.includes("quet ma") ||
     normalized.includes("qr") ||
