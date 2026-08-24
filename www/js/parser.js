@@ -433,15 +433,43 @@ function trailingNumberPhrase(tokens) {
 }
 
 function parseLooseMoney(normalized, tokens) {
-  const looseNumbers = normalized.match(/\d+(?:[\.,]\d+)?/g);
-  if (looseNumbers) {
+  // Loại bỏ các con số đứng liền trước đơn vị tính hàng hóa (ví dụ: "2 bao", "3 ly", "5 kg") để không bị hiểu nhầm thành tiền lẻ
+  const cleanForLooseMoney = normalized.replace(
+    /\b(\d+(?:[\.,]\d+)?)\s*(?:bao|bo|bó|ly|coc|cốc|chai|binh|bình|kg|ky|boc|bọc|tui|túi|hop|hộp|lon|thung|thùng|lit|lít)\b/gi,
+    ""
+  );
+
+  const looseNumbers = cleanForLooseMoney.match(/\d+(?:[\.,]\d+)?/g);
+  if (looseNumbers && looseNumbers.length > 0) {
     const value = parseNumeric(looseNumbers[looseNumbers.length - 1]);
     if (Number.isFinite(value) && value > 1) return Math.round(value < 1000 ? value * 1000 : value);
   }
 
   const phrase = trailingNumberPhrase(tokens);
-  const value = parseVietnameseNumber(phrase);
-  if (value > 1) return Math.round(value < 1000 ? value * 1000 : value);
+  const lastToken = tokens[tokens.length - 1];
+  const NON_MONEY_UNITS = new Set([
+    "bao",
+    "bo",
+    "ly",
+    "coc",
+    "chai",
+    "binh",
+    "kg",
+    "ky",
+    "boc",
+    "tui",
+    "hop",
+    "lon",
+    "thung",
+    "lit",
+    "da",
+    "mia",
+    "cam",
+  ]);
+  if (!NON_MONEY_UNITS.has(lastToken)) {
+    const value = parseVietnameseNumber(phrase);
+    if (value > 1) return Math.round(value < 1000 ? value * 1000 : value);
+  }
   return 0;
 }
 
@@ -468,6 +496,19 @@ function parseMoney(normalized, tokens, type, product) {
   const priceMode = detectPriceMode(normalized, explicitMoney, product);
 
   if (explicitMoney > 0) {
+    // Tự động suy luận số lượng món dựa theo đơn giá trên Menu
+    // Ví dụ: "khách chuyển khoản 100k trà tắc" -> tự suy ra 10 ly
+    if (type === "thu" && product && !product.spokenUnit) {
+      if (product.price > 0 && explicitMoney > product.price && explicitMoney % product.price === 0) {
+        product.quantity = Math.round(explicitMoney / product.price);
+        return { amount: explicitMoney, priceMode: "total", explicitMoney };
+      }
+      if (explicitMoney >= 50000 && explicitMoney % 10000 === 0) {
+        product.quantity = Math.round(explicitMoney / 10000);
+        return { amount: explicitMoney, priceMode: "total", explicitMoney };
+      }
+    }
+
     if (type === "thu" && product?.quantity > 1 && priceMode === "unit") {
       return { amount: Math.round(explicitMoney * product.quantity), priceMode, explicitMoney };
     }

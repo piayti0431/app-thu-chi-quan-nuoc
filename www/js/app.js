@@ -1655,11 +1655,31 @@ function setupAIAssistant() {
           showToast(`Đã chuyển sang ${result.branch}`);
           return;
         }
+
+        if (result.action === "update_last_transaction") {
+          state.ds = state.ds || [];
+          const updated = result.updatedTx;
+          const idx = state.ds.findIndex((t) => t.id === updated.id);
+          const targetIdx = idx >= 0 ? idx : state.ds.length - 1;
+          if (targetIdx >= 0 && state.ds[targetIdx]) {
+            state.ds[targetIdx].soLuong = updated.soLuong;
+            state.ds[targetIdx].tongGiaCost = updated.tongGiaCost;
+            await luuDuLieu(state);
+            state = await docDuLieu();
+            renderAll();
+            triggerAutoSync();
+          }
+
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          showToast(`Đã cập nhật lại thành ${updated.soLuong} ${updated.donViTinh || "ly"}`);
+          return;
+        }
       }
 
       // 2. Lệnh ghi chép giao dịch thực tế của Thư Ký EV
       if (result.type === "command") {
-        const parsed = phanTichChiTiet(q, state.quickItems || []);
+        const parsed = result.parsed || phanTichChiTiet(q, state.quickItems || []);
         if (parsed.soTien > 0) {
           const branchToUse = parsed.chiNhanh || result.branch || state.currentBranch || "Quán Nhà (Chính)";
           await themGiaoDich({

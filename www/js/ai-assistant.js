@@ -54,7 +54,7 @@ function extractMoneyFromText(text) {
   if (rawNumMatch) return Number(rawNumMatch[1]);
 
   // Small number after price keyword: gia 10 -> 10000
-  const smallKMatch = norm.match(/(?:gia|ban|tien|la|cost|von)\s*(\d+)/);
+  const smallKMatch = norm.match(/(?:gia|ban|tien|la|cost|von|moi bao|moi ly|1 bao|1 ly)\s*(\d+)/);
   if (smallKMatch) {
     const val = Number(smallKMatch[1]);
     return val < 100 ? val * 1000 : val;
@@ -110,6 +110,12 @@ function extractMenuItemParams(query) {
   return { name, price, costPrice, unit };
 }
 
+// BỘ NHỚ NGỮ CẢNH HỘI THOẠI CỦA THƯ KÝ EV
+export const conversationContext = {
+  lastTransaction: null,
+  pendingQuestion: null,
+};
+
 export function phanTichTaiChinhNoiBo(query, state) {
   const { branch: detectedBranch } = stripWakeWordAndBranch(query);
   const norm = normalizeQuery(query);
@@ -124,15 +130,93 @@ export function phanTichTaiChinhNoiBo(query, state) {
   const b1Report = dailyReport(transactions, today, "Quán Nhà (Chính)", state.defaultOpeningCash || 500000);
   const b2Report = dailyReport(transactions, today, "Chi nhánh 2", state.defaultOpeningCash || 500000);
 
-  // 1. NGƯỜI DÙNG ĐÍNH CHÍNH / NHẮC NHỞ (CORRECTION / NEGATION)
-  if (
-    norm.includes("toi bao la") ||
-    norm.includes("khong phai") ||
-    norm.includes("y toi la") ||
+  // 1. XỬ LÝ CÂU TRẢ LỜI CHO CÂU HỎI ĐANG CHỜ (PENDING QUESTION RESOLUTION)
+  if (conversationContext.pendingQuestion) {
+    const pending = conversationContext.pendingQuestion;
+    const extractedMoney = extractMoneyFromText(query);
+
+    if (extractedMoney > 0) {
+      let finalTotal = extractedMoney;
+      // Nếu câu là "1 bao là 15k" hoặc "mỗi bao 15k" mà số lượng là 2 bao -> nhân lên
+      if (
+        norm.includes("1 bao") ||
+        norm.includes("moi bao") ||
+        norm.includes("1 ly") ||
+        norm.includes("moi ly") ||
+        norm.includes("1 kg") ||
+        norm.includes("moi kg") ||
+        norm.includes("1 bo") ||
+        norm.includes("moi bo")
+      ) {
+        if (pending.quantity > 1 && extractedMoney <= 50000) {
+          finalTotal = extractedMoney * pending.quantity;
+        }
+      }
+
+      conversationContext.pendingQuestion = null;
+      return {
+        type: "command",
+        action: "add_transaction",
+        branch: pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)",
+        parsed: {
+          loai: "chi",
+          soTien: finalTotal,
+          soLuong: pending.quantity,
+          donViTinh: pending.unit,
+          danhMuc: pending.category,
+          phuongThuc: "tien_mat",
+          giaCostDonVi: 0,
+          tongGiaCost: 0,
+          chiNhanh: pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)",
+          ghiChu: `${pending.category} (${pending.quantity} ${pending.unit}) - ${query}`,
+          cauNoiGoc: query,
+        },
+        reply: `✅ **Dạ EV đã ghi sổ chi tiền thành công**:
+- **Khoản chi**: **${pending.category}** (${pending.quantity} ${pending.unit})
+- **Số tiền**: **${formatMoney(finalTotal)} (Tiền mặt)**
+- **Điểm chi**: **${pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)"}**
+
+*Dữ liệu đã được cập nhật vào bảng chi phí hôm nay!*`,
+      };
+    }
+  }
+
+  // 2. NGƯỜI DÙNG ĐÍNH CHÍNH / BẮT LỖI TÍNH TOÁN ("100k thì phải là 10 ly chứ", "sao lại ghi 1 ly", "nhầm rồi")
+  const isCorrection =
+    norm.includes("phai la") ||
+    norm.includes("sao lai") ||
     norm.includes("nham roi") ||
     norm.includes("sai roi") ||
-    norm.includes("sao lai ghi")
-  ) {
+    norm.includes("tinh lai") ||
+    norm.includes("khong phai") ||
+    (/\b(chu|chứ)\b/.test(norm) && (norm.includes("ly") || norm.includes("100k") || norm.includes("tien") || /\b\d+\s*ly\b/.test(norm)));
+
+  if (isCorrection) {
+    // Tìm số lượng đúng trong câu đính chính: "10 ly", "5 chai", "2 bao"
+    const qtyMatch = norm.match(/(\d+)\s*(?:ly|chai|cốc|bao|bó|kg|lon)/i);
+    const correctedQty = qtyMatch ? Number(qtyMatch[1]) : 0;
+
+    // Tìm giao dịch thu gần nhất để điều chỉnh
+    const recentThuList = (state.ds || []).filter((tx) => !tx.deleted && tx.loai === "thu");
+    const lastThu = conversationContext.lastTransaction || recentThuList[recentThuList.length - 1];
+
+    if (correctedQty > 0 && lastThu) {
+      const updatedTx = {
+        ...lastThu,
+        soLuong: correctedQty,
+        tongGiaCost: correctedQty * (Number(lastThu.giaCostDonVi) || 3500),
+      };
+
+      return {
+        type: "action",
+        action: "update_last_transaction",
+        updatedTx,
+        reply: `Dạ EV thành thật xin lỗi anh/chị vì sơ suất tính nhầm lúc nãy ạ! 🙇‍♂️
+
+Em đã điều chỉnh lại chính xác thành **${correctedQty} ${lastThu.donViTinh || "ly"} ${lastThu.danhMuc}** với tổng tiền **${formatMoney(lastThu.soTien)}** vào sổ doanh thu rồi ạ!`,
+      };
+    }
+
     if (norm.includes("menu") || norm.includes("thuc don") || norm.includes("mon")) {
       return {
         type: "clarification",
@@ -148,11 +232,61 @@ EV sẽ cập nhật thẳng vào Menu bán hàng của quán ngay lập tức �
 
     return {
       type: "clarification",
-      reply: `Dạ EV xin lỗi anh/chị vì hiểu nhầm ý ạ! 🙇‍♂️\n\nEV đã sẵn sàng lắng nghe lại, anh/chị muốn EV ghi sổ thu/chi, thêm món vào Menu, hay kiểm tra số liệu nào ạ?`,
+      reply: `Dạ EV xin lỗi anh/chị vì sơ suất ạ! 🙇‍♂️\n\nEV đã sẵn sàng lắng nghe lại, anh/chị muốn EV sửa lại số lượng, thêm món Menu hay ghi chép lại khoản nào ạ?`,
     };
   }
 
-  // 2. LỆNH THÊM MÓN MỚI VÀO MENU (ADD MENU ITEM)
+  // 3. TRÒ CHUYỆN THƯỜNG NGÀY & THỜI TIẾT (CHIT-CHAT - KHÔNG ĐƯỢC NHẢY VÀO BÁO CÁO DOANH THU)
+  const isChitChat =
+    norm.includes("troi the nao") ||
+    norm.includes("thoi tiet") ||
+    norm.includes("nang hay mua") ||
+    norm.includes("khoe khong") ||
+    norm.includes("chao ev") ||
+    norm.includes("chao em") ||
+    norm.includes("hello") ||
+    norm.includes("hi ev") ||
+    norm.includes("ban la ai") ||
+    norm.includes("em la ai") ||
+    norm.includes("ten gi") ||
+    norm.includes("cam on");
+
+  if (isChitChat) {
+    if (norm.includes("troi the nao") || norm.includes("thoi tiet") || norm.includes("nang hay mua")) {
+      return {
+        type: "general",
+        reply: `Dạ hôm nay thời tiết khá đẹp và thuận lợi, rất thích hợp để bán các món nước mía, nước cam mát lạnh giải khát anh/chị nha! ☀️🍹
+
+Chúc quán mình hôm nay khách vào nườm nượp, làm ăn phát tài và đắt hàng liên tục ạ! ✨`,
+      };
+    }
+
+    if (norm.includes("ban la ai") || norm.includes("em la ai") || norm.includes("ten gi")) {
+      return {
+        type: "general",
+        reply: `Dạ em là **Thư Ký EV** - trợ lý tài chính thông minh của riêng quán mình! 🤖
+
+Em luôn túc trực để:
+- 🥤 Ghi chép đơn bán hàng và chi phí theo thời gian thực.
+- 📊 Quản lý và tổng hợp doanh thu tự động cho cả **2 chi nhánh**.
+- 📋 Thêm bớt và cập nhật menu quán ngay khi anh/chị yêu cầu.`,
+      };
+    }
+
+    if (norm.includes("cam on")) {
+      return {
+        type: "general",
+        reply: `Dạ không có chi ạ! Phục vụ quán của anh/chị là niềm vui của EV ạ! 🥰 Chúc anh/chị một ngày kinh doanh thật hồng phát!`,
+      };
+    }
+
+    return {
+      type: "general",
+      reply: `Dạ em chào anh/chị! EV luôn sẵn sàng ghi đơn bán hàng, ghi chi phí hoặc báo cáo doanh thu 2 quán cho anh/chị đây ạ! 🤖✨`,
+    };
+  }
+
+  // 4. LỆNH THÊM MÓN MỚI VÀO MENU (ADD MENU ITEM)
   if (
     norm.includes("them vao menu") ||
     norm.includes("them menu") ||
@@ -186,7 +320,7 @@ EV sẽ cập nhật thẳng vào Menu bán hàng của quán ngay lập tức �
     };
   }
 
-  // 3. LỆNH XÓA MÓN KHỎI MENU (DELETE MENU ITEM)
+  // 5. LỆNH XÓA MÓN KHỎI MENU (DELETE MENU ITEM)
   if (norm.includes("xoa mon") || norm.includes("bo mon") || norm.includes("xoa khoi menu")) {
     const menuItems = state.quickItems || [];
     let matched = menuItems.find((i) => norm.includes(normalizeQuery(i.name)));
@@ -201,7 +335,7 @@ EV sẽ cập nhật thẳng vào Menu bán hàng của quán ngay lập tức �
     }
   }
 
-  // 4. LỆNH ĐỔI CHI NHÁNH LÀM VIỆC (SWITCH BRANCH)
+  // 6. LỆNH ĐỔI CHI NHÁNH LÀM VIỆC (SWITCH BRANCH)
   if (norm.includes("chuyen sang chi nhanh") || norm.includes("doi qua chi nhanh") || norm.includes("chuyen qua quan") || norm.includes("doi sang quan")) {
     const nextBranch = norm.includes("2") ? "Chi nhánh 2" : "Quán Nhà (Chính)";
     return {
@@ -212,8 +346,8 @@ EV sẽ cập nhật thẳng vào Menu bán hàng của quán ngay lập tức �
     };
   }
 
-  // 5. BÁO CÁO SO SÁNH 2 CHI NHÁNH
-  if (isAllBranches || norm.includes("so sanh 2 quan")) {
+  // 7. BÁO CÁO SO SÁNH 2 CHI NHÁNH
+  if (isAllBranches || norm.includes("so sanh 2 quan") || norm.includes("2 chi nhanh")) {
     return {
       type: "financial_multi_branch",
       reply: `🏢 **Dạ EV xin báo cáo tổng hợp CẢ 2 CHI NHÁNH hôm nay (${todayReport.dateText})**:
@@ -236,7 +370,7 @@ EV sẽ cập nhật thẳng vào Menu bán hàng của quán ngay lập tức �
     };
   }
 
-  // 6. BẢNG XẾP HẠNG MÓN BẢN CHẠY (MENU RANKING)
+  // 8. BẢNG XẾP HẠNG MÓN BÁN CHẠY (MENU RANKING)
   if (
     norm.includes("mon nao ban chay") ||
     norm.includes("ban chay nhat") ||
@@ -285,7 +419,7 @@ ${breakdownText}
     };
   }
 
-  // 7. CHI PHÍ NGUYÊN VẬT LIỆU (HỎI BÁO CÁO CHI PHÍ)
+  // 9. CHI PHÍ NGUYÊN VẬT LIỆU (HỎI BÁO CÁO CHI PHÍ)
   const isExpenseReportQuery =
     (norm.includes("ton bao nhieu") ||
       norm.includes("het bao nhieu") ||
@@ -330,8 +464,8 @@ ${expText}
     };
   }
 
-  // 8. KIỂM TRA KÉT TIỀN MẶT / TIỀN THỐI
-  if (norm.includes("ket") || norm.includes("tien mat") || norm.includes("thoi") || norm.includes("doi soat")) {
+  // 10. KIỂM TRA KÉT TIỀN MẶT / TIỀN THỐI
+  if (norm.includes("ket") || (norm.includes("tien mat") && (norm.includes("con") || norm.includes("kiem tra") || norm.includes("doi soat"))) || norm.includes("thoi") || norm.includes("doi soat")) {
     return {
       type: "drawer",
       reply: `🏦 **Dạ EV đối soát tiền mặt trong két hôm nay (${targetBranch || "Quán Nhà"})**:
@@ -344,7 +478,7 @@ ${expText}
     };
   }
 
-  // 9. TƯ VẤN CHIẾN LƯỢC KINH DOANH
+  // 11. TƯ VẤN CHIẾN LƯỢC KINH DOANH
   if (norm.includes("tu van") || norm.includes("chien luoc") || norm.includes("loi khuyen") || norm.includes("kinh doanh")) {
     const totalTransactions = transactions.filter((t) => t.loai === "thu").length;
     const totalRevenue = transactions.filter((t) => t.loai === "thu").reduce((s, t) => s + Number(t.soTien || 0), 0);
@@ -362,16 +496,18 @@ ${expText}
     };
   }
 
-  // 10. BÁO CÁO DOANH THU & TIỀN LỜI HÔM NAY
-  if (
-    norm.includes("hom nay") ||
-    norm.includes("ngay nay") ||
+  // 12. BÁO CÁO DOANH THU & TIỀN LỜI HÔM NAY (CHỈ KÍCH HOẠT KHI CÓ TỪ KHÓA TÀI CHÍNH RÕ RÀNG)
+  const isFinancialReportQuery =
     norm.includes("doanh thu") ||
     norm.includes("loi bao nhieu") ||
     norm.includes("loi nhuan") ||
+    norm.includes("lai bao nhieu") ||
     norm.includes("ban duoc bao nhieu") ||
-    norm.includes("tong ket")
-  ) {
+    norm.includes("tong ket ngay") ||
+    norm.includes("bao cao ngay") ||
+    norm.includes("thu chi hom nay");
+
+  if (isFinancialReportQuery) {
     if (norm.includes("loi") || norm.includes("lai")) {
       const margin = todayReport.income > 0 ? Math.round((todayReport.grossProfit / todayReport.income) * 100) : 0;
       return {
@@ -399,12 +535,42 @@ ${expText}
     };
   }
 
-  // 11. PHÂN TÍCH TẤT CẢ CÂU NÓI TỰ NHIÊN GIAO DỊCH (BÁN NƯỚC / CHI TIỀN / CHUYỂN KHOẢN)
+  // 13. PHÂN TÍCH GIAO DỊCH TỰ NHIÊN (BÁN NƯỚC / CHI TIỀN / MUA NGUYÊN LIỆU)
   const parsed = phanTichChiTiet(query, state.quickItems || []);
-  if (parsed && (parsed.soTien > 0 || parsed.confidence !== "low" || parsed.slots?.productId)) {
+
+  // Nếu là lệnh chi nhưng chưa có giá tiền (ví dụ: "mới mua 2 bao đá") -> Hỏi lại người dùng, không được tự ý ghi bừa!
+  if (parsed && parsed.loai === "chi" && parsed.soTien === 0 && (parsed.danhMuc !== "Chi khác" || parsed.soLuong > 0)) {
+    conversationContext.pendingQuestion = {
+      intent: "expense_price",
+      category: parsed.danhMuc,
+      quantity: parsed.soLuong,
+      unit: parsed.donViTinh,
+      branch: parsed.chiNhanh || targetBranch,
+    };
+
+    return {
+      type: "question",
+      reply: `Dạ EV ghi nhận quán mình vừa mua **${parsed.soLuong} ${parsed.donViTinh} ${parsed.danhMuc}** ạ! 🧊
+
+Anh/Chị cho EV hỏi **${parsed.soLuong} ${parsed.donViTinh} này hết bao nhiêu tiền** (hoặc bao nhiêu 1 ${parsed.donViTinh}) để EV ghi vào sổ chi phí chính xác nhé?`,
+    };
+  }
+
+  // Nếu có giao dịch hợp lệ
+  if (parsed && (parsed.soTien > 0 || (parsed.loai === "thu" && parsed.slots?.productId))) {
     const branchToUse = parsed.chiNhanh || targetBranch || state.currentBranch || "Quán Nhà (Chính)";
     const paymentText = parsed.phuongThuc === "chuyen_khoan" ? " (Chuyển khoản QR)" : " (Tiền mặt)";
     const isThu = parsed.loai === "thu";
+
+    // Lưu vào ngữ cảnh giao dịch vừa thực hiện
+    conversationContext.lastTransaction = {
+      ...parsed,
+      chiNhanh: branchToUse,
+    };
+
+    const calculatedNote = isThu && parsed.slots?.unitPrice > 0 && parsed.soLuong > 1 && parsed.soTien > parsed.slots.unitPrice
+      ? ` (${parsed.soLuong} ${parsed.donViTinh} - ${formatMoney(parsed.slots.unitPrice)}/${parsed.donViTinh})`
+      : ` (${parsed.soLuong} ${parsed.donViTinh})`;
 
     return {
       type: "command",
@@ -414,7 +580,7 @@ ${expText}
       parsed,
       reply: `✅ **Dạ EV đã ghi sổ thành công**:
 - **Loại**: ${isThu ? "+ Thu tiền bán" : "- Chi tiền"}
-- **Món/Khoản**: **${parsed.danhMuc}** (${parsed.soLuong} ${parsed.donViTinh})
+- **Món/Khoản**: **${parsed.danhMuc}**${calculatedNote}
 - **Số tiền**: **${formatMoney(parsed.soTien)}**${paymentText}
 - **Điểm bán**: **${branchToUse}**
 - **Giá vốn (Cost)**: ${formatMoney(parsed.tongGiaCost)}
@@ -423,15 +589,15 @@ ${expText}
     };
   }
 
-  // 12. Phản hồi mặc định thông minh của Thư ký EV
+  // 14. Phản hồi mặc định thông minh của Thư ký EV
   return {
     type: "general",
     reply: `Dạ em là **Thư ký EV**, luôn sẵn sàng hỗ trợ anh/chị quản lý toàn diện 2 chi nhánh!
 
 Anh/Chị có thể ra lệnh tự nhiên cho EV:
-- 🥤 *"có khách vừa chuyển 16k cho 2 ly mía thường"* ➔ EV tự động ghi bán nước (Chuyển khoản).
+- 🥤 *"khách vừa chuyển khoản 100k trà tắc"* ➔ EV tự tính 10 ly trà tắc thu 100k (CK).
+- 🧊 *"mới mua 2 bao đá"* ➔ EV hỏi giá tiền để ghi chi chính xác.
 - 🍹 *"Thêm vào menu món Mía Thơm giá 10k"* ➔ EV tự động tạo món vào Menu.
-- 🧊 *"mua 3 bao đá 30k"* ➔ EV tự động ghi chi tiền.
 - 📊 *"EV hôm nay 2 quán lời bao nhiêu?"* ➔ EV tổng hợp doanh thu 2 chi nhánh.
 - 🏢 *"Chuyển sang Chi nhánh 2"* ➔ EV chuyển điểm bán ngay lập tức.`,
   };
@@ -458,6 +624,7 @@ Bối cảnh tài chính thời gian thực:
 - Danh sách Menu hiện tại: ${JSON.stringify((state.quickItems || []).map((i) => ({ ten: i.name, giaBan: i.price, giaCost: i.costPrice })))}
 
 Nếu người dùng yêu cầu thêm món vào menu, hãy trả lời rõ ràng rằng bạn đồng ý và hướng dẫn họ.
+Nếu người dùng nói chuyện phiếm hoặc hỏi thời tiết, hãy trả lời vui vẻ, lịch sự và chúc quán buôn may bán đắt, không tự ý đưa báo cáo tài chính nếu không được hỏi.
 Hãy xưng là "EV" hoặc "Dạ EV", trả lời thân thiện, chuẩn xác số liệu và có định dạng Markdown:`;
 
   try {
