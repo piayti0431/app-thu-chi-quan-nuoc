@@ -73,6 +73,35 @@ function shouldContinue(session) {
   return session === activeSession && isListening;
 }
 
+export async function yeuCauQuyenMicro() {
+  const { SpeechRecognition } = nativePlugins();
+  if (isNative() && SpeechRecognition) {
+    try {
+      let permission = await SpeechRecognition.checkPermissions?.();
+      if (permission?.speechRecognition !== "granted") {
+        permission = await SpeechRecognition.requestPermissions?.();
+      }
+      return permission?.speechRecognition === "granted";
+    } catch (e) {
+      console.warn("Native mic permission error", e);
+      return false;
+    }
+  }
+
+  if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      return true;
+    } catch (err) {
+      console.warn("Web mic permission denied/error", err);
+      return false;
+    }
+  }
+
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
 export async function batDauNghe(onKetQua, onLoi) {
   if (isListening) return;
   isListening = true;
@@ -90,7 +119,7 @@ export async function batDauNghe(onKetQua, onLoi) {
       const available = await SpeechRecognition.available?.();
       if (!shouldContinue(session)) return;
       if (available && available.available === false) {
-        throw new Error("Máy này không hỗ trợ nhận giọng nói");
+        throw new Error("Thiết bị này không hỗ trợ nhận dạng giọng nói");
       }
 
       let permission = await SpeechRecognition.checkPermissions?.();
@@ -100,7 +129,7 @@ export async function batDauNghe(onKetQua, onLoi) {
       }
       if (!shouldContinue(session)) return;
       if (permission?.speechRecognition !== "granted") {
-        throw new Error("Chưa cấp quyền micro");
+        throw new Error("Chưa cấp quyền Micro. Vui lòng cấp quyền Micro trong Cài đặt ứng dụng để nói với Thư Ký EV!");
       }
 
       partialListener = await SpeechRecognition.addListener?.("partialResults", (data) => {
@@ -129,7 +158,7 @@ export async function batDauNghe(onKetQua, onLoi) {
       }
 
       nativeTimeout = setTimeout(() => {
-        if (!lastText) activeOnError?.(new Error("Chưa nghe được nội dung nào"));
+        if (!lastText) activeOnError?.(new Error("Chưa nghe rõ câu nói, bạn vui lòng nói lại nhé!"));
         dungNghe().catch(() => {});
       }, 18000);
 
@@ -162,7 +191,7 @@ export async function batDauNghe(onKetQua, onLoi) {
 
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
-      throw new Error("Trình duyệt không hỗ trợ nhận giọng nói");
+      throw new Error("Trình duyệt không hỗ trợ nhận giọng nói tiếng Việt. Vui lòng sử dụng Chrome/Safari hoặc mở app Android!");
     }
 
     if (webRecognition) {
@@ -191,7 +220,13 @@ export async function batDauNghe(onKetQua, onLoi) {
       isListening = false;
       clearTimeout(nativeTimeout);
       nativeTimeout = null;
-      onLoi?.(new Error(event?.error || "Lỗi thu âm giọng nói"));
+      let msg = event?.error || "Lỗi thu âm giọng nói";
+      if (event?.error === "not-allowed" || event?.error === "permission-denied") {
+        msg = "⚠️ Vui lòng cấp quyền Micro (bấm biểu tượng 🔒 hoặc 🎙️ trên thanh địa chỉ) để nói với Thư Ký EV!";
+      } else if (event?.error === "no-speech") {
+        msg = "Chưa nghe rõ câu nói, bạn vui lòng nói lại nhé!";
+      }
+      onLoi?.(new Error(msg));
     };
 
     webRecognition.onend = () => {

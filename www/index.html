@@ -111,7 +111,7 @@
           </button>
           <button class="tab" data-view="ai">
             <span class="tab-icon">🤖</span>
-            <span class="tab-label">Trợ lý AI</span>
+            <span class="tab-label">Thư Ký EV</span>
           </button>
           <button class="tab" data-view="settings">
             <span class="tab-icon">⚙️</span>
@@ -362,7 +362,7 @@
           </section>
         </section>
 
-        <!-- TAB 4: TRỢ LÝ AI QUẢN LÝ DOANH THU -->
+        <!-- TAB 4: THƯ KÝ AI EV (QUẢN LÝ 2 CHI NHÁNH) -->
         <section class="view" id="view-ai" hidden>
           <div class="ai-container">
             <div class="ai-header-card">
@@ -370,8 +370,8 @@
                 <span class="ai-avatar-icon">🤖</span>
               </div>
               <div class="ai-header-info">
-                <h2>Trợ lý AI Doanh Thu</h2>
-                <p>Hỏi đáp số liệu, phân tích tiền lời, chi phí nguyên liệu & tư vấn quán</p>
+                <h2>Thư Ký EV (Khẩu lệnh "i vi")</h2>
+                <p>Quản lý toàn bộ doanh thu & thu chi 2 chi nhánh tự động</p>
               </div>
             </div>
 
@@ -380,27 +380,27 @@
               <div class="ai-msg ai-msg-bot">
                 <div class="ai-msg-avatar">🤖</div>
                 <div class="ai-msg-content">
-                  <p>Xin chào bạn! Tôi là <strong>Trợ lý AI Quản Lý Doanh Thu</strong> của quán nước.</p>
-                  <p>Bạn có thể bấm vào các câu hỏi gợi ý bên dưới, nói qua Mic hoặc gõ câu hỏi để tôi phân tích số liệu tài chính ngay nhé!</p>
+                  <p>Dạ em là <strong>Thư Ký EV</strong> (phát âm: <em>i vi</em>)! Em sẵn sàng ghi sổ và quản lý doanh thu cho 2 chi nhánh của anh/chị.</p>
+                  <p>Anh/Chị chỉ cần bấm Mic hoặc đọc khẩu lệnh: <em>"i vi bán 2 ly nước mía"</em>, <em>"ê vi mua 3 bao đá 30k"</em>, <em>"EV hôm nay 2 quán lời bao nhiêu?"</em></p>
                 </div>
               </div>
             </div>
 
             <!-- GỢI Ý CÂU HỎI NHANH (PROMPT CHIPS) -->
             <div class="ai-quick-prompts">
-              <button class="ai-chip" type="button" data-prompt="Hôm nay quán bán được bao nhiêu ly, lời bao nhiêu?">📊 Hôm nay lời bao nhiêu?</button>
-              <button class="ai-chip" type="button" data-prompt="Món nào đang bán chạy nhất hôm nay?">🏆 Món bán chạy nhất?</button>
-              <button class="ai-chip" type="button" data-prompt="Tổng tiền mua đá và nguyên liệu hôm nay hết bao nhiêu?">🧊 Chi phí mua nguyên liệu?</button>
-              <button class="ai-chip" type="button" data-prompt="Tiền mặt cần có trong két hiện tại là bao nhiêu?">💵 Kiểm tra tiền két?</button>
-              <button class="ai-chip" type="button" data-prompt="Tư vấn chiến lược kinh doanh và định lượng cho quán">💡 Tư vấn chiến lược quán</button>
+              <button class="ai-chip" type="button" data-prompt="EV ơi hôm nay cả 2 chi nhánh lời bao nhiêu?">📊 Doanh thu 2 chi nhánh?</button>
+              <button class="ai-chip" type="button" data-prompt="i vi món nào đang bán chạy nhất hôm nay?">🏆 Món bán chạy nhất?</button>
+              <button class="ai-chip" type="button" data-prompt="ê vi tổng tiền mua đá và nguyên liệu hôm nay?">🧊 Chi phí mua nguyên liệu?</button>
+              <button class="ai-chip" type="button" data-prompt="i vi kiểm tra tiền mặt trong két hôm nay">💵 Kiểm tra tiền két?</button>
+              <button class="ai-chip" type="button" data-prompt="EV tư vấn chiến lược kinh doanh cho 2 chi nhánh">💡 Chiến lược 2 chi nhánh</button>
             </div>
 
             <!-- THANH NHẬP LIỆU CÂU HỎI & MIC -->
             <form class="ai-input-bar" id="aiChatForm">
-              <button class="ai-mic-btn" id="aiMicBtn" type="button" aria-label="Nói câu hỏi với AI">
+              <button class="ai-mic-btn" id="aiMicBtn" type="button" aria-label="Nói khẩu lệnh với Thư Ký EV">
                 <span>🎙️</span>
               </button>
-              <input class="ai-input" id="aiChatInput" type="text" enterkeyhint="send" placeholder="Hỏi trợ lý AI (Ví dụ: Hôm nay bán được bao nhiêu ly?)..." autocomplete="off">
+              <input class="ai-input" id="aiChatInput" type="text" enterkeyhint="send" placeholder="Nói hoặc gõ: 'i vi bán 2 ly nước mía' / 'EV hôm nay lời bao nhiêu?'..." autocomplete="off">
               <button class="ai-send-btn primary-action" type="submit" aria-label="Gửi câu hỏi">
                 <span>Gửi</span>
               </button>

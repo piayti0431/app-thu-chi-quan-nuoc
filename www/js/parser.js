@@ -38,8 +38,35 @@ const CAM_WORDS = new Set(["cam", "camm", "can", "cang", "kam", "camtuoi"]);
 const NUOC_WORDS = new Set(["nuoc", "nuot", "nuotc", "nuocm", "nuc"]);
 const NUMBER_FILLERS = new Set(["linh", "le"]);
 
+export function stripWakeWordAndBranch(text) {
+  let raw = String(text || "").trim();
+
+  // Strip EV / i vi / ê vi / evi wake words at the beginning or standalone
+  raw = raw.replace(/^(ev|i\s*vi|e\s*vi|i-vi|e-vi|ê\s*vi|ê-vi|evi)(\s+ơi|\s+oi|\s+nhe|\s+nhé|\s+giúp|\s+giup|\s+cho)?\s+/i, "");
+  raw = raw.replace(/\b(ev|i\s*vi|e\s*vi|i-vi|e-vi|ê\s*vi|ê-vi|evi)\b/gi, "").replace(/\s+/g, " ").trim();
+
+  // Detect explicit branch in voice (support both accented and unaccented)
+  let branch = null;
+  const norm = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d");
+
+  if (/chi\s*nhanh\s*2|quan\s*2|diem\s*ban\s*2/i.test(norm)) {
+    branch = "Chi nhánh 2";
+    raw = raw.replace(/chi\s*nh[aáàảãạ]nh\s*2|qu[aáàảãạ]n\s*2|di[eéèẻẽẹêếềểễệ]m\s*b[aáàảãạ]n\s*2/gi, "").trim();
+  } else if (/chi\s*nhanh\s*1|quan\s*1|quan\s*nha|chinh/i.test(norm)) {
+    branch = "Quán Nhà (Chính)";
+    raw = raw.replace(/chi\s*nh[aáàảãạ]nh\s*1|qu[aáàảãạ]n\s*1|qu[aáàảãạ]n\s*nh[aàảãạ]|ch[iíìỉĩị]nh/gi, "").trim();
+  }
+
+  return { cleanText: raw, branch };
+}
+
 function normalizeText(text) {
-  return String(text || "")
+  const { cleanText } = stripWakeWordAndBranch(text);
+  return String(cleanText || text || "")
     .toLowerCase()
     .replace(/[đĐ]/g, "d")
     .normalize("NFD")
@@ -543,7 +570,8 @@ function detectPaymentMethod(normalized) {
 }
 
 export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
-  const normalized = normalizeText(text);
+  const { cleanText, branch } = stripWakeWordAndBranch(text);
+  const normalized = normalizeText(cleanText || text);
   const tokens = tokenize(normalized);
   const loai = detectType(normalized);
   const alternatives = productCandidates(normalized, tokens, quickItems);
@@ -584,6 +612,7 @@ export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
     giaCostDonVi: unitCost,
     tongGiaCost: totalCost,
     danhMuc: category,
+    chiNhanh: branch || null,
     moTaXacNhan,
     ghiChu: text?.trim() || DEFAULT_NOTE,
     cauNoiGoc: text?.trim() || "",

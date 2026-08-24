@@ -94,7 +94,7 @@ console.log("Starting ai-assistant.test.mjs...");
 {
   const res = phanTichTaiChinhNoiBo("Tư vấn chiến lược kinh doanh cho quán", mockState);
   assert.equal(res.type, "advice");
-  assert.ok(res.reply.includes("Chiến lược"), "Phải có gợi ý chiến lược F&B");
+  assert.ok(res.reply.toLowerCase().includes("chiến lược"), "Phải có gợi ý chiến lược F&B");
   console.log("PASS AI Business Advice: Strategy and operations consulting");
 }
 

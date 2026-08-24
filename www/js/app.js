@@ -14,9 +14,9 @@ import {
   xoaTatCaDuLieu,
   xuatDuLieuJson,
 } from "./db.js";
-import { phanTichNhieu } from "./parser.js";
+import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
 import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney } from "./report.js";
-import { batDauNghe, docLai, dungNghe } from "./speech.js";
+import { batDauNghe, docLai, dungNghe, yeuCauQuyenMicro } from "./speech.js";
 import { hoiGeminiAI, phanTichTaiChinhNoiBo } from "./ai-assistant.js";
 import {
   batDauRealtime,
@@ -1464,7 +1464,7 @@ function openVoiceConfirmDialog(parsed, rawText) {
         ghiChu: note,
         cauNoiGoc: rawText,
         daSuaTay: true,
-        chiNhanh: state.currentBranch,
+        chiNhanh: parsed.chiNhanh || state.currentBranch,
       });
 
       state = await docDuLieu();
@@ -1522,7 +1522,7 @@ function setupAIAssistant() {
       <div class="ai-msg-avatar">🤖</div>
       <div class="ai-msg-content">
         ${rawHtml}
-        <button class="ai-tts-btn" type="button">🔊 Nghe đọc</button>
+        <button class="ai-tts-btn" type="button">🔊 Nghe EV đọc</button>
       </div>
     `;
     const ttsBtn = msgDiv.querySelector(".ai-tts-btn");
@@ -1530,7 +1530,7 @@ function setupAIAssistant() {
       ttsBtn.onclick = () => {
         const plainText = markdownText.replace(/[*_#`[\]()]/g, "");
         docLai(plainText);
-        showToast("Đang phát âm thanh câu trả lời...");
+        showToast("Đang phát âm thanh câu trả lời của EV...");
       };
     }
     chatBox.appendChild(msgDiv);
@@ -1547,7 +1547,7 @@ function setupAIAssistant() {
     loadingDiv.className = "ai-msg ai-msg-bot is-loading";
     loadingDiv.innerHTML = `
       <div class="ai-msg-avatar">🤖</div>
-      <div class="ai-msg-content"><p><em>Đang phân tích số liệu tài chính của quán...</em></p></div>
+      <div class="ai-msg-content"><p><em>EV đang phân tích số liệu tài chính của quán...</em></p></div>
     `;
     chatBox.appendChild(loadingDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -1555,11 +1555,53 @@ function setupAIAssistant() {
     try {
       const apiKey = state.sync?.geminiApiKey || "";
       const result = await hoiGeminiAI(q, state, apiKey);
+
+      // Nếu là lệnh ghi chép giao dịch của Thư Ký EV
+      if (result.type === "command") {
+        const parsed = phanTichChiTiet(q, state.quickItems || []);
+        if (parsed.soTien > 0) {
+          const branchToUse = parsed.chiNhanh || result.branch || state.currentBranch || "Quán Nhà (Chính)";
+          await themGiaoDich({
+            loai: parsed.loai,
+            soTien: parsed.soTien,
+            soLuong: parsed.soLuong || 1,
+            donViTinh: parsed.donViTinh || "ly",
+            phuongThuc: parsed.phuongThuc || "tien_mat",
+            giaCostDonVi: parsed.giaCostDonVi || 0,
+            tongGiaCost: parsed.tongGiaCost || 0,
+            danhMuc: parsed.danhMuc,
+            ghiChu: parsed.ghiChu || q,
+            cauNoiGoc: q,
+            daSuaTay: false,
+            chiNhanh: branchToUse,
+          });
+          state = await docDuLieu();
+          renderAll();
+          triggerAutoSync();
+
+          const confirmationMsg = `✅ **Dạ EV đã ghi sổ thành công**:
+- **Loại**: ${parsed.loai === "thu" ? "+ Thu tiền bán" : "- Chi tiền"}
+- **Món/Khoản**: **${parsed.danhMuc}** (${parsed.soLuong} ${parsed.donViTinh})
+- **Số tiền**: **${formatMoney(parsed.soTien)}** ${parsed.phuongThuc === "chuyen_khoan" ? "(CK)" : "(Tiền mặt)"}
+- **Điểm bán**: **${branchToUse}**
+- **Giá vốn (Cost)**: ${formatMoney(parsed.tongGiaCost)}
+
+*Dữ liệu đã được cập nhật vào bảng doanh thu hôm nay!*`;
+          loadingDiv.remove();
+          appendBotMessage(confirmationMsg);
+
+          const speakText = `Dạ EV đã ghi nhận ${parsed.loai === "thu" ? "bán" : "chi"} ${parsed.soLuong} ${parsed.donViTinh} ${parsed.danhMuc}, số tiền ${docSoTienTiengViet(parsed.soTien)} vào ${branchToUse}.`;
+          docLai(speakText);
+          showToast(`EV đã ghi vào ${branchToUse}`);
+          return;
+        }
+      }
+
       loadingDiv.remove();
       appendBotMessage(result.reply);
     } catch (e) {
       loadingDiv.remove();
-      appendBotMessage("Xin lỗi, đã xảy ra lỗi khi phân tích. Bạn vui lòng thử lại câu hỏi khác nhé!");
+      appendBotMessage("Dạ EV xin lỗi, đã xảy ra lỗi khi phân tích. Bạn vui lòng thử lại câu hỏi khác nhé!");
     }
   }
 
@@ -1590,7 +1632,7 @@ function setupAIAssistant() {
 
       aiMicListening = true;
       micBtn.classList.add("is-listening");
-      showToast("Đang lắng nghe câu hỏi của bạn...");
+      showToast("Thư Ký EV đang lắng nghe bạn nói...");
 
       await batDauNghe(
         (res) => {
