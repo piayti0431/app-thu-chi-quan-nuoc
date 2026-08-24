@@ -1410,6 +1410,8 @@ function initEventListeners() {
       showToast(`Lỗi tạo tài khoản: ${err.message}`, true);
     }
   });
+
+  setupAIAssistant();
 }
 
 function openVoiceConfirmDialog(parsed, rawText) {
@@ -1473,8 +1475,6 @@ function openVoiceConfirmDialog(parsed, rawText) {
       triggerAutoSync();
     }
   };
-
-  setupAIAssistant();
 }
 
 function escapeHtml(str) {
@@ -1605,10 +1605,29 @@ function setupAIAssistant() {
     }
   }
 
-  chatForm.onsubmit = (e) => {
+  chatForm.addEventListener("submit", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     handleSend(chatInput.value);
-  };
+    return false;
+  });
+
+  const sendBtn = $("#aiSendBtn");
+  if (sendBtn) {
+    sendBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSend(chatInput.value);
+    });
+  }
+
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSend(chatInput.value);
+    }
+  });
 
   // Quick prompt chips
   $$(".ai-chip").forEach((chip) => {

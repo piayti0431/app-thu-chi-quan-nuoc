@@ -396,12 +396,12 @@
             </div>
 
             <!-- THANH NHẬP LIỆU CÂU HỎI & MIC -->
-            <form class="ai-input-bar" id="aiChatForm">
+            <form class="ai-input-bar" id="aiChatForm" onsubmit="return false;" action="javascript:void(0);">
               <button class="ai-mic-btn" id="aiMicBtn" type="button" aria-label="Nói khẩu lệnh với Thư Ký EV">
                 <span>🎙️</span>
               </button>
               <input class="ai-input" id="aiChatInput" type="text" enterkeyhint="send" placeholder="Nói hoặc gõ: 'i vi bán 2 ly nước mía' / 'EV hôm nay lời bao nhiêu?'..." autocomplete="off">
-              <button class="ai-send-btn primary-action" type="submit" aria-label="Gửi câu hỏi">
+              <button class="ai-send-btn primary-action" id="aiSendBtn" type="button" aria-label="Gửi câu hỏi">
                 <span>Gửi</span>
               </button>
             </form>
