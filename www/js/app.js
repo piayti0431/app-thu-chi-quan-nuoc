@@ -17,6 +17,7 @@ import {
 import { phanTichNhieu } from "./parser.js";
 import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney } from "./report.js";
 import { batDauNghe, docLai, dungNghe } from "./speech.js";
+import { hoiGeminiAI, phanTichTaiChinhNoiBo } from "./ai-assistant.js";
 import {
   batDauRealtime,
   dangKy,
@@ -1472,6 +1473,158 @@ function openVoiceConfirmDialog(parsed, rawText) {
       triggerAutoSync();
     }
   };
+
+  setupAIAssistant();
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderMarkdownLite(md) {
+  const safe = escapeHtml(md);
+  return safe
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/\n\n/g, "</p><p>")
+    .replace(/\n- (.*?)(?=\n|$)/g, "<li>$1</li>")
+    .replace(/(<li>.*?<\/li>)/g, "<ul>$1</ul>")
+    .replace(/\n/g, "<br>");
+}
+
+function setupAIAssistant() {
+  const chatForm = $("#aiChatForm");
+  const chatInput = $("#aiChatInput");
+  const chatBox = $("#aiChatBox");
+  const micBtn = $("#aiMicBtn");
+
+  if (!chatForm || !chatInput || !chatBox) return;
+
+  function appendUserMessage(text) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "ai-msg ai-msg-user";
+    msgDiv.innerHTML = `
+      <div class="ai-msg-avatar">👤</div>
+      <div class="ai-msg-content"><p>${escapeHtml(text)}</p></div>
+    `;
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function appendBotMessage(markdownText) {
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "ai-msg ai-msg-bot";
+    const rawHtml = renderMarkdownLite(markdownText);
+    msgDiv.innerHTML = `
+      <div class="ai-msg-avatar">🤖</div>
+      <div class="ai-msg-content">
+        ${rawHtml}
+        <button class="ai-tts-btn" type="button">🔊 Nghe đọc</button>
+      </div>
+    `;
+    const ttsBtn = msgDiv.querySelector(".ai-tts-btn");
+    if (ttsBtn) {
+      ttsBtn.onclick = () => {
+        const plainText = markdownText.replace(/[*_#`[\]()]/g, "");
+        docLai(plainText);
+        showToast("Đang phát âm thanh câu trả lời...");
+      };
+    }
+    chatBox.appendChild(msgDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  async function handleSend(text) {
+    const q = text.trim();
+    if (!q) return;
+    appendUserMessage(q);
+    chatInput.value = "";
+
+    const loadingDiv = document.createElement("div");
+    loadingDiv.className = "ai-msg ai-msg-bot is-loading";
+    loadingDiv.innerHTML = `
+      <div class="ai-msg-avatar">🤖</div>
+      <div class="ai-msg-content"><p><em>Đang phân tích số liệu tài chính của quán...</em></p></div>
+    `;
+    chatBox.appendChild(loadingDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+      const apiKey = state.sync?.geminiApiKey || "";
+      const result = await hoiGeminiAI(q, state, apiKey);
+      loadingDiv.remove();
+      appendBotMessage(result.reply);
+    } catch (e) {
+      loadingDiv.remove();
+      appendBotMessage("Xin lỗi, đã xảy ra lỗi khi phân tích. Bạn vui lòng thử lại câu hỏi khác nhé!");
+    }
+  }
+
+  chatForm.onsubmit = (e) => {
+    e.preventDefault();
+    handleSend(chatInput.value);
+  };
+
+  // Quick prompt chips
+  $$(".ai-chip").forEach((chip) => {
+    chip.onclick = () => {
+      const prompt = chip.getAttribute("data-prompt");
+      if (prompt) handleSend(prompt);
+    };
+  });
+
+  // AI Voice Mic
+  let aiMicListening = false;
+  if (micBtn) {
+    micBtn.onclick = async () => {
+      if (aiMicListening) {
+        aiMicListening = false;
+        micBtn.classList.remove("is-listening");
+        const res = await dungNghe();
+        if (res.text) handleSend(res.text);
+        return;
+      }
+
+      aiMicListening = true;
+      micBtn.classList.add("is-listening");
+      showToast("Đang lắng nghe câu hỏi của bạn...");
+
+      await batDauNghe(
+        (res) => {
+          chatInput.value = res.text;
+          if (res.isFinal) {
+            aiMicListening = false;
+            micBtn.classList.remove("is-listening");
+            handleSend(res.text);
+          }
+        },
+        (err) => {
+          aiMicListening = false;
+          micBtn.classList.remove("is-listening");
+          showToast(err?.message || "Không nhận diện được giọng nói", true);
+        }
+      );
+    };
+  }
+
+  // Gemini API Key Save in Settings
+  const geminiInput = $("#geminiApiKeyInput");
+  const saveGeminiBtn = $("#saveGeminiKeyBtn");
+  if (geminiInput) {
+    geminiInput.value = state.sync?.geminiApiKey || "";
+  }
+  if (saveGeminiBtn) {
+    saveGeminiBtn.onclick = async () => {
+      const key = geminiInput?.value?.trim() || "";
+      state.sync = state.sync || {};
+      state.sync.geminiApiKey = key;
+      await luuDuLieu(state);
+      showToast(key ? "Đã lưu khóa Google Gemini AI thành công!" : "Đã chuyển về Trợ lý AI phân tích nội bộ.");
+    };
+  }
 }
 
 // ----------------------------------------------------

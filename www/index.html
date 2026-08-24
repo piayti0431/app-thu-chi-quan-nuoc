@@ -109,6 +109,10 @@
             <span class="tab-icon">📊</span>
             <span class="tab-label">Thống kê</span>
           </button>
+          <button class="tab" data-view="ai">
+            <span class="tab-icon">🤖</span>
+            <span class="tab-label">Trợ lý AI</span>
+          </button>
           <button class="tab" data-view="settings">
             <span class="tab-icon">⚙️</span>
             <span class="tab-label">Cài đặt</span>
@@ -358,7 +362,53 @@
           </section>
         </section>
 
-        <!-- TAB 4: CÀI ĐẶT -->
+        <!-- TAB 4: TRỢ LÝ AI QUẢN LÝ DOANH THU -->
+        <section class="view" id="view-ai" hidden>
+          <div class="ai-container">
+            <div class="ai-header-card">
+              <div class="ai-avatar-wrap">
+                <span class="ai-avatar-icon">🤖</span>
+              </div>
+              <div class="ai-header-info">
+                <h2>Trợ lý AI Doanh Thu</h2>
+                <p>Hỏi đáp số liệu, phân tích tiền lời, chi phí nguyên liệu & tư vấn quán</p>
+              </div>
+            </div>
+
+            <!-- DANH SÁCH TIN NHẮN CHAT -->
+            <div class="ai-chat-box" id="aiChatBox" role="log" aria-live="polite">
+              <div class="ai-msg ai-msg-bot">
+                <div class="ai-msg-avatar">🤖</div>
+                <div class="ai-msg-content">
+                  <p>Xin chào bạn! Tôi là <strong>Trợ lý AI Quản Lý Doanh Thu</strong> của quán nước.</p>
+                  <p>Bạn có thể bấm vào các câu hỏi gợi ý bên dưới, nói qua Mic hoặc gõ câu hỏi để tôi phân tích số liệu tài chính ngay nhé!</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- GỢI Ý CÂU HỎI NHANH (PROMPT CHIPS) -->
+            <div class="ai-quick-prompts">
+              <button class="ai-chip" type="button" data-prompt="Hôm nay quán bán được bao nhiêu ly, lời bao nhiêu?">📊 Hôm nay lời bao nhiêu?</button>
+              <button class="ai-chip" type="button" data-prompt="Món nào đang bán chạy nhất hôm nay?">🏆 Món bán chạy nhất?</button>
+              <button class="ai-chip" type="button" data-prompt="Tổng tiền mua đá và nguyên liệu hôm nay hết bao nhiêu?">🧊 Chi phí mua nguyên liệu?</button>
+              <button class="ai-chip" type="button" data-prompt="Tiền mặt cần có trong két hiện tại là bao nhiêu?">💵 Kiểm tra tiền két?</button>
+              <button class="ai-chip" type="button" data-prompt="Tư vấn chiến lược kinh doanh và định lượng cho quán">💡 Tư vấn chiến lược quán</button>
+            </div>
+
+            <!-- THANH NHẬP LIỆU CÂU HỎI & MIC -->
+            <form class="ai-input-bar" id="aiChatForm">
+              <button class="ai-mic-btn" id="aiMicBtn" type="button" aria-label="Nói câu hỏi với AI">
+                <span>🎙️</span>
+              </button>
+              <input class="ai-input" id="aiChatInput" type="text" enterkeyhint="send" placeholder="Hỏi trợ lý AI (Ví dụ: Hôm nay bán được bao nhiêu ly?)..." autocomplete="off">
+              <button class="ai-send-btn primary-action" type="submit" aria-label="Gửi câu hỏi">
+                <span>Gửi</span>
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- TAB 5: CÀI ĐẶT -->
         <section class="view" id="view-settings">
           <section class="panel settings-grid">
             <!-- BỘ QUẢN LÝ MENU & GIÁ BÁN + GIÁ VỐN (COST) -->
@@ -416,6 +466,23 @@
                 <button class="ghost-button" id="signupBtn" type="button">Tạo tài khoản</button>
                 <button class="primary-action slim" id="loginBtn" type="button">Đăng nhập</button>
                 <button class="ghost-button" id="syncNowBtn" type="button">Đồng bộ ngay</button>
+              </div>
+            </div>
+
+            <!-- CẤU HÌNH TRỢ LÝ AI (GOOGLE GEMINI - TÙY CHỌN) -->
+            <div class="settings-card">
+              <div class="card-head">
+                <div>
+                  <h2>🤖 Trí tuệ nhân tạo Gemini AI</h2>
+                  <p>Trợ lý AI mặc định phân tích số liệu offline. Bạn có thể nhập thêm Gemini API Key (miễn phí) để tư vấn chiến lược kinh doanh chuyên sâu.</p>
+                </div>
+              </div>
+              <label>
+                Google Gemini API Key (Tùy chọn)
+                <input id="geminiApiKeyInput" type="password" placeholder="AIzaSy... (Để trống nếu chỉ dùng phân tích nội bộ)">
+              </label>
+              <div class="button-row">
+                <button class="ghost-button" id="saveGeminiKeyBtn" type="button">Lưu khóa Gemini AI</button>
               </div>
             </div>
 
