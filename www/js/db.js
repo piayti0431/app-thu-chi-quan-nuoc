@@ -422,6 +422,13 @@ export function mergeData(data) {
     },
     quickItems: mergedQuickItems,
     quickPrices: legacyPrices || mergedQuickItems.map((item) => item.price),
+    overheadConfig: { ...(base.overheadConfig || {}), ...(data?.overheadConfig || {}) },
+    costFormulas: { ...(base.costFormulas || {}), ...(data?.costFormulas || {}) },
+    crmCustomers: Array.isArray(data?.crmCustomers) ? data.crmCustomers : (base.crmCustomers || []),
+    restartLogs: Array.isArray(data?.restartLogs) ? data.restartLogs : (base.restartLogs || []),
+    dailyClosings: Array.isArray(data?.dailyClosings) ? data.dailyClosings : (base.dailyClosings || []),
+    knowledgeBase: { ...(base.knowledgeBase || {}), ...(data?.knowledgeBase || {}) },
+    settingsVersion: Number(data?.settingsVersion) || 0,
     sync: ensureSyncIdentity({
       ...base.sync,
       ...(data?.sync || {}),

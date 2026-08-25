@@ -179,6 +179,18 @@ export async function dongBo() {
     if (Array.isArray(remoteSettings.crmCustomers)) {
       data.crmCustomers = remoteSettings.crmCustomers;
     }
+    if (Array.isArray(remoteSettings.restartLogs)) {
+      data.restartLogs = remoteSettings.restartLogs;
+    }
+    if (Array.isArray(remoteSettings.dailyClosings)) {
+      data.dailyClosings = remoteSettings.dailyClosings;
+    }
+    if (remoteSettings.knowledgeBase) {
+      data.knowledgeBase = remoteSettings.knowledgeBase;
+    }
+    if (remoteSettings.danhMuc) {
+      data.danhMuc = remoteSettings.danhMuc;
+    }
     data.settingsVersion = remoteSettings.version;
   } else if (!remoteSettings || localSettingsVersion > (Number(remoteSettings?.version) || 0)) {
     // Local has newer settings -> push to user metadata on Supabase
@@ -195,6 +207,10 @@ export async function dongBo() {
             defaultOpeningCash: data.defaultOpeningCash || 500000,
             openingCashByDate: data.openingCashByDate || {},
             crmCustomers: data.crmCustomers || [],
+            restartLogs: data.restartLogs || [],
+            dailyClosings: data.dailyClosings || [],
+            knowledgeBase: data.knowledgeBase || {},
+            danhMuc: data.danhMuc || {},
           },
         },
       });
