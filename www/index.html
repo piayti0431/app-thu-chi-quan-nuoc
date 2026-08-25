@@ -2,8 +2,11 @@
 <html lang="vi">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="theme-color" content="#0f766e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Sổ Quán Nước Mía</title>
     <link rel="icon" href="./assets/logo-app.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -653,7 +656,7 @@
             </label>
             <label style="margin: 0;">
               <span style="font-size: 0.85rem; font-weight: 700; color: #334155;">💵 Giá Bán Ra Hiện Tại (đ):</span>
-              <input id="costSellingPriceInput" type="number" value="10000" style="width: 100%; font-size: 0.95rem; font-weight: 700; color: #0284c7; padding: 0.5rem; margin-top: 0.25rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1;">
+              <input id="costSellingPriceInput" type="number" inputmode="numeric" value="10000" style="width: 100%; font-size: 0.95rem; font-weight: 700; color: #0284c7; padding: 0.5rem; margin-top: 0.25rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1;">
             </label>
           </div>
 
@@ -699,27 +702,27 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                   <label style="margin: 0; font-size: 0.8rem;">
                     <span>🏢 Tiền thuê mặt bằng (đ/tháng):</span>
-                    <input id="calcRentMonthly" type="number" value="6000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
+                    <input id="calcRentMonthly" type="number" inputmode="numeric" value="6000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
                     <span>⚡ Tiền điện (đ/tháng):</span>
-                    <input id="calcElectricityMonthly" type="number" value="1000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
+                    <input id="calcElectricityMonthly" type="number" inputmode="numeric" value="1000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
                     <span>💧 Tiền nước (đ/tháng):</span>
-                    <input id="calcWaterMonthly" type="number" value="300000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
+                    <input id="calcWaterMonthly" type="number" inputmode="numeric" value="300000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
                     <span>🗑️ Tiền rác & vệ sinh (đ/tháng):</span>
-                    <input id="calcTrashMonthly" type="number" value="50000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
+                    <input id="calcTrashMonthly" type="number" inputmode="numeric" value="50000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
                     <span>⚙️ Khấu hao máy & khác (đ):</span>
-                    <input id="calcOtherMonthly" type="number" value="450000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
+                    <input id="calcOtherMonthly" type="number" inputmode="numeric" value="450000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
                     <span>🎯 Sản lượng bán (ly / ngày):</span>
-                    <input id="calcExpectedCupsDay" type="number" value="80" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 800; color: #ea580c;">
+                    <input id="calcExpectedCupsDay" type="number" inputmode="numeric" value="80" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 800; color: #ea580c;">
                   </label>
                 </div>
 

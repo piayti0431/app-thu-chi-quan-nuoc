@@ -80,7 +80,7 @@
 }
 
 /* ==========================================================================
-   RESET & BASE STYLES
+   RESET & BASE STYLES (MOBILE-FIRST OPTIMIZED)
    ========================================================================== */
 
 *, *::before, *::after {
@@ -89,10 +89,13 @@
 
 html, body {
   min-height: 100%;
+  min-height: 100dvh;
   max-width: 100vw;
   overflow-x: hidden;
   background: var(--bg);
   -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -109,6 +112,14 @@ button, input, select, textarea {
   font: inherit;
   color: inherit;
   min-width: 0;
+  touch-action: manipulation;
+}
+
+/* Prevent iOS Safari automatic zoom jump on input focus */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 button {
@@ -116,6 +127,7 @@ button {
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 button:disabled {
@@ -158,7 +170,7 @@ h3 {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top, 0px) + 0.65rem) 0.85rem 6.5rem;
+  padding: calc(env(safe-area-inset-top, 0px) + 0.65rem) calc(env(safe-area-inset-right, 0px) + 0.85rem) calc(env(safe-area-inset-bottom, 0px) + 6.8rem) calc(env(safe-area-inset-left, 0px) + 0.85rem);
   overflow-x: hidden;
 }
 
@@ -279,7 +291,7 @@ h3 {
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin-bottom: 0.75rem;
   min-width: 0;
 }
@@ -289,7 +301,7 @@ h3 {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 0.75rem 0.65rem;
+  padding: 0.65rem 0.5rem;
   border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -313,7 +325,7 @@ h3 {
 .summary-card.balance::before { background: var(--primary); }
 
 .summary-card span {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--muted);
   white-space: nowrap;
@@ -322,24 +334,19 @@ h3 {
 }
 
 .summary-card strong {
-  font-size: 1.1rem;
+  font-size: clamp(0.85rem, 3.6vw, 1.2rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   margin-top: 0.15rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .summary-card.income strong { color: var(--green-dark); }
 .summary-card.expense strong { color: var(--red); }
 .summary-card.balance strong { color: var(--primary-dark); }
-
-@media (max-width: 360px) {
-  .summary-card strong {
-    font-size: 0.95rem;
-  }
-}
 
 /* ==========================================================================
    ACTION ROW: TỔNG KẾT NGÀY & ĐỌC DOANH SỐ
@@ -353,9 +360,9 @@ h3 {
   min-width: 0;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .summary-action-row {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.05fr);
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.05fr);
     gap: 0.35rem;
   }
 }
@@ -365,7 +372,7 @@ h3 {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  min-height: 2.75rem;
+  min-height: 2.85rem;
   padding: 0.45rem 0.5rem;
   font-size: 0.82rem;
   font-weight: 700;
@@ -374,10 +381,13 @@ h3 {
   background: var(--surface);
   color: var(--text-main);
   box-shadow: var(--shadow-sm);
-  transition: var(--transition-smooth);
+  transition: transform 0.12s ease, background 0.12s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .report-voice-button:hover {
@@ -386,7 +396,7 @@ h3 {
 }
 
 .report-voice-button:active {
-  transform: translateY(1px);
+  transform: scale(0.96);
 }
 
 .summary-highlight-btn {
@@ -447,6 +457,9 @@ h3 {
   font-weight: 700;
   transition: var(--transition-smooth);
   white-space: nowrap;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .tab-icon {
@@ -464,7 +477,7 @@ h3 {
   box-shadow: var(--shadow-primary);
 }
 
-/* Mobile Fixed Bottom Navigation */
+/* Mobile Fixed Bottom Navigation (Ultra Glassmorphism & Safe Area) */
 @media (max-width: 768px) {
   .tabs {
     position: fixed;
@@ -473,32 +486,42 @@ h3 {
     right: 0;
     z-index: 100;
     margin-bottom: 0;
-    border-radius: 1.25rem 1.25rem 0 0;
+    border-radius: 1.35rem 1.35rem 0 0;
+    border-top: 1px solid rgba(226, 232, 240, 0.85);
     border-bottom: none;
-    padding: 0.35rem 0.5rem calc(env(safe-area-inset-bottom, 0px) + 0.35rem);
-    background: var(--surface-translucent);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    border-left: none;
+    border-right: none;
+    padding: 0.35rem 0.45rem calc(env(safe-area-inset-bottom, 0px) + 0.45rem);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 -4px 25px rgba(15, 23, 42, 0.08);
   }
 
   .tab {
     flex-direction: column;
-    gap: 0.1rem;
-    min-height: 3rem;
-    padding: 0.2rem 0.35rem;
+    gap: 0.15rem;
+    min-height: 3.25rem;
+    padding: 0.25rem 0.2rem;
     font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: var(--radius-md);
+    transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .tab:active {
+    transform: scale(0.92);
   }
 
   .tab-icon {
-    font-size: 1.2rem;
+    font-size: 1.35rem;
     line-height: 1;
   }
 
   .tab.is-active {
     background: var(--primary-light);
     color: var(--primary-dark);
-    box-shadow: none;
+    box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
   }
 }
 
@@ -589,7 +612,7 @@ h3 {
   color: #92400e;
 }
 
-/* Lưới Nút Bán Nhanh 1 Chạm */
+/* Lưới Nút Bán Nhanh 1 Chạm (Mobile-First Touch Ergonomics) */
 .quick-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -601,6 +624,7 @@ h3 {
 @media (min-width: 480px) {
   .quick-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
   }
 }
 
@@ -615,16 +639,19 @@ h3 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
-  min-height: 5.2rem;
-  padding: 0.65rem 0.4rem;
-  border-radius: var(--radius-md);
+  gap: 0.25rem;
+  min-height: 5.5rem;
+  padding: 0.7rem 0.45rem;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1.5px solid var(--line);
   box-shadow: var(--shadow-sm);
   text-align: center;
-  transition: var(--transition-fast);
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
   min-width: 0;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .quick-btn:hover {
@@ -634,15 +661,17 @@ h3 {
 }
 
 .quick-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
+  background: var(--surface-hover);
+  border-color: var(--primary);
 }
 
 .quick-btn .drink-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 2.35rem;
+  height: 2.35rem;
   border-radius: 50%;
   background: var(--primary-light);
   color: var(--primary-dark);
@@ -650,7 +679,7 @@ h3 {
 }
 
 .quick-btn strong {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: var(--ink);
   line-height: 1.2;
@@ -661,11 +690,11 @@ h3 {
 }
 
 .quick-btn small {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--primary-dark);
   background: var(--primary-light);
-  padding: 0.1rem 0.4rem;
+  padding: 0.15rem 0.5rem;
   border-radius: var(--radius-pill);
   white-space: nowrap;
 }
@@ -688,29 +717,33 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 0.6rem;
   width: 100%;
-  min-height: 3.15rem;
-  padding: 0.55rem 1rem;
+  min-height: 3.4rem;
+  padding: 0.65rem 1.15rem;
   margin-bottom: 0.85rem;
   border-radius: var(--radius-pill);
-  border: 1px solid rgba(13, 148, 136, 0.35);
-  background: linear-gradient(135deg, rgba(204, 251, 241, 0.9), rgba(209, 250, 229, 0.9));
+  border: 1.5px solid rgba(13, 148, 136, 0.4);
+  background: linear-gradient(135deg, rgba(204, 251, 241, 0.95), rgba(209, 250, 229, 0.95));
   color: var(--primary-dark);
   font-weight: 800;
-  font-size: 0.92rem;
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition-smooth);
+  font-size: 0.94rem;
+  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.15);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .mic-button:hover {
-  background: linear-gradient(135deg, rgba(153, 246, 228, 0.95), rgba(167, 243, 208, 0.95));
+  background: linear-gradient(135deg, rgba(153, 246, 228, 0.98), rgba(167, 243, 208, 0.98));
   border-color: var(--primary);
   box-shadow: var(--shadow-primary);
 }
 
 .mic-button:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
 }
 
 .mic-button.is-recording {
@@ -1040,22 +1073,23 @@ h3 {
 .tx-amount.thu { color: var(--green-dark); }
 .tx-amount.chi { color: var(--red); }
 
-/* Nút xóa giao dịch & nút xóa chung */
+/* Nút xóa giao dịch & nút xóa chung (Mobile-Friendly Touch Area) */
 .delete-btn, .icon-btn-del {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 2rem;
-  height: 2rem;
+  min-width: 2.35rem;
+  height: 2.35rem;
   border: 1px solid rgba(239, 68, 68, 0.25);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: #fef2f2;
   color: #ef4444;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 800;
   cursor: pointer;
-  transition: var(--transition-fast);
-  padding: 0 0.45rem;
+  transition: transform 0.12s ease, background 0.12s ease;
+  padding: 0 0.5rem;
+  touch-action: manipulation;
 }
 
 .delete-btn:hover, .icon-btn-del:hover {
@@ -1065,14 +1099,39 @@ h3 {
   transform: scale(1.05);
 }
 
+.delete-btn:active, .icon-btn-del:active {
+  transform: scale(0.92);
+}
+
+/* Nút chuyển đổi nhanh Tiền mặt / Chuyển khoản */
+.toggle-payment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.15rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.toggle-payment-btn:active {
+  transform: scale(0.93);
+}
+
 /* Badges */
 .badge-cash, .badge-transfer {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  padding: 0.12rem 0.4rem;
+  padding: 0.2rem 0.5rem;
   border-radius: var(--radius-pill);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1608,7 +1667,7 @@ h3 {
 }
 
 /* ==========================================================================
-   MODAL DIALOGS (RECEIPT SUMMARY, CONFIRM, OPENING CASH)
+   MODAL DIALOGS (BOTTOM SHEET ON MOBILE, FLOATING CARD ON DESKTOP)
    ========================================================================== */
 
 dialog {
@@ -1618,14 +1677,43 @@ dialog {
   color: var(--text-main);
   box-shadow: var(--shadow-lg);
   padding: 0;
-  max-width: min(92vw, 32rem);
+  max-width: min(92vw, 34rem);
   width: 100%;
 }
 
 dialog::backdrop {
   background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@media (max-width: 768px) {
+  dialog {
+    margin: auto 0 0 0 !important;
+    max-width: 100vw !important;
+    width: 100vw !important;
+    border-radius: 1.5rem 1.5rem 0 0 !important;
+    max-height: 90dvh !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem) !important;
+    animation: slideUpBottomSheet 0.28s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.6) !important;
+  }
+
+  .confirm-dialog {
+    padding: 1.25rem 1.15rem 1.5rem !important;
+  }
+}
+
+@keyframes slideUpBottomSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0.8;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Daily Closing Modal (Phiếu Tổng Kết Ngày) */
@@ -1639,6 +1727,18 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   max-height: 90vh;
+}
+
+@media (max-width: 768px) {
+  .closing-modal-content {
+    max-height: calc(90dvh - env(safe-area-inset-bottom, 0px) - 1.5rem) !important;
+  }
+  .cost-calc-grid-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .cost-top-selectors {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 .closing-header {
@@ -1656,8 +1756,8 @@ dialog::backdrop {
 }
 
 .close-icon-btn {
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 2.2rem;
+  height: 2.2rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1665,7 +1765,8 @@ dialog::backdrop {
   border-radius: 50%;
   background: #ffffff;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  touch-action: manipulation;
 }
 
 .closing-body {
@@ -2115,17 +2216,17 @@ dialog::backdrop {
 }
 
 /* ==========================================================================
-   VIEW 4: AI REVENUE & BUSINESS ASSISTANT CHAT
+   VIEW 4: AI REVENUE & BUSINESS ASSISTANT CHAT (MOBILE-FIRST)
    ========================================================================== */
 
 .ai-container {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.75rem;
   max-width: 800px;
   margin: 0 auto;
-  min-height: calc(100vh - 16rem);
-  padding-bottom: 5.5rem;
+  min-height: calc(100dvh - 12rem);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
 }
 
 @media (min-width: 769px) {
@@ -2137,9 +2238,9 @@ dialog::backdrop {
 .ai-header-card {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1.15rem;
-  background: linear-gradient(135deg, rgba(204, 251, 241, 0.7) 0%, rgba(255, 255, 255, 0.9) 100%);
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(204, 251, 241, 0.75) 0%, rgba(255, 255, 255, 0.95) 100%);
   border: 1px solid rgba(13, 148, 136, 0.25);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -2147,8 +2248,8 @@ dialog::backdrop {
 }
 
 .ai-avatar-wrap {
-  width: 3rem;
-  height: 3rem;
+  width: 2.85rem;
+  height: 2.85rem;
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, #0d9488 0%, #059669 100%);
   display: flex;
@@ -2159,18 +2260,18 @@ dialog::backdrop {
 }
 
 .ai-avatar-icon {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
 }
 
 .ai-header-info h2 {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: #0f172a;
-  margin: 0 0 0.15rem;
+  margin: 0 0 0.1rem;
 }
 
 .ai-header-info p {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: #0f766e;
   margin: 0;
   font-weight: 500;
@@ -2180,15 +2281,15 @@ dialog::backdrop {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
-  padding: 1.15rem;
-  background: rgba(255, 255, 255, 0.85);
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
-  min-height: 14rem;
-  max-height: 42vh;
+  min-height: 18rem;
+  max-height: calc(100dvh - 17rem);
   overflow-y: auto;
   scroll-behavior: smooth;
 }
@@ -2197,6 +2298,7 @@ dialog::backdrop {
   .ai-chat-box {
     min-height: 22rem;
     max-height: 56vh;
+    padding: 1.15rem;
   }
 }
 
