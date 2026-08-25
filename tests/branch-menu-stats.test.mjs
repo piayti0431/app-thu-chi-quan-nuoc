@@ -47,10 +47,10 @@ assert.equal(phanTich("1 ly nước mía").giaCostDonVi, 4000);
 assert.equal(phanTich("2 ly nước mía").soTien, 16000);
 assert.equal(phanTich("2 ly nước mía").tongGiaCost, 8000);
 assert.equal(phanTich("3 mía").soTien, 24000);
-assert.equal(phanTich("1 mía lít").soTien, 15000);
-assert.equal(phanTich("2 mía lít").soTien, 30000);
-assert.equal(phanTich("1 mía cam").soTien, 15000);
-assert.equal(phanTich("2 mía cam").soTien, 30000);
+assert.equal(phanTich("1 mía lít").soTien, 16000);
+assert.equal(phanTich("2 mía lít").soTien, 32000);
+assert.equal(phanTich("1 mía cam").soTien, 17000);
+assert.equal(phanTich("2 mía cam").soTien, 34000);
 assert.equal(phanTich("1 ly rau má").soTien, 10000);
 assert.equal(phanTich("2 rau má").soTien, 20000);
 assert.equal(phanTich("1 rau má sữa").soTien, 15000);
@@ -58,23 +58,23 @@ assert.equal(phanTich("2 rau má sữa").soTien, 30000);
 assert.equal(phanTich("1 rau má đậu xanh").soTien, 15000);
 assert.equal(phanTich("2 má đậu xanh").soTien, 30000);
 assert.equal(phanTich("3 má đậu").soTien, 45000);
-assert.equal(phanTich("1 ly trà tắc").soTien, 15000);
-assert.equal(phanTich("2 trà tắc").soTien, 30000);
-assert.equal(phanTich("3 ly tắc").soTien, 45000);
+assert.equal(phanTich("1 ly trà tắc").soTien, 12000);
+assert.equal(phanTich("2 trà tắc").soTien, 24000);
+assert.equal(phanTich("3 ly tắc").soTien, 36000);
 console.log("PASS Voice parsing for all menu items with default prices & costs");
 
 // Test 3: Batch Voice parsing
 const batch1 = phanTichNhieu("1 mía lít và 2 trà tắc");
 assert.equal(batch1.isBatch, true);
 assert.equal(batch1.items.length, 2);
-assert.equal(batch1.total, 45000); // 15k + 30k
-assert.equal(batch1.items[0].soTien, 15000);
-assert.equal(batch1.items[1].soTien, 30000);
+assert.equal(batch1.total, 40000); // 16k + 24k
+assert.equal(batch1.items[0].soTien, 16000);
+assert.equal(batch1.items[1].soTien, 24000);
 assert.equal(batch1.tongGiaCost, 24000); // 10k + 2*7k = 24k
 
 const batch2 = phanTichNhieu("2 mía thường, 1 má đậu xanh và 1 trà tắc");
 assert.equal(batch2.isBatch, true);
-assert.equal(batch2.total, 46000); // 16k + 15k + 15k
+assert.equal(batch2.total, 43000); // 16k + 15k + 12k
 console.log("PASS Multi-item batch voice parsing");
 
 // Test 4: Expense parsing for specific ingredients

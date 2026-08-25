@@ -694,4 +694,30 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Total-only Clarification: 'tổng cộng 160k' -> asks items -> '10 chai mía 1 lít' -> records 10 chai 160k");
 }
 
+// Test 29: 5 ly mía thường chuẩn là 40k (8k/ly), chỉ khi đọc "5 ly mía thường 50k" mới tính 10k/ly (ly lớn theo yêu cầu)
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000 }],
+    crmCustomers: [],
+    ds: [],
+  };
+
+  // Trường hợp chuẩn: 5 ly mía thường (không kèm giá) -> tính 8k/ly = 40k
+  const resDefault = phanTichTaiChinhNoiBo("5 ly mía thường", mockState);
+  assert.equal(resDefault.type, "command");
+  assert.equal(resDefault.parsed.soLuong, 5);
+  assert.equal(resDefault.parsed.soTien, 40000, "5 ly mía thường chuẩn 8k/ly phải bằng 40.000đ");
+  assert.equal(resDefault.parsed.tongGiaCost, 20000);
+
+  // Trường hợp khách yêu cầu ly 10k: "5 ly mía thường 50k" -> tính 10k/ly = 50k
+  const resRequested = phanTichTaiChinhNoiBo("5 ly mía thường 50k", mockState);
+  assert.equal(resRequested.type, "command");
+  assert.equal(resRequested.parsed.soLuong, 5);
+  assert.equal(resRequested.parsed.soTien, 50000, "Khi đọc 50k cho 5 ly mía thường -> tính 50.000đ");
+  assert.equal(resRequested.parsed.tongGiaCost, 20000);
+
+  console.log("PASS EV Sugarcane Standard 8k (40k/5 cups) vs 10k by Request (50k/5 cups)");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");
