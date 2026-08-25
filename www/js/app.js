@@ -283,6 +283,49 @@ function renderToday() {
     $("#todayOpeningCashDisplay").textContent = formatMoney(getTodayOpeningCash(selectedBranch));
   }
 
+  // Calculate Break-Even Target for Today [10k / 628k]
+  const overhead = state.overheadConfig || {};
+  const rent = Number(overhead.rentMonthly) || 6000000;
+  const elec = Number(overhead.electricityMonthly) || 2400000;
+  const water = Number(overhead.waterMonthly) || 150000;
+  const trash = Number(overhead.trashMonthly) || 50000;
+  const depr = Number(overhead.depreciationMonthly) || 300000;
+  const other = Number(overhead.otherMonthly) || 500000;
+  const totalMonthlyOverhead = rent + elec + water + trash + depr + other; // 9.400.000 đ
+  const dailyOverhead = totalMonthlyOverhead / 30; // ~313.300 đ
+
+  // Target break-even revenue = dailyOverhead / 0.50 (50% gross margin) = 628.000 đ
+  const targetBreakEvenRevenue = 628000;
+  const incomeK = Math.round(income / 1000);
+  const targetK = Math.round(targetBreakEvenRevenue / 1000); // 628
+
+  const thuItems = items.filter((item) => item.loai === "thu");
+  const totalCostOfSales = thuItems.reduce((sum, item) => sum + Number(item.tongGiaCost || (item.giaCostDonVi * (item.soLuong || 1)) || 0), 0);
+  const currentGrossProfit = income - totalCostOfSales;
+
+  if ($("#breakevenRatio")) {
+    $("#breakevenRatio").textContent = `[${incomeK}k / ${targetK}k]`;
+  }
+  if ($("#breakevenPercent")) {
+    const pct = targetBreakEvenRevenue > 0 ? Math.round((income / targetBreakEvenRevenue) * 100) : 0;
+    $("#breakevenPercent").textContent = `${pct}%`;
+  }
+  if ($("#breakevenBarFill")) {
+    const fillPct = targetBreakEvenRevenue > 0 ? Math.min(100, Math.round((income / targetBreakEvenRevenue) * 100)) : 0;
+    $("#breakevenBarFill").style.width = `${fillPct}%`;
+  }
+  if ($("#breakevenStatusText")) {
+    if (income >= targetBreakEvenRevenue) {
+      const netProfit = currentGrossProfit - dailyOverhead;
+      $("#breakevenStatusText").innerHTML = `🎉 <strong style="color: #059669;">ĐÃ ĐẠT HÒA VỐN!</strong> Đang có lời ròng <strong>+${formatMoney(Math.max(0, netProfit))}</strong> bỏ túi sau khi trừ tiền nhà & điện nước.`;
+      $("#breakevenCard")?.classList.add("is-achieved");
+    } else {
+      const remain = targetBreakEvenRevenue - income;
+      $("#breakevenStatusText").innerHTML = `⚡ Cần thêm <strong>${formatMoney(remain)}</strong> doanh thu để hòa vốn tiền mặt bằng (200k) & điện 30 ký (80k) hôm nay.`;
+      $("#breakevenCard")?.classList.remove("is-achieved");
+    }
+  }
+
   const list = $("#todayList");
   if (!list) return;
 

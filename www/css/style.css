@@ -376,6 +376,98 @@ h3 {
 .summary-card.balance strong { color: var(--primary-dark); }
 
 /* ==========================================================================
+   BREAK-EVEN REVENUE TARGET CARD (TIẾN ĐỘ HÒA VỐN THEO TỔNG TIỀN)
+   ========================================================================== */
+
+.breakeven-progress-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+  border: 1.5px solid #86efac;
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: var(--transition-smooth);
+}
+
+.breakeven-progress-card.is-achieved {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: #10b981;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+}
+
+.breakeven-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.breakeven-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.breakeven-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  background: #0f766e;
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-family: inherit;
+}
+
+.breakeven-progress-card.is-achieved .breakeven-badge {
+  background: #059669;
+}
+
+.breakeven-percent {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #059669;
+}
+
+.breakeven-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.breakeven-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #f59e0b 0%, #10b981 100%);
+  border-radius: 999px;
+  transition: width 0.4s ease-in-out;
+}
+
+.breakeven-progress-card.is-achieved .breakeven-bar-fill {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.breakeven-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+/* ==========================================================================
    ACTION ROW: TỔNG KẾT NGÀY & ĐỌC DOANH SỐ
    ========================================================================== */
 
