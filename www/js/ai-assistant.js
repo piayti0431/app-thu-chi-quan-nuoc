@@ -158,7 +158,32 @@ export function phanTichTaiChinhNoiBo(query, state) {
     };
   }
 
-  // 2. THIẾT LẬP TIỀN THỐI ĐẦU NGÀY (KÈM HOẶC KHÔNG KÈM GIAO DỊCH BÁN HÀNG)
+  // 2. LỆNH RESTART / LÀM MỚI DỮ LIỆU TRONG NGÀY KÈM GHI CHÚ
+  if (norm.includes("restart") || norm.includes("reset ngay") || norm.includes("lam moi ngay") || norm.includes("khoi dong lai ngay")) {
+    const isExplicitAll = norm.includes("tat ca") || norm.includes("2 quan") || norm.includes("ca 2 quan") || norm.includes("toan he thong");
+    const branchToReset = isExplicitAll ? "all" : (targetBranch || state.currentBranch || "all");
+
+    let note = "Khởi động lại qua lệnh Thư Ký EV";
+    const noteMatch = query.match(/(?:lý do|ly do|note|ghi chú|ghi chu|vì|vi|là|la)\s+(.+)$/i);
+    if (noteMatch) {
+      note = noteMatch[1].replace(/^(?:là|la|:\s*)\s*/i, "").trim();
+    }
+
+    return {
+      type: "action",
+      action: "restart_today",
+      branch: branchToReset,
+      note,
+      reply: `🔄 **Dạ EV đã khởi động lại (Restart) dữ liệu hôm nay thành công**:
+- 📍 **Phạm vi**: **${branchToReset === "all" ? "Tất cả điểm bán" : branchToReset}**
+- 📝 **Ghi chú/Lý do**: *"${note}"*
+- 📊 **Doanh thu hôm nay**: Đã làm mới về **0đ** để bắt đầu ca mới!
+
+*Toàn bộ dữ liệu trước đó đã được lưu vào nhật ký lưu trữ (Audit Log) an toàn!*`,
+    };
+  }
+
+  // 3. THIẾT LẬP TIỀN THỐI ĐẦU NGÀY (KÈM HOẶC KHÔNG KÈM GIAO DỊCH BÁN HÀNG)
   // Ví dụ 1: "sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k"
   // Ví dụ 2: "tiền thối đầu ngày hôm nay là 100k"
   const hasOpeningCashPhrase =

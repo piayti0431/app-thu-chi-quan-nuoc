@@ -9,6 +9,7 @@ import {
   luuTienThoiDauNgay,
   luuKhachQuen,
   nhapDuLieuTuJson,
+  restartDuLieuHomNay,
   themGiaoDich,
   xoaGiaoDich,
   xoaTatCaDuLieu,
@@ -1024,6 +1025,54 @@ function initEventListeners() {
     $("#dailyClosingDialog")?.close();
   });
 
+  // Restart Day button & Modal
+  $("#openRestartDayBtn")?.addEventListener("click", () => {
+    const dialog = $("#restartDayDialog");
+    if (!dialog) return;
+
+    const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
+    const cur = state.currentBranch || "all";
+    const scopeSelect = $("#restartBranchScope");
+    if (scopeSelect) {
+      scopeSelect.innerHTML = `
+        <option value="${cur}">📍 Điểm bán đang chọn: ${cur === "all" ? "Tất cả điểm bán" : cur}</option>
+        <option value="all">🏢 TẤT CẢ các điểm bán (Toàn hệ thống)</option>
+        ${branches.map((b) => `<option value="${b.name}">📍 Riêng ${b.name}</option>`).join("")}
+      `;
+    }
+
+    const noteInput = $("#restartNoteInput");
+    if (noteInput) noteInput.value = "";
+    const resetCashCb = $("#restartResetOpeningCashCheckbox");
+    if (resetCashCb) resetCashCb.checked = false;
+
+    dialog.showModal();
+  });
+
+  $("#cancelRestartDayBtn")?.addEventListener("click", () => {
+    $("#restartDayDialog")?.close();
+  });
+
+  $("#confirmRestartDayBtn")?.addEventListener("click", async () => {
+    const scope = $("#restartBranchScope")?.value || state.currentBranch || "all";
+    const note = $("#restartNoteInput")?.value?.trim() || "";
+    const resetCash = Boolean($("#restartResetOpeningCashCheckbox")?.checked);
+
+    const res = await restartDuLieuHomNay({
+      dateKey: todayKey(),
+      branch: scope,
+      note,
+      resetOpeningCash: resetCash,
+    });
+
+    state = await docDuLieu();
+    renderAll();
+    triggerAutoSync();
+
+    $("#restartDayDialog")?.close();
+    showToast(`Đã khởi động lại ngày hôm nay (${res.resetCount} giao dịch đã làm mới)`);
+  });
+
   // Read today report button (Speech)
   $("#readTodayReportBtn")?.addEventListener("click", () => {
     const isAll = state.currentBranch === "all" || !state.currentBranch;
@@ -1723,6 +1772,24 @@ function setupAIAssistant() {
           loadingDiv.remove();
           appendBotMessage(result.reply);
           showToast(`Đã ghi nợ: ${result.customerName} (${formatMoney(result.debtAmount)})`);
+          return;
+        }
+
+        if (result.action === "restart_today") {
+          const scope = result.branch || state.currentBranch || "all";
+          await restartDuLieuHomNay({
+            dateKey: todayKey(),
+            branch: scope,
+            note: result.note || "",
+            resetOpeningCash: false,
+          });
+          state = await docDuLieu();
+          renderAll();
+          triggerAutoSync();
+
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          showToast(`Đã restart dữ liệu hôm nay (${scope === "all" ? "Tất cả điểm bán" : scope})`);
           return;
         }
 

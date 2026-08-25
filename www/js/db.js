@@ -658,3 +658,55 @@ export async function luuTriThucEV(key, value) {
   return data.knowledgeBase;
 }
 
+export async function restartDuLieuHomNay({ dateKey = localDateKey(), branch = "all", note = "", resetOpeningCash = false } = {}) {
+  const data = await docDuLieu();
+  const now = new Date().toISOString();
+  const isAll = !branch || branch === "all" || branch === "Tất cả điểm bán";
+
+  let resetCount = 0;
+  data.ds = (data.ds || []).map((item) => {
+    if (!item.deleted && item.ngay === dateKey && (isAll || item.chiNhanh === branch)) {
+      resetCount++;
+      return {
+        ...item,
+        deleted: true,
+        daSync: false,
+        updatedAt: now,
+        deletedReason: note ? `Restart ngày: ${note}` : "Restart ngày hôm nay",
+      };
+    }
+    return item;
+  });
+
+  if (resetOpeningCash) {
+    if (isAll) {
+      const prefix = `${dateKey}_`;
+      Object.keys(data.openingCashByDate || {}).forEach((k) => {
+        if (k.startsWith(prefix)) {
+          delete data.openingCashByDate[k];
+        }
+      });
+    } else {
+      const key = `${dateKey}_${branch}`;
+      if (data.openingCashByDate) {
+        delete data.openingCashByDate[key];
+      }
+    }
+  }
+
+  data.restartLogs = data.restartLogs || [];
+  data.restartLogs.unshift({
+    id: `restart_${Date.now()}`,
+    date: dateKey,
+    time: new Date().toTimeString().slice(0, 5),
+    branch: isAll ? "Tất cả điểm bán" : branch,
+    resetCount,
+    note: note || "Khởi động lại dữ liệu trong ngày",
+    resetOpeningCash,
+    timestamp: now,
+  });
+
+  await luuDuLieu(data);
+  return { resetCount, branch: isAll ? "Tất cả điểm bán" : branch, note };
+}
+

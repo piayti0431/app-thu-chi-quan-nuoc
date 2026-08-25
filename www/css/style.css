@@ -347,20 +347,27 @@ h3 {
 
 .summary-action-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 0.45rem;
   margin-bottom: 0.85rem;
   min-width: 0;
+}
+
+@media (max-width: 420px) {
+  .summary-action-row {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: 0.35rem;
+  }
 }
 
 .report-voice-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   min-height: 2.75rem;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.84rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.82rem;
   font-weight: 700;
   border-radius: var(--radius-md);
   border: 1px solid var(--line);
@@ -392,6 +399,18 @@ h3 {
 .summary-highlight-btn:hover {
   background: linear-gradient(135deg, #0f766e, #065f46) !important;
   box-shadow: 0 10px 24px -4px rgba(13, 148, 136, 0.45) !important;
+}
+
+.restart-day-button {
+  color: #ea580c !important;
+  background: #fff7ed !important;
+  border: 1px solid #fed7aa !important;
+}
+
+.restart-day-button:hover {
+  background: #ffedd5 !important;
+  border-color: #fdba74 !important;
+  color: #c2410c !important;
 }
 
 /* ==========================================================================

@@ -485,4 +485,23 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Compound: 'sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k' -> updates float 43k + records 2 ly mía 16k -> 59k in drawer");
 }
 
+// Test 21: Lệnh Restart dữ liệu ngày kèm lý do: "EV restart lại ngày hôm nay giúp tôi, lý do là bàn giao ca chiều"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    quickItems: [],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV restart lại ngày hôm nay giúp tôi, lý do là bàn giao ca chiều", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "restart_today");
+  assert.equal(res.branch, "Chi nhánh 2");
+  assert.equal(res.note, "bàn giao ca chiều");
+  assert.ok(res.reply.includes("Restart"));
+  assert.ok(res.reply.includes("bàn giao ca chiều"));
+
+  console.log("PASS EV Restart Command: 'EV restart... lý do là bàn giao ca chiều' -> action: restart_today with note");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

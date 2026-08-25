@@ -83,15 +83,19 @@
           </article>
         </section>
 
-        <!-- NÚT TỔNG KẾT NGÀY & ĐỌC LOA BÁO CÁO -->
+        <!-- NÚT TỔNG KẾT NGÀY & ĐỌC LOA BÁO CÁO & RESTART NGÀY -->
         <div class="summary-action-row">
           <button class="report-voice-button summary-highlight-btn" id="openDailyClosingBtn" type="button">
             <span aria-hidden="true">📋</span>
-            <strong>TỔNG KẾT NGÀY HÔM NAY</strong>
+            <strong>TỔNG KẾT NGÀY</strong>
           </button>
           <button class="report-voice-button" id="readTodayReportBtn" type="button" aria-label="Phát loa đọc doanh số hôm nay">
             <span aria-hidden="true">🔊</span>
             <strong>Đọc doanh số</strong>
+          </button>
+          <button class="report-voice-button restart-day-button" id="openRestartDayBtn" type="button" aria-label="Khởi động lại dữ liệu ngày hôm nay" title="Restart lại dữ liệu trong ngày">
+            <span aria-hidden="true">🔄</span>
+            <strong>Restart ngày</strong>
           </button>
         </div>
 
@@ -646,6 +650,43 @@
           </button>
         </div>
       </div>
+    </dialog>
+
+    <!-- HỘP THOẠI KHỞI ĐỘNG LẠI DỮ LIỆU NGÀY (RESTART) -->
+    <dialog class="confirm-dialog" id="restartDayDialog">
+      <form method="dialog" id="restartDayForm">
+        <div style="display: flex; align-items: center; gap: 0.5rem; color: #ea580c;">
+          <span style="font-size: 1.5rem;">🔄</span>
+          <h2 style="margin: 0; font-size: 1.25rem;">Khởi Động Lại Dữ Liệu Hôm Nay</h2>
+        </div>
+        <p class="subtitle" style="margin: 0.35rem 0 0.85rem; font-size: 0.86rem; color: var(--muted);">
+          Thao tác này sẽ làm mới số liệu bán hàng trong ngày về 0đ để bắt đầu ca mới hoặc xóa dữ liệu nhập nhầm.
+        </p>
+
+        <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 0.75rem; border-radius: var(--radius-md); margin-bottom: 0.85rem;">
+          <label style="font-size: 0.88rem; font-weight: 700; color: #9a3412; margin-bottom: 0.35rem; display: block;">
+            Phạm vi khởi động lại:
+          </label>
+          <select id="restartBranchScope" style="width: 100%; font-size: 0.92rem; font-weight: 600; padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff;">
+            <!-- Rendered dynamically -->
+          </select>
+        </div>
+
+        <label style="margin-bottom: 0.85rem; display: block;">
+          <span style="font-size: 0.88rem; font-weight: 700; color: #334155;">📝 Ghi chú / Lý do restart:</span>
+          <input id="restartNoteInput" type="text" placeholder="Ví dụ: Bàn giao ca chiều, Bán thử nghiệm đầu ngày..." style="width: 100%; margin-top: 0.35rem; padding: 0.55rem; font-size: 0.92rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1;">
+        </label>
+
+        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; color: #475569; margin-bottom: 1rem; cursor: pointer;">
+          <input type="checkbox" id="restartResetOpeningCashCheckbox" style="width: 1.1rem; height: 1.1rem;">
+          <span>Đặt lại tiền thối đầu ngày về mặc định</span>
+        </label>
+
+        <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
+          <button class="ghost-button" id="cancelRestartDayBtn" type="button">Hủy bỏ</button>
+          <button class="primary-action" id="confirmRestartDayBtn" type="button" style="background: #ea580c; border-color: #c2410c;">🔄 Xác nhận Restart</button>
+        </div>
+      </form>
     </dialog>
 
     <!-- HỘP THOẠI ĐỔI TIỀN THỐI ĐẦU NGÀY -->
