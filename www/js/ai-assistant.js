@@ -91,6 +91,7 @@ export const conversationContext = {
   lastTransaction: null,
   pendingQuestion: null,
   pendingDiscrepancy: null,
+  pendingMissingItems: null,
 };
 
 export function phanTichTaiChinhNoiBo(query, state) {
@@ -447,35 +448,39 @@ ${ingredientDetail}
   // 3. XỬ LÝ CÂU TRẢ LỜI CHO SỐ TIỀN KHÔNG CHIA HẾT ĐANG CHỜ (PENDING DISCREPANCY RESOLUTION)
   if (conversationContext.pendingDiscrepancy) {
     const pending = conversationContext.pendingDiscrepancy;
-    const qtyMatch = norm.match(/(\d+)\s*(?:ly|chai|cốc|bịch)/i);
-    const extractedQty = qtyMatch ? Number(qtyMatch[1]) : 0;
-
-    if (extractedQty > 0 || norm.includes("ly") || norm.includes("chai") || norm.includes("tip") || norm.includes("boa") || norm.includes("khach")) {
-      const finalQty = extractedQty > 0 ? extractedQty : Math.max(1, Math.round(pending.money / (pending.unitPrice || 10000)));
-      const unitCost = Number(pending.unitCost) > 0 ? Number(pending.unitCost) : 4000;
-      const totalCost = finalQty * unitCost;
-
+    const isNewCommand = norm.startsWith("thu ") || norm.startsWith("vua thu ") || norm.startsWith("ban ") || norm.startsWith("tong ") || norm.startsWith("chi ");
+    if (isNewCommand) {
       conversationContext.pendingDiscrepancy = null;
-      const isCK = pending.paymentMethod === "chuyen_khoan";
+    } else {
+      const qtyMatch = norm.match(/(\d+)\s*(?:ly|chai|cốc|bịch)/i);
+      const extractedQty = qtyMatch ? Number(qtyMatch[1]) : (norm.match(/^\d+$/) ? Number(norm) : 0);
 
-      return {
-        type: "command",
-        action: "add_transaction",
-        branch: pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)",
-        parsed: {
-          loai: "thu",
-          soTien: pending.money,
-          soLuong: finalQty,
-          donViTinh: pending.unit || "ly",
-          danhMuc: pending.category || pending.product,
-          phuongThuc: pending.paymentMethod || "tien_mat",
-          giaCostDonVi: unitCost,
-          tongGiaCost: totalCost,
-          chiNhanh: pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)",
-          ghiChu: `${pending.product} (${finalQty} ${pending.unit || "ly"}) - ${formatMoney(pending.money)} - ${query}`,
-          cauNoiGoc: query,
-        },
-        reply: `✅ **Dạ EV đã làm rõ và ghi sổ thành công**:
+      if (extractedQty > 0 || norm.includes("tip") || norm.includes("boa") || norm.includes("1 lit") || norm.includes("1l") || norm.includes("ly lon") || norm.includes("ly bu")) {
+        const finalQty = extractedQty > 0 ? extractedQty : Math.max(1, Math.round(pending.money / (pending.unitPrice || 10000)));
+        const unitCost = Number(pending.unitCost) > 0 ? Number(pending.unitCost) : 4000;
+        const totalCost = finalQty * unitCost;
+
+        conversationContext.pendingDiscrepancy = null;
+        const isCK = pending.paymentMethod === "chuyen_khoan";
+
+        return {
+          type: "command",
+          action: "add_transaction",
+          branch: pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)",
+          parsed: {
+            loai: "thu",
+            soTien: pending.money,
+            soLuong: finalQty,
+            donViTinh: pending.unit || "ly",
+            danhMuc: pending.category || pending.product,
+            phuongThuc: pending.paymentMethod || "tien_mat",
+            giaCostDonVi: unitCost,
+            tongGiaCost: totalCost,
+            chiNhanh: pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)",
+            ghiChu: `${pending.product} (${finalQty} ${pending.unit || "ly"}) - ${formatMoney(pending.money)} - ${query}`,
+            cauNoiGoc: query,
+          },
+          reply: `✅ **Dạ EV đã làm rõ và ghi sổ thành công**:
 - **Loại**: + Thu tiền bán
 - **Món**: **${pending.product}** (${finalQty} ${pending.unit || "ly"})
 - **Số tiền**: **${formatMoney(pending.money)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})
@@ -483,11 +488,89 @@ ${ingredientDetail}
 - **Ghi chú**: ${query}
 
 *Dữ liệu đã được cập nhật chuẩn xác vào sổ doanh thu!*`,
-      };
+        };
+      }
     }
   }
 
-  // 4. XỬ LÝ CÂU TRẢ LỜI CHO CÂU HỎI GIÁ CHI TIỀN ĐANG CHỜ (PENDING QUESTION RESOLUTION)
+  // 3.1 XỬ LÝ CÂU TRẢ LỜI DANH SÁCH MÓN CHO ĐƠN CHỜ (PENDING MISSING ITEMS RESOLUTION)
+  if (conversationContext.pendingMissingItems) {
+    const pending = conversationContext.pendingMissingItems;
+    const multiResult = phanTichNhieu(query, state.quickItems || []);
+
+    if (multiResult && multiResult.isBatch && multiResult.items.length > 1) {
+      conversationContext.pendingMissingItems = null;
+      const branchToUse = pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+      const isCK = pending.paymentMethod === "chuyen_khoan";
+      const finalAmount = pending.money || multiResult.soTien;
+
+      const breakdownLines = multiResult.items
+        .map((it, idx) => `${idx + 1}. **${it.danhMuc}**: ${it.soLuong} ${it.donViTinh || "ly"} ➔ **${formatMoney(it.soTien)}** (Vốn: ${formatMoney(it.tongGiaCost)})`)
+        .join("\n");
+
+      return {
+        type: "command",
+        action: "add_batch_transactions",
+        items: multiResult.items.map((it) => ({
+          ...it,
+          phuongThuc: pending.paymentMethod,
+          chiNhanh: branchToUse,
+          cauNoiGoc: `${query} (Đơn chờ: ${formatMoney(finalAmount)})`,
+        })),
+        total: finalAmount,
+        branch: branchToUse,
+        reply: `✅ **Dạ EV đã làm rõ danh sách món và ghi sổ thành công**:
+${breakdownLines}
+--------------------------------------------------
+💰 **TỔNG TIỀN THU**: **${formatMoney(finalAmount)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})
+🧊 **Tổng giá vốn (Cost)**: ${formatMoney(multiResult.tongGiaCost)} | **Lợi nhuận**: +${formatMoney(finalAmount - multiResult.tongGiaCost)}
+📍 **Điểm bán**: **${branchToUse}**
+
+*Toàn bộ ${multiResult.items.length} món đã được ghi vào sổ và tính giá vốn chuẩn xác!*`,
+      };
+    }
+
+    const singleResult = phanTichChiTiet(query, state.quickItems || []);
+    if (singleResult && (singleResult.slots?.productId || singleResult.danhMuc !== "Thu khác")) {
+      conversationContext.pendingMissingItems = null;
+      const branchToUse = pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+      const isCK = pending.paymentMethod === "chuyen_khoan";
+      const finalAmount = pending.money || singleResult.soTien;
+
+      const matchedItem = (state.quickItems || []).find((i) => i.id === singleResult.slots?.productId || i.name.toLowerCase() === singleResult.danhMuc?.toLowerCase());
+      const unitCost = Number(matchedItem?.costPrice) || singleResult.giaCostDonVi || 4000;
+      const qty = singleResult.soLuong || 1;
+      const totalCost = qty * unitCost;
+
+      const parsedTx = {
+        ...singleResult,
+        soTien: finalAmount,
+        soLuong: qty,
+        phuongThuc: pending.paymentMethod,
+        giaCostDonVi: unitCost,
+        tongGiaCost: totalCost,
+        chiNhanh: branchToUse,
+        cauNoiGoc: `${query} (Đơn chờ: ${formatMoney(finalAmount)})`,
+      };
+
+      conversationContext.lastTransaction = parsedTx;
+
+      return {
+        type: "command",
+        action: "add_transaction",
+        branch: branchToUse,
+        parsed: parsedTx,
+        reply: `✅ **Dạ EV đã làm rõ món và ghi sổ thành công**:
+- **Loại**: + Thu tiền bán
+- **Món**: **${singleResult.danhMuc}** (${qty} ${singleResult.donViTinh || "ly"})
+- **Số tiền**: **${formatMoney(finalAmount)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})
+- **Giá vốn (Cost)**: ${formatMoney(totalCost)} | **Lãi ròng**: +${formatMoney(finalAmount - totalCost)}
+- **Điểm bán**: **${branchToUse}**
+
+*Dữ liệu đã được cập nhật chuẩn xác vào bảng doanh thu hôm nay!*`,
+      };
+    }
+  }
   if (conversationContext.pendingQuestion) {
     const pending = conversationContext.pendingQuestion;
     const extractedMoney = extractMoneyFromText(query);
@@ -947,6 +1030,38 @@ ${breakdownLines}
 📍 **Điểm bán**: **${branchToUse}**
 
 *Toàn bộ ${multiResult.items.length} món đã được ghi vào sổ bán hàng hôm nay!*`,
+    };
+  }
+
+  // 15.1 PHẢN BIỆN / HỎI LẠI KHI CHỈ ĐỌC GIÁ TIỀN HOẶC TỔNG TIỀN MÀ KHÔNG CÓ TÊN MÓN / LIST MÓN
+  const quickItems = state.quickItems || [];
+  const hasDrinkName = quickItems.some((i) => {
+    const n = normalizeQuery(i.name);
+    const sn = i.shortName ? normalizeQuery(i.shortName) : "";
+    const vn = i.voiceName ? normalizeQuery(i.voiceName) : "";
+    return (n && norm.includes(n)) || (sn && norm.includes(sn)) || (vn && norm.includes(vn));
+  }) || norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") || norm.includes("thom") || norm.includes("khom") || norm.includes("dua") || norm.includes("da vien") || norm.includes("nuoc da");
+
+  const isCustomerBuying = norm.includes("khach mua") || norm.includes("khach lay") || norm.includes("khach uong") || norm.includes("khach goi") || norm.includes("ban ");
+  const isExpenseIntent = !isCustomerBuying && (norm.includes("mua ") || norm.includes("nhap ") || norm.includes("chi ") || norm.includes("tra tien") || norm.includes("xang") || norm.includes("tien dien") || norm.includes("tien nuoc"));
+  const extractedMoneyOnly = extractMoneyFromText(query);
+
+  if (!hasDrinkName && !isExpenseIntent && extractedMoneyOnly >= 1000) {
+    const isCK = norm.includes("chuyen") || norm.includes("ck") || norm.includes("qr") || norm.includes("bank");
+    const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+    conversationContext.pendingMissingItems = {
+      money: extractedMoneyOnly,
+      paymentMethod: isCK ? "chuyen_khoan" : "tien_mat",
+      branch: branchToUse,
+    };
+
+    const isTotal = norm.includes("tong") || norm.includes("don nay") || norm.includes("ca thay") || norm.includes("tong cong");
+    const title = isTotal ? `đơn hàng tổng **${formatMoney(extractedMoneyOnly)}**` : `số tiền thu **${formatMoney(extractedMoneyOnly)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})`;
+
+    return {
+      type: "question",
+      intent: "missing_items",
+      reply: `Dạ EV ghi nhận ${title} ạ! 🥤\n\nAnh/Chị cho EV hỏi trong đơn **${formatMoney(extractedMoneyOnly)}** này gồm **những món nước nào** (ví dụ: *5 ly mía thường, 2 ly cam...*) để EV trừ kho nguyên liệu và tính tiền vốn (cost) chính xác cho quán nhé?`,
     };
   }
 

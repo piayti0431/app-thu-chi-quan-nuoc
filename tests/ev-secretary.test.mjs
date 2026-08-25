@@ -642,4 +642,56 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Critical Reasoning: '2 ly mía 100k' -> questions discrepancy vs standard price");
 }
 
+// Test 27: Chỉ đọc giá tiền không có tên món: "thu 50k" -> EV hỏi lại, user đáp "5 ly mía thường" -> Ghi sổ 5 ly mía
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000 }],
+    crmCustomers: [],
+    ds: [],
+  };
+
+  const res1 = phanTichTaiChinhNoiBo("vừa thu 50k", mockState);
+  assert.equal(res1.type, "question");
+  assert.ok(res1.reply.includes("50.000"), "Phải nhắc số tiền 50k");
+  assert.ok(res1.reply.includes("những món nước nào"), "Phải hỏi khách mua món nước nào");
+
+  // User trả lời danh sách món: "5 ly mía thường"
+  const res2 = phanTichTaiChinhNoiBo("5 ly mía thường", mockState);
+  assert.equal(res2.type, "command");
+  assert.equal(res2.parsed.loai, "thu");
+  assert.equal(res2.parsed.danhMuc, "Nước mía thường");
+  assert.equal(res2.parsed.soLuong, 5);
+  assert.equal(res2.parsed.soTien, 50000);
+  assert.equal(res2.parsed.tongGiaCost, 20000, "5 ly x 4k vốn = 20k");
+
+  console.log("PASS EV Price-only Clarification: 'thu 50k' -> asks items -> '5 ly mía thường' -> records 5 ly 50k");
+}
+
+// Test 28: Chỉ đọc tổng tiền không đọc list món: "tổng cộng 160k" -> EV hỏi lại, user đáp "10 chai mía 1 lít"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    quickItems: [{ id: "nuoc_mia_1l", name: "Nước mía 1 lít", price: 16000, costPrice: 10000 }],
+    crmCustomers: [],
+    ds: [],
+  };
+
+  const res1 = phanTichTaiChinhNoiBo("khách mua tổng cộng 160k", mockState);
+  assert.equal(res1.type, "question");
+  assert.ok(res1.reply.includes("160.000"));
+  assert.ok(res1.reply.includes("những món nước nào"));
+
+  // User trả lời danh sách món: "10 chai mía 1 lít"
+  const res2 = phanTichTaiChinhNoiBo("10 chai mía 1 lít", mockState);
+  assert.equal(res2.type, "command");
+  assert.equal(res2.parsed.loai, "thu");
+  assert.equal(res2.parsed.danhMuc, "Nước mía 1 lít");
+  assert.equal(res2.parsed.soLuong, 10);
+  assert.equal(res2.parsed.soTien, 160000);
+  assert.equal(res2.parsed.tongGiaCost, 100000, "10 chai x 10k vốn = 100k");
+
+  console.log("PASS EV Total-only Clarification: 'tổng cộng 160k' -> asks items -> '10 chai mía 1 lít' -> records 10 chai 160k");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");
