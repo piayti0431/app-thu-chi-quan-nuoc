@@ -720,4 +720,122 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Sugarcane Standard 8k (40k/5 cups, cost 20k) vs 10k by Request (50k/5 cups, cost 25k)");
 }
 
+// Test 30: Toàn quyền đổi giá bán món trên Menu
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV đổi giá mía thường thành 9k nhé", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "update_menu_price");
+  assert.equal(res.itemId, "nuoc_mia");
+  assert.equal(res.newPrice, 9000);
+  assert.ok(res.reply.includes("9.000"));
+
+  console.log("PASS EV Admin: 'EV đổi giá mía thường thành 9k' -> action: update_menu_price");
+}
+
+// Test 31: Toàn quyền đổi giá vốn (Cost) món trên Menu
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "tra_tac", name: "Trà tắc", price: 12000, costPrice: 7000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV sửa cost trà tắc thành 6k", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "update_menu_cost");
+  assert.equal(res.itemId, "tra_tac");
+  assert.equal(res.newCost, 6000);
+  assert.ok(res.reply.includes("6.000"));
+
+  console.log("PASS EV Admin: 'EV sửa cost trà tắc thành 6k' -> action: update_menu_cost");
+}
+
+// Test 32: Toàn quyền xóa món khỏi Menu
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "mia_cam", name: "Mía cam", price: 17000, costPrice: 10000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV xóa món mía cam khỏi menu", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "delete_menu_item");
+  assert.equal(res.itemId, "mia_cam");
+  assert.ok(res.reply.includes("Mía cam"));
+
+  console.log("PASS EV Admin: 'EV xóa món mía cam khỏi menu' -> action: delete_menu_item");
+}
+
+// Test 33: Toàn quyền cập nhật Định phí Mặt bằng / Điện nước
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    overheadConfig: { rentMonthly: 6000000, electricityMonthly: 2400000 },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV đổi tiền mặt bằng thành 7 triệu", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "update_overhead");
+  assert.equal(res.overhead.rentMonthly, 7000000);
+  assert.ok(res.reply.includes("7.000.000"));
+
+  console.log("PASS EV Admin: 'EV đổi tiền mặt bằng thành 7 triệu' -> action: update_overhead");
+}
+
+// Test 34: Toàn quyền thêm Chi Nhánh Mới
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    branches: [],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV thêm chi nhánh Quán Vỉa Hè", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "add_branch");
+  assert.equal(res.branchName, "Quán Vỉa Hè");
+  assert.ok(res.reply.includes("Quán Vỉa Hè"));
+
+  console.log("PASS EV Admin: 'EV thêm chi nhánh Quán Vỉa Hè' -> action: add_branch");
+}
+
+// Test 35: Toàn quyền xóa / hủy đơn vừa ghi
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV xóa giao dịch vừa rồi", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "delete_last_transaction");
+  assert.ok(res.reply.includes("thu hồi và xóa giao dịch"));
+
+  console.log("PASS EV Admin: 'EV xóa giao dịch vừa rồi' -> action: delete_last_transaction");
+}
+
+// Test 36: Toàn quyền bật / tắt Dark mode
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV bật dark mode", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "toggle_dark_mode");
+  assert.equal(res.enabled, true);
+  assert.ok(res.reply.includes("Dark Mode"));
+
+  console.log("PASS EV Admin: 'EV bật dark mode' -> action: toggle_dark_mode");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

@@ -2444,10 +2444,53 @@ function setupAIAssistant() {
 
           await luuDanhSachMenu(state.quickItems);
           showToast(`Đã thêm món ${result.item.name}`);
+        } else if (result.action === "update_menu_price") {
+          state.quickItems = (state.quickItems || []).map((item) => {
+            if (item.id === result.itemId || item.name.toLowerCase() === (result.itemName || "").toLowerCase()) {
+              return { ...item, price: result.newPrice };
+            }
+            return item;
+          });
+          await luuDanhSachMenu(state.quickItems);
+          showToast(`Đã đổi giá món ${result.itemName} thành ${formatMoney(result.newPrice)}`);
+        } else if (result.action === "update_menu_cost") {
+          await capNhatCostChoMon(result.itemId || result.itemName, result.newCost);
+          state.quickItems = (state.quickItems || []).map((item) => {
+            if (item.id === result.itemId || item.name.toLowerCase() === (result.itemName || "").toLowerCase()) {
+              return { ...item, costPrice: result.newCost };
+            }
+            return item;
+          });
+          showToast(`Đã đổi giá vốn món ${result.itemName} thành ${formatMoney(result.newCost)}`);
         } else if (result.action === "delete_menu_item") {
           state.quickItems = (state.quickItems || []).filter((i) => i.id !== result.itemId);
           await luuDanhSachMenu(state.quickItems);
           showToast(`Đã xóa món ${result.itemName}`);
+        } else if (result.action === "update_overhead") {
+          state.overheadConfig = { ...(state.overheadConfig || {}), ...result.overhead };
+          await luuOverheadConfig(state.overheadConfig);
+          showToast(`Đã cập nhật định phí mặt bằng/điện nước thành công`);
+        } else if (result.action === "add_branch") {
+          state.branches = state.branches || [];
+          const newBranch = { id: `branch_${Date.now()}`, name: result.branchName };
+          state.branches.push(newBranch);
+          await luuDanhSachChiNhanh(state.branches);
+          showToast(`Đã thêm chi nhánh: ${result.branchName}`);
+        } else if (result.action === "delete_last_transaction") {
+          state.ds = state.ds || [];
+          const lastTx = state.ds.slice().reverse().find((t) => !t.deleted);
+          if (lastTx) {
+            await xoaGiaoDich(lastTx.id);
+            showToast(`Đã xóa giao dịch gần nhất: ${lastTx.danhMuc} (${formatMoney(lastTx.soTien)})`);
+          }
+        } else if (result.action === "toggle_dark_mode") {
+          document.body.classList.toggle("theme-dark", result.enabled);
+          localStorage.setItem("theme_dark", result.enabled ? "1" : "0");
+          showToast(`Đã ${result.enabled ? "bật" : "tắt"} giao diện ban đêm`);
+        } else if (result.action === "set_default_opening_cash") {
+          state.defaultOpeningCash = result.amount;
+          await luuDuLieu(state);
+          showToast(`Đã cài tiền thối mặc định: ${formatMoney(result.amount)}`);
         } else if (result.action === "switch_branch") {
           await capNhatCurrentBranch(result.branch);
           showToast(`Đã chuyển sang ${result.branch}`);

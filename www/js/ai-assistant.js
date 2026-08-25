@@ -42,9 +42,16 @@ function capitalizeWords(str) {
 function extractMoneyFromText(text) {
   const norm = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[đĐ]/g, "d");
 
+  // Trieu: 7 trieu, 7tr, 1.5 trieu, 1tr5, 1 trieu ruoi
+  const trieuRuoiMatch = norm.match(/(\d+)\s*(?:trieu\s+ruoi|tr\s*5|tr5)/);
+  if (trieuRuoiMatch) return Number(trieuRuoiMatch[1]) * 1000000 + 500000;
+
+  const trieuDotMatch = norm.match(/(\d+(?:\.\d+)?)\s*(?:trieu|tr\b)/);
+  if (trieuDotMatch) return Math.round(Number(trieuDotMatch[1]) * 1000000);
+
   // 10k, 10 nghin, 10 ngan
-  const kMatch = norm.match(/(\d+)\s*(?:k|nghin|ngan)/);
-  if (kMatch) return Number(kMatch[1]) * 1000;
+  const kMatch = norm.match(/(\d+(?:\.\d+)?)\s*(?:k|nghin|ngan)/);
+  if (kMatch) return Math.round(Number(kMatch[1]) * 1000);
 
   // 10.000, 100.000
   const dotMatch = norm.match(/(\d{1,3}(?:\.\d{3})+)/);
@@ -60,6 +67,10 @@ function extractMoneyFromText(text) {
     const val = Number(smallKMatch[1]);
     return val < 100 ? val * 1000 : val;
   }
+
+  // Fallback to phanTichChiTiet parsed money if any
+  const parsedFallback = phanTichChiTiet(text, []);
+  if (parsedFallback && parsedFallback.soTien > 0) return parsedFallback.soTien;
 
   return 0;
 }
@@ -205,6 +216,7 @@ export function phanTichTaiChinhNoiBo(query, state) {
 
   // 3. TÍNH TOÁN CHI PHÍ GIÁ COST 1 LY NƯỚC, TIỀN NGUYÊN LIỆU, MẶT BẰNG, ĐIỆN NƯỚC RÁC & VẬT TƯ (MÀNG ÉP CUỘN, LY, BỌC, ỐNG HÚT)
   if (
+    !norm.includes("doi ") && !norm.includes("sua ") && !norm.includes("thanh ") &&
     (norm.includes("tinh cost") || norm.includes("gia cost") || norm.includes("tinh gia von") || norm.includes("chi phi 1 ly") || norm.includes("chi phi mot ly") || norm.includes("tien mat bang") || norm.includes("tien dien") || norm.includes("tien nuoc") || norm.includes("tien rac") || norm.includes("mang ep") || norm.includes("cuon mang") || norm.includes("tien nguyen lieu") || norm.includes("gia von 1 ly") || norm.includes("cost 1 ly")) &&
     (norm.includes("ly") || norm.includes("nuoc") || norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") || norm.includes("quan") || norm.includes("thang") || norm.includes("cuon"))
   ) {
@@ -943,6 +955,167 @@ ${expText}
 
 *Món "${name}" đã xuất hiện trên màn hình Bán hàng và sẵn sàng order!*`,
     };
+  }
+
+  // 12.1 LỆNH ĐỔI GIÁ BÁN / ĐỔI GIÁ VỐN CỦA MÓN TRONG MENU
+  if (
+    norm.includes("doi gia") ||
+    norm.includes("sua gia") ||
+    norm.includes("chinh gia") ||
+    norm.includes("tang gia") ||
+    norm.includes("giam gia") ||
+    norm.includes("doi cost") ||
+    norm.includes("sua cost") ||
+    norm.includes("doi gia von")
+  ) {
+    const quickItems = state.quickItems || [];
+    let matched = quickItems.find((i) => norm.includes(normalizeQuery(i.name)) || (i.shortName && norm.includes(normalizeQuery(i.shortName))));
+    if (!matched) {
+      if (norm.includes("mia thuong") || norm.includes("nuoc mia")) matched = quickItems.find((i) => i.id === "nuoc_mia");
+      else if (norm.includes("mia cam")) matched = quickItems.find((i) => i.id === "mia_cam");
+      else if (norm.includes("mia tac")) matched = quickItems.find((i) => i.id === "mia_tac");
+      else if (norm.includes("tra tac") || norm.includes("tac")) matched = quickItems.find((i) => i.id === "tra_tac");
+      else if (norm.includes("rau ma dau") || norm.includes("ma dau")) matched = quickItems.find((i) => i.id === "rau_ma_dau_xanh");
+      else if (norm.includes("rau ma")) matched = quickItems.find((i) => i.id === "rau_ma");
+      else if (norm.includes("cam")) matched = quickItems.find((i) => i.id === "nuoc_cam");
+      else if (norm.includes("1 lit") || norm.includes("lit")) matched = quickItems.find((i) => i.id === "nuoc_mia_1l");
+    }
+
+    const newAmount = extractMoneyFromText(query);
+    const isCostChange = norm.includes("cost") || norm.includes("von") || norm.includes("gia von");
+
+    if (matched && newAmount > 0) {
+      if (isCostChange) {
+        return {
+          type: "action",
+          action: "update_menu_cost",
+          itemId: matched.id,
+          itemName: matched.name,
+          newCost: newAmount,
+          reply: `🛠️ **Dạ EV đã cập nhật giá vốn (Cost) mới cho món**:
+- 🥤 **Món**: **${matched.name}**
+- 🧊 **Giá vốn mới**: **${formatMoney(newAmount)}** (trước đó: ${formatMoney(matched.costPrice || 0)})
+- 💡 **Tự động hóa**: EV đã áp dụng giá vốn mới này vào tất cả các phép tính lợi nhuận gộp từ bây giờ ạ!`,
+        };
+      } else {
+        return {
+          type: "action",
+          action: "update_menu_price",
+          itemId: matched.id,
+          itemName: matched.name,
+          newPrice: newAmount,
+          reply: `🛠️ **Dạ EV đã thay đổi giá bán mới trên Menu cho món**:
+- 🥤 **Món**: **${matched.name}**
+- 💵 **Giá bán mới**: **${formatMoney(newAmount)}** (trước đó: ${formatMoney(matched.price)})
+- 💡 **Tự động hóa**: Nút bấm trên màn hình Bán hàng và lệnh gọi món bằng giọng nói đã được cập nhật sang giá mới!`,
+        };
+      }
+    }
+  }
+
+  // 12.2 LỆNH XÓA MÓN KHỎI MENU
+  if (norm.includes("xoa mon") || norm.includes("bo mon") || norm.includes("xoa khoi menu") || norm.includes("ngung ban")) {
+    const quickItems = state.quickItems || [];
+    const matched = quickItems.find((i) => norm.includes(normalizeQuery(i.name)) || (i.shortName && norm.includes(normalizeQuery(i.shortName))));
+    if (matched) {
+      return {
+        type: "action",
+        action: "delete_menu_item",
+        itemId: matched.id,
+        itemName: matched.name,
+        reply: `🗑️ **Dạ EV đã xóa món khỏi Menu thành công**:
+- 🥤 **Món đã xóa**: **${matched.name}**
+- 💡 **Tự động hóa**: Món này đã được gỡ khỏi danh sách Menu bán hàng hôm nay ạ!`,
+      };
+    }
+  }
+
+  // 12.3 LỆNH CẬP NHẬT CHI PHÍ ĐỊNH PHÍ (MẶT BẰNG, ĐIỆN, NƯỚC, RÁC)
+  if (norm.includes("doi tien mat bang") || norm.includes("sua tien mat bang") || norm.includes("doi tien dien") || norm.includes("doi tien nuoc") || norm.includes("tien mat bang la") || norm.includes("tien mat bang thang nay")) {
+    const amount = extractMoneyFromText(query);
+    if (amount > 0) {
+      const isRent = norm.includes("mat bang");
+      const isElec = norm.includes("dien");
+      const isWater = norm.includes("nuoc");
+
+      const currentOverhead = state.overheadConfig || { rentMonthly: 6000000, electricityMonthly: 2400000, waterMonthly: 150000, trashMonthly: 50000, depreciationMonthly: 300000, otherMonthly: 500000 };
+      const updatedOverhead = { ...currentOverhead };
+
+      let changedField = "Mặt bằng";
+      if (isRent) {
+        updatedOverhead.rentMonthly = amount;
+        changedField = "Tiền thuê mặt bằng";
+      } else if (isElec) {
+        updatedOverhead.electricityMonthly = amount;
+        changedField = "Tiền điện hàng tháng";
+      } else if (isWater) {
+        updatedOverhead.waterMonthly = amount;
+        changedField = "Tiền nước hàng tháng";
+      }
+
+      return {
+        type: "action",
+        action: "update_overhead",
+        overhead: updatedOverhead,
+        reply: `🏢 **Dạ EV đã cập nhật Định phí vận hành mới thành công**:
+- 📌 **Hạng mục**: **${changedField}**
+- 💰 **Số tiền mới**: **${formatMoney(amount)} / tháng**
+- 🎯 **Tự động hóa**: EV đã tính lại điểm hòa vốn và phân bổ định phí mới cho toàn bộ các báo cáo tài chính của quán!`,
+      };
+    }
+  }
+
+  // 12.4 LỆNH THÊM CHI NHÁNH MỚI
+  if (norm.includes("them chi nhanh") || norm.includes("tao chi nhanh") || norm.includes("mo chi nhanh")) {
+    let branchName = "Chi nhánh mới";
+    const nameMatch = query.match(/(?:chi nhánh|chi nhanh|quán|quan)\s+([^,;:\n]+)$/i);
+    if (nameMatch) {
+      branchName = capitalizeWords(nameMatch[1].replace(/^(mới|moi|thêm|them|tên là|ten la|là|la)\s+/i, "").trim());
+    }
+
+    return {
+      type: "action",
+      action: "add_branch",
+      branchName,
+      reply: `🏪 **Dạ EV đã thêm Chi Nhánh Mới vào hệ thống chuỗi**:
+- 📍 **Tên chi nhánh**: **${branchName}**
+- 💡 **Tự động hóa**: Anh/Chị có thể chuyển quyền quản lý hoặc lọc doanh thu riêng cho **${branchName}** ngay lập tức!`,
+    };
+  }
+
+  // 12.5 LỆNH XÓA / HỦY GIAO DỊCH GẦN NHẤT
+  if (norm.includes("xoa giao dich") || norm.includes("xoa don vua roi") || norm.includes("huy don vua roi") || norm.includes("xoa cai vua roi") || norm.includes("huy giao dich")) {
+    return {
+      type: "action",
+      action: "delete_last_transaction",
+      reply: `🗑️ **Dạ EV đã thu hồi và xóa giao dịch gần nhất khỏi sổ bán hàng**:
+- 💡 **Tự động hóa**: Doanh thu, tồn két và giá vốn trong ngày đã được tự động hoàn tác và cân bằng lại chuẩn xác!`,
+    };
+  }
+
+  // 12.6 LỆNH BẬT / TẮT GIAO DIỆN TỐI (DARK MODE)
+  if (norm.includes("bat dark mode") || norm.includes("bat che do toi") || norm.includes("tat dark mode") || norm.includes("bat che do sang")) {
+    const isDark = norm.includes("bat dark mode") || norm.includes("bat che do toi");
+    return {
+      type: "action",
+      action: "toggle_dark_mode",
+      enabled: isDark,
+      reply: `🎨 **Dạ EV đã ${isDark ? "bật Giao diện Tối (Dark Mode) 🌙" : "chuyển sang Giao diện Sáng ☀️"} theo yêu cầu của anh/chị ạ!**`,
+    };
+  }
+
+  // 12.7 LỆNH CÀI ĐẶT TIỀN THỐI MẶC ĐỊNH ĐẦU NGÀY
+  if (norm.includes("tien thoi mac dinh") || norm.includes("mac dinh tien thoi")) {
+    const amount = extractMoneyFromText(query);
+    if (amount > 0) {
+      return {
+        type: "action",
+        action: "set_default_opening_cash",
+        amount,
+        reply: `💵 **Dạ EV đã cài đặt Tiền Thối Mặc Định Đầu Ngày là ${formatMoney(amount)}**:
+- 💡 **Tự động hóa**: Mỗi ngày mới khi mở ca, EV sẽ tự động lấy ${formatMoney(amount)} làm tiền thối khởi điểm trong két!`,
+      };
+    }
   }
 
   // 13. BÁO CÁO TỔNG HỢP CẢ 2 CHI NHÁNH
