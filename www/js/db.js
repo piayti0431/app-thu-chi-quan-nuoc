@@ -348,26 +348,25 @@ function mergeList(baseList, customList) {
 
 export function mergeData(data) {
   const base = cloneDefault();
-  const rawQuick = Array.isArray(data?.quickItems) ? data.quickItems : [];
   const legacyPrices = Array.isArray(data?.quickPrices) ? data.quickPrices : null;
 
-  // Merge quick items
-  const quickItemsMap = new Map();
-  for (const item of base.quickItems) {
-    quickItemsMap.set(item.id, { ...item });
+  // Quick items: use custom list if provided; otherwise fallback to default base list
+  let mergedQuickItems;
+  if (Array.isArray(data?.quickItems) && data.quickItems.length > 0) {
+    mergedQuickItems = data.quickItems.map((item, idx) => ({
+      ...item,
+      id: item.id || `item_${idx}_${Date.now()}`,
+      name: item.name || "Món nước",
+      shortName: item.shortName || item.name || "Món nước",
+      category: item.category || item.name || "Món nước",
+      price: Number(item.price) > 0 ? Number(item.price) : 10000,
+      costPrice: Number(item.costPrice) >= 0 ? Number(item.costPrice) : 0,
+      icon: item.icon || "cane",
+    }));
+  } else {
+    mergedQuickItems = base.quickItems;
   }
-  for (const item of rawQuick) {
-    if (item && item.id) {
-      const existing = quickItemsMap.get(item.id) || {};
-      quickItemsMap.set(item.id, {
-        ...existing,
-        ...item,
-        price: Number(item.price) > 0 ? Number(item.price) : (existing.price || 10000),
-        costPrice: Number(item.costPrice) >= 0 ? Number(item.costPrice) : (existing.costPrice || 3000),
-      });
-    }
-  }
-  const mergedQuickItems = [...quickItemsMap.values()];
+
   if (legacyPrices && !data?.quickItems) {
     legacyPrices.forEach((price, index) => {
       if (mergedQuickItems[index] && Number(price) > 0) {
@@ -393,7 +392,7 @@ export function mergeData(data) {
         const qty = Number(item.soLuong) || 1;
         let costPerUnit = Number(item.giaCostDonVi) >= 0 ? Number(item.giaCostDonVi) : 0;
 
-        if (item.loai === "thu") {
+        if (costPerUnit <= 0 && item.loai === "thu") {
           const name = (item.tenMon || item.danhMuc || item.ghiChu || item.cauNoiGoc || "").toLowerCase().trim();
           for (const [key, costVal] of costMap.entries()) {
             if (key && (name === key || name.includes(key) || key.includes(name))) {
@@ -426,8 +425,8 @@ export function mergeData(data) {
     currentBranch,
     branches: rawBranches,
     danhMuc: {
-      thu: mergeList(base.danhMuc.thu, data?.danhMuc?.thu),
-      chi: mergeList(base.danhMuc.chi, data?.danhMuc?.chi),
+      thu: (Array.isArray(data?.danhMuc?.thu) && data.danhMuc.thu.length > 0) ? data.danhMuc.thu : base.danhMuc.thu,
+      chi: (Array.isArray(data?.danhMuc?.chi) && data.danhMuc.chi.length > 0) ? data.danhMuc.chi : base.danhMuc.chi,
     },
     quickItems: mergedQuickItems,
     quickPrices: legacyPrices || mergedQuickItems.map((item) => item.price),

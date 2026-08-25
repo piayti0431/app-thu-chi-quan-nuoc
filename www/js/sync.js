@@ -188,8 +188,8 @@ export async function dongBo() {
   const remoteSettings = freshUser?.user_metadata?.app_settings;
   const localSettingsVersion = Number(data.settingsVersion) || 0;
 
-  if (remoteSettings && Number(remoteSettings.version) > localSettingsVersion) {
-    // Remote has newer settings -> pull to this device
+  if (remoteSettings && (Number(remoteSettings.version) > localSettingsVersion || localSettingsVersion === 0)) {
+    // Remote has newer settings OR this is a fresh login on this device -> pull all from remote
     if (Array.isArray(remoteSettings.quickItems) && remoteSettings.quickItems.length > 0) {
       data.quickItems = remoteSettings.quickItems;
     }
