@@ -2618,6 +2618,27 @@ async function init() {
         authLoggedIn = true;
         await triggerAutoSync();
         await startRealtimeListener();
+
+        // Background Auto-Sync Heartbeat & Lifecycle Listeners (Continuous Full-State Sync)
+        if (typeof window !== "undefined") {
+          document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+              triggerAutoSync();
+            }
+          });
+
+          window.addEventListener("focus", () => {
+            triggerAutoSync();
+          });
+
+          window.addEventListener("online", () => {
+            triggerAutoSync();
+          });
+
+          setInterval(() => {
+            triggerAutoSync();
+          }, 10000);
+        }
       }
     } catch {
       $("#authScreen").hidden = false;
