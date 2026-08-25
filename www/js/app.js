@@ -1036,7 +1036,7 @@ function loadCostDrinkData(drinkId) {
   const formula = formulas[drinkId] || defaultFormula;
 
   $("#costSellingPriceInput").value = item?.price || formula.sellingPrice || 10000;
-  currentIngredientsList = JSON.parse(JSON.stringify(formula.ingredients || defaultFormula.ingredients));
+  currentIngredientsList = JSON.parse(JSON.stringify(formula?.ingredients || defaultFormula.ingredients || []));
   renderIngredientsTable();
   recalculateCostSummary();
 }

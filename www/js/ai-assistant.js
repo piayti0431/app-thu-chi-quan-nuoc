@@ -230,9 +230,10 @@ export function phanTichTaiChinhNoiBo(query, state) {
     const netProfit = sellingPrice - totalCost;
     const grossProfit = sellingPrice - cogs;
     const breakEvenDay = grossProfit > 0 ? Math.ceil(totalOverhead / grossProfit / 30) : 0;
-    const cogsPercent = ((cogs / sellingPrice) * 100).toFixed(1);
-    const overheadPercent = ((overheadPerCup / sellingPrice) * 100).toFixed(1);
-    const netPercent = ((netProfit / sellingPrice) * 100).toFixed(1);
+    const cogsPercent = sellingPrice > 0 ? ((cogs / sellingPrice) * 100).toFixed(1) : "0.0";
+    const overheadPercent = sellingPrice > 0 ? ((overheadPerCup / sellingPrice) * 100).toFixed(1) : "0.0";
+    const netPercent = sellingPrice > 0 ? ((netProfit / sellingPrice) * 100).toFixed(1) : "0.0";
+    const totalCostPercent = sellingPrice > 0 ? ((totalCost / sellingPrice) * 100).toFixed(1) : "0.0";
 
     const filmCost = packaging.filmRoll?.unitCost || 70;
     const cupCost = packaging.cups?.unitCost || 700;
@@ -269,7 +270,7 @@ ${ingredientDetail}
    - ⚡ Tiền điện: **${formatMoney(elec)}** / tháng | 💧 Tiền nước: **${formatMoney(water)}** / tháng
    - 🗑️ Tiền rác & vệ sinh: **${formatMoney(trash)}** / tháng | ⚙️ Khấu hao & khác: **${formatMoney(other)}** / tháng
    ➔ *Tổng định phí: **${formatMoney(totalOverhead)}/tháng** chia cho **${overhead.expectedCupsPerDay || 80} ly/ngày**.*
-4. 🎯 **TỔNG CHI PHÍ THỰC TẾ 1 LY**: **${formatMoney(totalCost)}** (${((totalCost / sellingPrice) * 100).toFixed(1)}%)
+4. 🎯 **TỔNG CHI PHÍ THỰC TẾ 1 LY**: **${formatMoney(totalCost)}** (${totalCostPercent}%)
 5. 💰 **LỢI NHUẬN RÒNG TRÊN 1 LY**: **+${formatMoney(netProfit)}** (Tỷ suất sinh lời: **${netPercent}%**)
 
 ⚖️ **ĐIỂM HÒA VỐN**:
