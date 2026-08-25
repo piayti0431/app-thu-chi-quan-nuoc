@@ -2551,7 +2551,7 @@ dialog::backdrop {
 
 .ai-voice-setting-btn {
   margin-left: auto;
-  padding: 0.4rem 0.85rem;
+  padding: 0.45rem 0.85rem;
   font-size: 0.82rem;
   font-weight: 700;
   border-radius: var(--radius-pill);
@@ -2559,14 +2559,20 @@ dialog::backdrop {
   color: #0d9488;
   border: 1.5px solid #99f6e4;
   cursor: pointer;
-  transition: var(--transition-fast);
+  transition: transform 0.12s ease, background 0.15s ease;
   white-space: nowrap;
   flex: 0 0 auto;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .ai-voice-setting-btn:hover {
   background: #ccfbf1;
-  transform: translateY(-1px);
+}
+
+.ai-voice-setting-btn:active {
+  transform: scale(0.94);
 }
 
 .voice-settings-dialog {
