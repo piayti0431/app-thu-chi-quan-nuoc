@@ -425,9 +425,14 @@
                 <p class="subtitle">Tùy chỉnh giá bán và giá vốn (cost) từng ly nước của quán.</p>
               </div>
               <div class="menu-items-editor" id="menuItemsEditor"></div>
-              <div class="button-row" style="margin-top: 0.75rem;">
-                <button class="ghost-button" id="addNewMenuItemBtn" type="button">+ Thêm món mới</button>
-                <button class="primary-action slim" id="saveMenuBtn" type="button">Lưu bảng giá Menu</button>
+              <div class="button-row" style="margin-top: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: space-between;">
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="ghost-button" id="addNewMenuItemBtn" type="button">+ Thêm món mới</button>
+                  <button class="primary-action slim" id="saveMenuBtn" type="button">Lưu bảng giá Menu</button>
+                </div>
+                <button class="ghost-button" id="openCostCalcBtn" type="button" style="color: #0284c7; border-color: #bae6fd; background: #f0f9ff; font-weight: 700;">
+                  🧮 Bảng Tính Giá Vốn (Cost) & Mặt Bằng Chi Tiết
+                </button>
               </div>
             </div>
 
@@ -524,6 +529,167 @@
         </section>
       </main>
     </div>
+
+    <!-- HỘP THOẠI BẢNG TÍNH GIÁ VỐN (COST) & ĐỊNH PHÍ MẶT BẰNG CHI TIẾT -->
+    <dialog class="closing-dialog cost-calc-dialog" id="costCalculatorDialog">
+      <div class="closing-modal-content" style="max-width: 920px;">
+        <div class="closing-header" style="background: linear-gradient(135deg, #0284c7, #0369a1);">
+          <div>
+            <p class="eyebrow" style="color: #e0f2fe;">Công Cụ Định Phí Chuyên Sâu F&B</p>
+            <h2 id="costCalcHeaderTitle" style="color: #ffffff;">🧮 Bảng Tính Giá Vốn (Cost) & Phân Bổ Mặt Bằng 1 Ly Nước</h2>
+          </div>
+          <button class="close-icon-btn" id="closeCostCalcTopBtn" type="button" aria-label="Đóng bảng tính" style="color: #ffffff;">✕</button>
+        </div>
+
+        <div class="closing-body" style="padding: 1.25rem;">
+          <!-- CHỌN MÓN VÀ GIÁ BÁN -->
+          <div class="cost-top-selectors" style="display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0.75rem; background: #f8fafc; padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+            <label style="margin: 0;">
+              <span style="font-size: 0.85rem; font-weight: 700; color: #334155;">🥤 Chọn Món Nước Cần Tính Cost:</span>
+              <select id="costDrinkSelect" style="width: 100%; font-size: 0.95rem; font-weight: 600; padding: 0.5rem; margin-top: 0.25rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1;">
+                <!-- Dynamically populated -->
+              </select>
+            </label>
+            <label style="margin: 0;">
+              <span style="font-size: 0.85rem; font-weight: 700; color: #334155;">💵 Giá Bán Ra Hiện Tại (đ):</span>
+              <input id="costSellingPriceInput" type="number" value="10000" style="width: 100%; font-size: 0.95rem; font-weight: 700; color: #0284c7; padding: 0.5rem; margin-top: 0.25rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1;">
+            </label>
+          </div>
+
+          <div class="cost-calc-grid-layout" style="display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1rem;">
+            <!-- CỘT TRÁI: CHI PHÍ NGUYÊN LIỆU + CHI PHÍ MẶT BẰNG -->
+            <div class="cost-left-col">
+              <!-- PHẦN 1: CHI PHÍ NGUYÊN LIỆU TRỰC TIẾP (COGS) -->
+              <div class="cost-box-section" style="border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <h3 style="font-size: 0.95rem; font-weight: 800; color: #0f172a; margin: 0;">📦 1. Nguyên Liệu Trực Tiếp (COGS)</h3>
+                  <button class="ghost-button" id="addIngredientRowBtn" type="button" style="font-size: 0.78rem; padding: 0.2rem 0.5rem; font-weight: 700; color: #0284c7; border-color: #bae6fd;">+ Thêm nguyên liệu</button>
+                </div>
+                <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 0.6rem;">Ví dụ: 1 bó mía 150k ép 75 khúc $\rightarrow$ 2.000đ/khúc; 1 cây ly 50 cái 35k $\rightarrow$ 700đ/ly.</p>
+
+                <div class="stats-table-wrap" style="max-height: 220px; overflow-y: auto;">
+                  <table class="stats-table" style="font-size: 0.82rem;">
+                    <thead>
+                      <tr>
+                        <th>Tên nguyên liệu</th>
+                        <th style="width: 25%;">Giá mua (đ)</th>
+                        <th style="width: 20%;">Làm ra (ly)</th>
+                        <th style="width: 25%;" class="text-right">Vốn/ly (đ)</th>
+                        <th style="width: 8%;"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="costIngredientsBody">
+                      <!-- Dynamically rendered -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); margin-top: 0.6rem;">
+                  <span style="font-size: 0.88rem; font-weight: 700; color: #065f46;">Tổng Vốn Nguyên Liệu 1 Ly (COGS):</span>
+                  <strong id="totalCogsDisplay" style="font-size: 1.05rem; color: #047857;">0 đ</strong>
+                </div>
+              </div>
+
+              <!-- PHẦN 2: CHI PHÍ MẶT BẰNG & ĐỊNH PHÍ VẬN HÀNH (OVERHEAD) -->
+              <div class="cost-box-section" style="border: 1px solid #fed7aa; background: #fffaf5; border-radius: var(--radius-md); padding: 0.85rem;">
+                <h3 style="font-size: 0.95rem; font-weight: 800; color: #9a3412; margin: 0 0 0.35rem;">🏢 2. Tiền Mặt Bằng & Định Phí Vận Hành (Overhead)</h3>
+                <p style="font-size: 0.8rem; color: #7c2d12; margin: 0 0 0.6rem;">Phân bổ chi phí cố định hàng tháng chia cho số ly nước bán ra.</p>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                  <label style="margin: 0; font-size: 0.8rem;">
+                    <span>Tiền thuê mặt bằng / tháng (đ):</span>
+                    <input id="calcRentMonthly" type="number" value="6000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 600;">
+                  </label>
+                  <label style="margin: 0; font-size: 0.8rem;">
+                    <span>Tiền điện + nước + gas / tháng (đ):</span>
+                    <input id="calcUtilitiesMonthly" type="number" value="1200000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 600;">
+                  </label>
+                  <label style="margin: 0; font-size: 0.8rem;">
+                    <span>Khấu hao máy + Chi khác / tháng (đ):</span>
+                    <input id="calcOtherMonthly" type="number" value="600000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 600;">
+                  </label>
+                  <label style="margin: 0; font-size: 0.8rem;">
+                    <span>Sản lượng bán dự kiến (ly / ngày):</span>
+                    <input id="calcExpectedCupsDay" type="number" value="80" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700; color: #ea580c;">
+                  </label>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #fff7ed; border: 1px solid #ffedd5; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); margin-top: 0.6rem;">
+                  <span style="font-size: 0.85rem; font-weight: 700; color: #9a3412;">Mặt Bằng & Vận Hành / 1 Ly:</span>
+                  <strong id="overheadPerCupDisplay" style="font-size: 1.05rem; color: #c2410c;">0 đ</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- CỘT PHẢI: BÁO CÁO PHÂN TÍCH TÀI CHÍNH TOÀN DIỆN (EXECUTIVE METRICS) -->
+            <div class="cost-right-col" style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <!-- THẺ TỔNG HỢP CƠ CẤU 1 LY NƯỚC -->
+              <div style="background: #ffffff; border: 2px solid #0284c7; border-radius: var(--radius-md); padding: 0.85rem; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.08);">
+                <h4 style="margin: 0 0 0.6rem; font-size: 0.92rem; font-weight: 800; color: #0369a1; text-align: center; text-transform: uppercase;">
+                  📊 Cơ Cấu Chi Phí 1 Ly Nước
+                </h4>
+
+                <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.84rem;">
+                  <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 0.25rem;">
+                    <span>💵 Giá Bán Ra (Menu):</span>
+                    <strong id="summarySellingPrice" style="color: #0f172a;">10.000 đ</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 0.25rem;">
+                    <span style="color: #047857;">📦 Vốn Nguyên Liệu (COGS):</span>
+                    <strong id="summaryCogsRatio" style="color: #047857;">3.500 đ (35%)</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #e2e8f0; padding-bottom: 0.25rem;">
+                    <span style="color: #c2410c;">🏢 Mặt Bằng & Vận Hành / Ly:</span>
+                    <strong id="summaryOverheadRatio" style="color: #c2410c;">3.250 đ (32.5%)</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #cbd5e1; padding-bottom: 0.35rem; font-weight: 700;">
+                    <span style="color: #475569;">🎯 TỔNG CHI PHÍ THỰC TẾ:</span>
+                    <strong id="summaryTotalCost" style="color: #334155;">6.750 đ (67.5%)</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; background: #f0fdf4; padding: 0.5rem; border-radius: var(--radius-sm); border: 1px solid #86efac; margin-top: 0.25rem;">
+                    <span style="font-size: 0.88rem; font-weight: 800; color: #166534;">💰 LỜI RÒNG / 1 LY:</span>
+                    <strong id="summaryNetProfit" style="font-size: 1.1rem; color: #15803d;">+3.250 đ</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- THẺ ĐIỂM HÒA VỐN (BREAK-EVEN POINT) -->
+              <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-md); padding: 0.75rem; font-size: 0.82rem;">
+                <h4 style="margin: 0 0 0.35rem; font-size: 0.88rem; font-weight: 800; color: #1e293b;">
+                  ⚖️ Điểm Hòa Vốn (Break-even Point)
+                </h4>
+                <p style="margin: 0; color: #475569; line-height: 1.4;">
+                  Để bù đắp đủ toàn bộ tiền mặt bằng & chi phí cố định (<strong><span id="summaryTotalMonthlyOverhead">7.800.000 đ</span>/tháng</strong>), quán cần bán tối thiểu:
+                </p>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem; justify-content: center;">
+                  <span style="background: #e2e8f0; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-weight: 700; color: #0f172a;" id="breakEvenPerDayText">🎯 40 ly / ngày</span>
+                  <span style="background: #e2e8f0; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-weight: 700; color: #0f172a;" id="breakEvenPerMonthText">📅 1.200 ly / tháng</span>
+                </div>
+              </div>
+
+              <!-- NHẬN XÉT CỦA THƯ KÝ EV -->
+              <div id="costEvAdviceBox" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 0.75rem; font-size: 0.82rem; color: #1e40af; line-height: 1.45;">
+                <strong>🤖 Thư Ký EV Đánh Giá:</strong>
+                <p id="costEvAdviceText" style="margin: 0.25rem 0 0;">
+                  Tỷ lệ giá vốn nguyên liệu (COGS) ở mức 35% là rất đẹp và an toàn cho mô hình quán nước!
+                </p>
+              </div>
+
+              <!-- NÚT ÁP DỤNG & LƯU -->
+              <div style="display: flex; flex-direction: column; gap: 0.4rem; margin-top: auto;">
+                <button class="primary-action" id="applyCostToMenuBtn" type="button" style="width: 100%; font-weight: 800; justify-content: center;">
+                  💾 Áp Dụng Giá Vốn Này Vào Menu
+                </button>
+                <div style="display: flex; gap: 0.4rem;">
+                  <button class="ghost-button" id="saveOverheadOnlyBtn" type="button" style="flex: 1; font-size: 0.78rem;">💾 Lưu định phí mặt bằng</button>
+                  <button class="ghost-button" id="copyCostReportBtn" type="button" style="flex: 1; font-size: 0.78rem;">📋 Sao chép bảng tính</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </dialog>
 
     <!-- HỘP THOẠI PHIẾU TỔNG KẾT NGÀY CHI TIẾT -->
     <dialog class="closing-dialog" id="dailyClosingDialog">

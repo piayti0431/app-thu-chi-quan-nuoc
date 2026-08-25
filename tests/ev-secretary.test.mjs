@@ -504,4 +504,32 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Restart Command: 'EV restart... lý do là bàn giao ca chiều' -> action: restart_today with note");
 }
 
+// Test 22: Lệnh/câu hỏi tính giá cost 1 ly nước kèm tiền nguyên liệu và tiền mặt bằng
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [
+      { id: "nuoc_mia", name: "Nước mía thường", price: 10000, costPrice: 3500 },
+      { id: "tra_tac", name: "Trà tắc", price: 15000, costPrice: 4000 },
+    ],
+    overheadConfig: {
+      rentMonthly: 6000000,
+      utilitiesMonthly: 1200000,
+      otherMonthly: 600000,
+      expectedCupsPerDay: 80,
+    },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("tính toán chi phí giá cost cho 1 ly nước mía tiền nguyên liệu tiền mặt bằng", mockState);
+  assert.equal(res.type, "analysis");
+  assert.equal(res.category, "cost_breakdown");
+  assert.ok(res.reply.includes("NƯỚC MÍA THƯỜNG"));
+  assert.ok(res.reply.includes("3.500"));
+  assert.ok(res.reply.includes("Mặt Bằng"));
+  assert.ok(res.reply.includes("ĐIỂM HÒA VỐN"));
+
+  console.log("PASS EV Drink Cost & Overhead Calculator: 'tính toán chi phí giá cost cho 1 ly nước mía tiền nguyên liệu tiền mặt bằng' -> complete 5-layer financial breakdown");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

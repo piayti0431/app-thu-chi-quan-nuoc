@@ -1,11 +1,14 @@
 import {
   capNhatCauHinhSync,
+  capNhatCostChoMon,
   capNhatCurrentBranch,
   capNhatGiaNhanh,
   docDuLieu,
+  luuCostFormula,
   luuDanhSachChiNhanh,
   luuDanhSachMenu,
   luuDuLieu,
+  luuOverheadConfig,
   luuTienThoiDauNgay,
   luuKhachQuen,
   nhapDuLieuTuJson,
@@ -839,10 +842,10 @@ function renderMenuManager() {
       <table class="menu-editor-table">
         <thead>
           <tr>
-            <th style="width: 32%;">🏷️ Tên món nước</th>
-            <th style="width: 24%;">💵 Giá bán ra (đ)</th>
-            <th style="width: 24%;">🟡 Giá vốn 1 ly (Cost đ)</th>
-            <th style="width: 14%;">💰 Lời / 1 ly</th>
+            <th style="width: 28%;">🏷️ Tên món nước</th>
+            <th style="width: 22%;">💵 Giá bán (đ)</th>
+            <th style="width: 28%;">🟡 Giá vốn (Cost đ)</th>
+            <th style="width: 16%;">💰 Lời / 1 ly</th>
             <th style="width: 6%;"></th>
           </tr>
         </thead>
@@ -853,7 +856,7 @@ function renderMenuManager() {
               const cost = Number(item.costPrice) || 0;
               const profit = price - cost;
               return `
-              <tr class="menu-item-row" data-index="${index}">
+              <tr class="menu-item-row" data-index="${index}" data-id="${item.id}">
                 <td>
                   <input class="menu-item-name" value="${item.name || ""}" placeholder="Ví dụ: Nước mía" title="Tên món nước" required>
                 </td>
@@ -861,7 +864,10 @@ function renderMenuManager() {
                   <input class="menu-item-price" type="number" value="${price}" placeholder="8000" title="Giá bán ra cho khách (đ)" required>
                 </td>
                 <td>
-                  <input class="menu-item-cost" type="number" value="${cost}" placeholder="3000" title="Chi phí nguyên liệu 1 ly (Cost đ)">
+                  <div style="display: flex; gap: 0.25rem; align-items: center;">
+                    <input class="menu-item-cost" type="number" value="${cost}" placeholder="3000" title="Chi phí nguyên liệu 1 ly (Cost đ)" style="flex: 1;">
+                    <button class="ghost-button row-calc-cost-btn" data-id="${item.id}" type="button" title="Mở bảng tính chi tiết cost và mặt bằng cho món này" style="padding: 0.25rem 0.4rem; font-size: 0.72rem; min-height: unset; color: #0284c7; border-color: #bae6fd;">🧮</button>
+                  </div>
                 </td>
                 <td>
                   <span class="profit-badge">+${formatMoney(profit)}</span>
@@ -901,6 +907,13 @@ function renderMenuManager() {
     costInput?.addEventListener("input", updateProfit);
   });
 
+  $$("#menuItemsEditor .row-calc-cost-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const drinkId = btn.getAttribute("data-id");
+      openCostCalculatorModal(drinkId);
+    };
+  });
+
   $$("#menuItemsEditor .icon-btn-del").forEach((btn) => {
     btn.onclick = () => {
       const row = btn.closest(".menu-item-row");
@@ -913,6 +926,223 @@ function renderMenuManager() {
       renderMenuManager();
     };
   });
+}
+
+// ----------------------------------------------------
+// COST & OVERHEAD CALCULATOR (TÍNH GIÁ VỐN & MẶT BẰNG)
+// ----------------------------------------------------
+
+let currentCostDrinkId = "nuoc_mia";
+let currentIngredientsList = [];
+
+function openCostCalculatorModal(drinkId = null) {
+  const dialog = $("#costCalculatorDialog");
+  if (!dialog) return;
+
+  const quickItems = state.quickItems || [];
+  const overhead = state.overheadConfig || {
+    rentMonthly: 6000000,
+    utilitiesMonthly: 1200000,
+    otherMonthly: 600000,
+    expectedCupsPerDay: 80,
+  };
+
+  // Populate drink select
+  const select = $("#costDrinkSelect");
+  if (select) {
+    select.innerHTML = quickItems
+      .map((q) => `<option value="${q.id}" ${q.id === (drinkId || currentCostDrinkId) ? "selected" : ""}>${q.name} (${formatMoney(q.price)})</option>`)
+      .join("");
+  }
+
+  currentCostDrinkId = drinkId || select?.value || quickItems[0]?.id || "nuoc_mia";
+
+  // Load overhead inputs
+  $("#calcRentMonthly").value = overhead.rentMonthly || 6000000;
+  $("#calcUtilitiesMonthly").value = overhead.utilitiesMonthly || 1200000;
+  $("#calcOtherMonthly").value = overhead.otherMonthly || 600000;
+  $("#calcExpectedCupsDay").value = overhead.expectedCupsPerDay || 80;
+
+  loadCostDrinkData(currentCostDrinkId);
+  dialog.showModal();
+}
+
+function loadCostDrinkData(drinkId) {
+  const quickItems = state.quickItems || [];
+  const formulas = state.costFormulas || {};
+  const item = quickItems.find((q) => q.id === drinkId) || quickItems[0];
+  const defaultFormula = {
+    drinkId: item?.id,
+    drinkName: item?.name,
+    sellingPrice: item?.price || 10000,
+    ingredients: [
+      { name: "Nguyên liệu chính (mía/trà/trái cây)", batchCost: 100000, batchYield: 50, unitCost: 2000 },
+      { name: "Đá viên (sạch)", batchCost: 15000, batchYield: 30, unitCost: 500 },
+      { name: "Ly nhựa + Nắp ép/cầu", batchCost: 35000, batchYield: 50, unitCost: 700 },
+      { name: "Ống hút + Quai xách chữ T", batchCost: 25000, batchYield: 250, unitCost: 100 },
+    ],
+  };
+
+  const formula = formulas[drinkId] || defaultFormula;
+
+  $("#costSellingPriceInput").value = item?.price || formula.sellingPrice || 10000;
+  currentIngredientsList = JSON.parse(JSON.stringify(formula.ingredients || defaultFormula.ingredients));
+  renderIngredientsTable();
+  recalculateCostSummary();
+}
+
+function renderIngredientsTable() {
+  const tbody = $("#costIngredientsBody");
+  if (!tbody) return;
+
+  if (!currentIngredientsList.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 0.75rem;">Chưa có nguyên liệu nào. Bấm '+ Thêm nguyên liệu' để thêm.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = currentIngredientsList
+    .map((ing, idx) => {
+      const batchCost = Number(ing.batchCost) || 0;
+      const batchYield = Number(ing.batchYield) || 1;
+      const unitCost = Math.round(batchCost / (batchYield || 1));
+      ing.unitCost = unitCost;
+
+      return `
+        <tr data-idx="${idx}">
+          <td>
+            <input class="ing-name" value="${ing.name || ""}" placeholder="Tên nguyên liệu" style="width: 100%; padding: 0.25rem; font-size: 0.8rem; font-weight: 600;">
+          </td>
+          <td>
+            <input class="ing-cost" type="number" value="${batchCost}" placeholder="150000" style="width: 100%; padding: 0.25rem; font-size: 0.8rem;">
+          </td>
+          <td>
+            <input class="ing-yield" type="number" value="${batchYield}" placeholder="75" style="width: 100%; padding: 0.25rem; font-size: 0.8rem;">
+          </td>
+          <td class="text-right" style="font-weight: 700; color: #047857;">
+            ${formatMoney(unitCost)}
+          </td>
+          <td>
+            <button class="del-ing-btn" data-idx="${idx}" type="button" style="border: none; background: transparent; color: #ef4444; font-weight: 800; cursor: pointer;">✕</button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  // Event handlers for inputs
+  tbody.querySelectorAll("tr").forEach((tr) => {
+    const idx = Number(tr.getAttribute("data-idx"));
+    const nameInput = tr.querySelector(".ing-name");
+    const costInput = tr.querySelector(".ing-cost");
+    const yieldInput = tr.querySelector(".ing-yield");
+    const delBtn = tr.querySelector(".del-ing-btn");
+
+    const updateRow = () => {
+      if (currentIngredientsList[idx]) {
+        currentIngredientsList[idx].name = nameInput.value;
+        currentIngredientsList[idx].batchCost = Number(costInput.value) || 0;
+        currentIngredientsList[idx].batchYield = Number(yieldInput.value) || 1;
+        currentIngredientsList[idx].unitCost = Math.round(currentIngredientsList[idx].batchCost / (currentIngredientsList[idx].batchYield || 1));
+      }
+      recalculateCostSummary();
+    };
+
+    nameInput?.addEventListener("input", updateRow);
+    costInput?.addEventListener("input", () => {
+      updateRow();
+      renderIngredientsTable();
+    });
+    yieldInput?.addEventListener("input", () => {
+      updateRow();
+      renderIngredientsTable();
+    });
+    if (delBtn) {
+      delBtn.onclick = () => {
+        currentIngredientsList.splice(idx, 1);
+        renderIngredientsTable();
+        recalculateCostSummary();
+      };
+    }
+  });
+}
+
+function recalculateCostSummary() {
+  const sellingPrice = Number($("#costSellingPriceInput")?.value) || 0;
+
+  // 1. Total COGS
+  const totalCogs = currentIngredientsList.reduce((sum, ing) => {
+    const bCost = Number(ing.batchCost) || 0;
+    const bYield = Number(ing.batchYield) || 1;
+    return sum + Math.round(bCost / (bYield || 1));
+  }, 0);
+
+  const cogsDisplay = $("#totalCogsDisplay");
+  if (cogsDisplay) cogsDisplay.textContent = formatMoney(totalCogs);
+
+  // 2. Overhead allocation
+  const rent = Number($("#calcRentMonthly")?.value) || 0;
+  const util = Number($("#calcUtilitiesMonthly")?.value) || 0;
+  const other = Number($("#calcOtherMonthly")?.value) || 0;
+  const totalOverheadMonthly = rent + util + other;
+
+  const cupsPerDay = Number($("#calcExpectedCupsDay")?.value) || 1;
+  const monthlyCups = cupsPerDay * 30;
+  const overheadPerCup = Math.round(totalOverheadMonthly / (monthlyCups || 1));
+
+  const overheadDisplay = $("#overheadPerCupDisplay");
+  if (overheadDisplay) overheadDisplay.textContent = formatMoney(overheadPerCup);
+  const overheadMonthlyElem = $("#summaryTotalMonthlyOverhead");
+  if (overheadMonthlyElem) overheadMonthlyElem.textContent = formatMoney(totalOverheadMonthly);
+
+  // 3. Executive Metrics
+  const totalCost = totalCogs + overheadPerCup;
+  const netProfit = sellingPrice - totalCost;
+  const grossProfit = sellingPrice - totalCogs;
+
+  const cogsRatio = sellingPrice > 0 ? ((totalCogs / sellingPrice) * 100).toFixed(1) : 0;
+  const overheadRatio = sellingPrice > 0 ? ((overheadPerCup / sellingPrice) * 100).toFixed(1) : 0;
+  const totalCostRatio = sellingPrice > 0 ? ((totalCost / sellingPrice) * 100).toFixed(1) : 0;
+  const netMargin = sellingPrice > 0 ? ((netProfit / sellingPrice) * 100).toFixed(1) : 0;
+
+  const spElem = $("#summarySellingPrice");
+  if (spElem) spElem.textContent = formatMoney(sellingPrice);
+  const cogsRatioElem = $("#summaryCogsRatio");
+  if (cogsRatioElem) cogsRatioElem.textContent = `${formatMoney(totalCogs)} (${cogsRatio}%)`;
+  const overheadRatioElem = $("#summaryOverheadRatio");
+  if (overheadRatioElem) overheadRatioElem.textContent = `${formatMoney(overheadPerCup)} (${overheadRatio}%)`;
+  const totalCostElem = $("#summaryTotalCost");
+  if (totalCostElem) totalCostElem.textContent = `${formatMoney(totalCost)} (${totalCostRatio}%)`;
+
+  const netElem = $("#summaryNetProfit");
+  if (netElem) {
+    netElem.textContent = netProfit >= 0 ? `+${formatMoney(netProfit)} (${netMargin}%)` : `-${formatMoney(Math.abs(netProfit))} (${netMargin}%)`;
+    netElem.style.color = netProfit >= 0 ? "#15803d" : "#b91c1c";
+  }
+
+  // 4. Break-even volume
+  const breakEvenCupsMonthly = grossProfit > 0 ? Math.ceil(totalOverheadMonthly / grossProfit) : 0;
+  const breakEvenCupsDaily = Math.ceil(breakEvenCupsMonthly / 30);
+
+  const breakEvenDayElem = $("#breakEvenPerDayText");
+  if (breakEvenDayElem) breakEvenDayElem.textContent = `🎯 ${breakEvenCupsDaily} ly / ngày`;
+  const breakEvenMonthElem = $("#breakEvenPerMonthText");
+  if (breakEvenMonthElem) breakEvenMonthElem.textContent = `📅 ${formatMoney(breakEvenCupsMonthly).replace(" đ", "")} ly / tháng`;
+
+  // 5. EV Advice Generation
+  const adviceText = $("#costEvAdviceText");
+  if (adviceText) {
+    let text = "";
+    if (cogsRatio > 45) {
+      text = `⚠️ **Cảnh báo giá vốn cao:** Tiền nguyên liệu chiếm **${cogsRatio}%** (vượt mức 35% chuẩn F&B). Anh/chị nên đàm phán lại giá vựa mía/đá hoặc xem xét tăng giá bán thêm 2.000đ - 3.000đ!`;
+    } else if (overheadRatio > 35) {
+      text = `⚠️ **Định phí mặt bằng đang nặng:** Tiền mặt bằng & điện nước chiếm **${overheadRatio}%** giá ly. Cần đẩy mạnh bán trên **${breakEvenCupsDaily} ly/ngày** hoặc mở rộng bán thêm trà tắc/rau má để tăng doanh thu gánh mặt bằng!`;
+    } else if (netProfit > 0 && Number(cogsRatio) <= 35) {
+      text = `✅ **Cơ cấu tài chính tuyệt vời:** Giá vốn **${cogsRatio}%** (chuẩn F&B < 35%), tỷ suất lợi nhuận ròng **${netMargin}%** (+${formatMoney(netProfit)}/ly). Bán từ ly thứ **${breakEvenCupsDaily + 1}** trong ngày là bỏ túi trọn vẹn tiền lời!`;
+    } else {
+      text = `💡 Mỗi ngày quán bán tối thiểu **${breakEvenCupsDaily} ly** là hòa vốn toàn bộ tiền mặt bằng (${formatMoney(rent)}) và điện nước.`;
+    }
+    adviceText.innerHTML = text;
+  }
 }
 
 function renderBranchManager() {
@@ -1293,6 +1523,112 @@ function initEventListeners() {
     renderAll();
     showToast("Đã lưu bảng giá Menu và Giá Vốn thành công!");
     triggerAutoSync();
+  });
+
+  // ----------------------------------------------------
+  // COST CALCULATOR MODAL EVENTS
+  // ----------------------------------------------------
+  $("#openCostCalcBtn")?.addEventListener("click", () => {
+    openCostCalculatorModal();
+  });
+
+  $("#closeCostCalcTopBtn")?.addEventListener("click", () => {
+    $("#costCalculatorDialog")?.close();
+  });
+
+  $("#costDrinkSelect")?.addEventListener("change", (e) => {
+    currentCostDrinkId = e.target.value;
+    loadCostDrinkData(currentCostDrinkId);
+  });
+
+  $("#costSellingPriceInput")?.addEventListener("input", () => {
+    recalculateCostSummary();
+  });
+
+  $("#addIngredientRowBtn")?.addEventListener("click", () => {
+    currentIngredientsList.push({
+      name: "Nguyên liệu mới",
+      batchCost: 20000,
+      batchYield: 20,
+      unitCost: 1000,
+    });
+    renderIngredientsTable();
+    recalculateCostSummary();
+  });
+
+  ["#calcRentMonthly", "#calcUtilitiesMonthly", "#calcOtherMonthly", "#calcExpectedCupsDay"].forEach((sel) => {
+    $(sel)?.addEventListener("input", () => {
+      recalculateCostSummary();
+    });
+  });
+
+  $("#applyCostToMenuBtn")?.addEventListener("click", async () => {
+    const totalCogs = currentIngredientsList.reduce((sum, ing) => {
+      const bCost = Number(ing.batchCost) || 0;
+      const bYield = Number(ing.batchYield) || 1;
+      return sum + Math.round(bCost / (bYield || 1));
+    }, 0);
+
+    const sellingPrice = Number($("#costSellingPriceInput")?.value) || 0;
+
+    // Save formula
+    await luuCostFormula(currentCostDrinkId, {
+      drinkId: currentCostDrinkId,
+      sellingPrice,
+      ingredients: currentIngredientsList,
+    });
+
+    // Save overhead
+    await luuOverheadConfig({
+      rentMonthly: Number($("#calcRentMonthly")?.value) || 6000000,
+      utilitiesMonthly: Number($("#calcUtilitiesMonthly")?.value) || 1200000,
+      otherMonthly: Number($("#calcOtherMonthly")?.value) || 600000,
+      expectedCupsPerDay: Number($("#calcExpectedCupsDay")?.value) || 80,
+    });
+
+    // Update cost for this menu item
+    await capNhatCostChoMon(currentCostDrinkId, totalCogs);
+
+    state = await docDuLieu();
+    renderAll();
+    triggerAutoSync();
+
+    $("#costCalculatorDialog")?.close();
+    showToast(`Đã áp dụng giá vốn ${formatMoney(totalCogs)}/ly cho món vào Menu!`);
+  });
+
+  $("#saveOverheadOnlyBtn")?.addEventListener("click", async () => {
+    await luuOverheadConfig({
+      rentMonthly: Number($("#calcRentMonthly")?.value) || 6000000,
+      utilitiesMonthly: Number($("#calcUtilitiesMonthly")?.value) || 1200000,
+      otherMonthly: Number($("#calcOtherMonthly")?.value) || 600000,
+      expectedCupsPerDay: Number($("#calcExpectedCupsDay")?.value) || 80,
+    });
+    state = await docDuLieu();
+    showToast("Đã lưu định phí mặt bằng và vận hành");
+    triggerAutoSync();
+  });
+
+  $("#copyCostReportBtn")?.addEventListener("click", () => {
+    const select = $("#costDrinkSelect");
+    const drinkName = select ? select.options[select.selectedIndex]?.text : "Món nước";
+    const sellingPrice = $("#summarySellingPrice")?.textContent || "0 đ";
+    const cogs = $("#summaryCogsRatio")?.textContent || "0 đ";
+    const overhead = $("#summaryOverheadRatio")?.textContent || "0 đ";
+    const totalCost = $("#summaryTotalCost")?.textContent || "0 đ";
+    const netProfit = $("#summaryNetProfit")?.textContent || "0 đ";
+    const breakEvenDay = $("#breakEvenPerDayText")?.textContent || "";
+
+    const text = `🧮 BẢNG TÍNH GIÁ VỐN & ĐỊNH PHÍ (${drinkName}):
+- 💵 Giá bán ra: ${sellingPrice}
+- 📦 Vốn nguyên liệu (COGS): ${cogs}
+- 🏢 Mặt bằng & Điện nước / ly: ${overhead}
+- 🎯 TỔNG CHI PHÍ THỰC TẾ: ${totalCost}
+- 💰 LỜI RÒNG / 1 LY: ${netProfit}
+- ⚖️ ${breakEvenDay} để hòa vốn mặt bằng.`;
+
+    navigator.clipboard?.writeText(text);
+    showToast("Đã sao chép bảng tính giá vốn vào bộ nhớ tạm");
   });
 
   // Branch Manager Save & Add buttons

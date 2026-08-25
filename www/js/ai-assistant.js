@@ -183,7 +183,63 @@ export function phanTichTaiChinhNoiBo(query, state) {
     };
   }
 
-  // 3. THIẾT LẬP TIỀN THỐI ĐẦU NGÀY (KÈM HOẶC KHÔNG KÈM GIAO DỊCH BÁN HÀNG)
+  // 3. TÍNH TOÁN CHI PHÍ GIÁ COST 1 LY NƯỚC, TIỀN NGUYÊN LIỆU & TIỀN MẶT BẰNG
+  if (
+    (norm.includes("tinh cost") || norm.includes("gia cost") || norm.includes("tinh gia von") || norm.includes("chi phi 1 ly") || norm.includes("chi phi mot ly") || norm.includes("tien mat bang") || norm.includes("tien nguyen lieu") || norm.includes("gia von 1 ly") || norm.includes("cost 1 ly")) &&
+    (norm.includes("ly") || norm.includes("nuoc") || norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") || norm.includes("quan"))
+  ) {
+    const quickItems = state.quickItems || [];
+    const overhead = state.overheadConfig || {
+      rentMonthly: 6000000,
+      utilitiesMonthly: 1200000,
+      otherMonthly: 600000,
+      expectedCupsPerDay: 80,
+    };
+
+    // Find requested drink or default to "Nước mía thường"
+    let targetDrink = quickItems.find((q) => norm.includes(q.name.toLowerCase()) || norm.includes(q.shortName?.toLowerCase()));
+    if (!targetDrink) {
+      if (norm.includes("cam")) targetDrink = quickItems.find((q) => q.name.includes("cam"));
+      else if (norm.includes("tac")) targetDrink = quickItems.find((q) => q.name.includes("tắc"));
+      else if (norm.includes("rau ma")) targetDrink = quickItems.find((q) => q.name.includes("Rau má"));
+      else targetDrink = quickItems[0] || { name: "Nước mía thường", price: 10000, costPrice: 3500 };
+    }
+
+    const sellingPrice = targetDrink.price || 10000;
+    const cogs = targetDrink.costPrice || 3500;
+    const totalOverhead = (overhead.rentMonthly || 6000000) + (overhead.utilitiesMonthly || 1200000) + (overhead.otherMonthly || 600000);
+    const monthlyCups = (overhead.expectedCupsPerDay || 80) * 30;
+    const overheadPerCup = Math.round(totalOverhead / (monthlyCups || 1));
+    const totalCost = cogs + overheadPerCup;
+    const netProfit = sellingPrice - totalCost;
+    const grossProfit = sellingPrice - cogs;
+    const breakEvenDay = grossProfit > 0 ? Math.ceil(totalOverhead / grossProfit / 30) : 0;
+    const cogsPercent = ((cogs / sellingPrice) * 100).toFixed(1);
+    const overheadPercent = ((overheadPerCup / sellingPrice) * 100).toFixed(1);
+    const netPercent = ((netProfit / sellingPrice) * 100).toFixed(1);
+
+    return {
+      type: "analysis",
+      category: "cost_breakdown",
+      reply: `🧮 **BẢNG PHÂN TÍCH CHI PHÍ GIÁ COST & ĐỊNH PHÍ 1 LY [${targetDrink.name.toUpperCase()}]**:
+
+1. 💵 **Giá Bán Ra**: **${formatMoney(sellingPrice)}** / ly (100%)
+2. 📦 **Tiền Vốn Nguyên Liệu (COGS)**: **${formatMoney(cogs)}** (${cogsPercent}%)
+   - *Bao gồm: Mía/trái cây tươi, đá viên sạch, ly nhựa + nắp, ống hút, túi chữ T...*
+3. 🏢 **Phân Bổ Mặt Bằng & Vận Hành**: **${formatMoney(overheadPerCup)}** (${overheadPercent}%)
+   - *Tính trên tiền thuê mặt bằng (${formatMoney(overhead.rentMonthly || 6000000)}/tháng) + điện nước (${formatMoney(overhead.utilitiesMonthly || 1200000)}/tháng) chia cho ${overhead.expectedCupsPerDay || 80} ly/ngày.*
+4. 🎯 **TỔNG CHI PHÍ THỰC TẾ 1 LY**: **${formatMoney(totalCost)}** (${((totalCost / sellingPrice) * 100).toFixed(1)}%)
+5. 💰 **LỢI NHUẬN RÒNG TRÊN 1 LY**: **+${formatMoney(netProfit)}** (Tỷ suất sinh lời: **${netPercent}%**)
+
+⚖️ **ĐIỂM HÒA VỐN**:
+- Quán cần bán tối thiểu **${breakEvenDay} ly/ngày** để gánh đủ tiền thuê mặt bằng và điện nước.
+- Từ ly thứ **${breakEvenDay + 1}** trở đi trong ngày, toàn bộ tiền thu về là **LỜI RÒNG** đút túi!
+
+*(Anh/Chị có thể bấm vào nút **"🧮 Bảng Tính Giá Vốn"** trong mục Cài Đặt Menu để tùy chỉnh chi tiết từng gram nguyên liệu hoặc đổi tiền thuê mặt bằng nhé!)*`,
+    };
+  }
+
+  // 4. THIẾT LẬP TIỀN THỐI ĐẦU NGÀY (KÈM HOẶC KHÔNG KÈM GIAO DỊCH BÁN HÀNG)
   // Ví dụ 1: "sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k"
   // Ví dụ 2: "tiền thối đầu ngày hôm nay là 100k"
   const hasOpeningCashPhrase =

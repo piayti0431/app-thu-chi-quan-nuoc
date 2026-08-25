@@ -162,6 +162,63 @@ export const DEFAULT_DATA = {
       debt: 0,
     },
   ],
+  overheadConfig: {
+    rentMonthly: 6000000,
+    utilitiesMonthly: 1200000,
+    laborMonthly: 0,
+    depreciationMonthly: 300000,
+    otherMonthly: 300000,
+    expectedCupsPerDay: 80,
+  },
+  costFormulas: {
+    nuoc_mia: {
+      drinkId: "nuoc_mia",
+      drinkName: "Nước mía thường",
+      sellingPrice: 8000,
+      ingredients: [
+        { name: "Mía cây (tươi)", unit: "khúc", batchCost: 150000, batchYield: 75, unitCost: 2000 },
+        { name: "Đá viên (sạch)", unit: "phần", batchCost: 15000, batchYield: 30, unitCost: 500 },
+        { name: "Ly nhựa + Nắp ép", unit: "bộ", batchCost: 35000, batchYield: 50, unitCost: 700 },
+        { name: "Ống hút + Quai xách", unit: "bộ", batchCost: 25000, batchYield: 250, unitCost: 100 },
+        { name: "Trái tắc / chanh", unit: "trái", batchCost: 20000, batchYield: 100, unitCost: 200 },
+      ],
+    },
+    tra_tac: {
+      drinkId: "tra_tac",
+      drinkName: "Trà tắc",
+      sellingPrice: 15000,
+      ingredients: [
+        { name: "Cốt trà lài / trà đen", unit: "phần", batchCost: 50000, batchYield: 50, unitCost: 1000 },
+        { name: "Tắc tươi (4 trái)", unit: "trái", batchCost: 20000, batchYield: 20, unitCost: 1000 },
+        { name: "Nước đường cát", unit: "ml", batchCost: 22000, batchYield: 25, unitCost: 880 },
+        { name: "Đá viên (sạch)", unit: "phần", batchCost: 15000, batchYield: 30, unitCost: 500 },
+        { name: "Ly 700ml + Nắp + Ống", unit: "bộ", batchCost: 45000, batchYield: 50, unitCost: 900 },
+      ],
+    },
+    nuoc_cam: {
+      drinkId: "nuoc_cam",
+      drinkName: "Nước cam",
+      sellingPrice: 15000,
+      ingredients: [
+        { name: "Cam sành tươi (2 trái ~ 350g)", unit: "trái", batchCost: 25000, batchYield: 5, unitCost: 5000 },
+        { name: "Đường cát / Nước đường", unit: "phần", batchCost: 22000, batchYield: 30, unitCost: 730 },
+        { name: "Đá viên", unit: "phần", batchCost: 15000, batchYield: 30, unitCost: 500 },
+        { name: "Ly + Nắp + Ống hút", unit: "bộ", batchCost: 40000, batchYield: 50, unitCost: 800 },
+      ],
+    },
+    rau_ma_dau_xanh: {
+      drinkId: "rau_ma_dau_xanh",
+      drinkName: "Rau má đậu xanh",
+      sellingPrice: 15000,
+      ingredients: [
+        { name: "Rau má tươi (xay)", unit: "gam", batchCost: 30000, batchYield: 15, unitCost: 2000 },
+        { name: "Đậu xanh chín tán nhuyễn", unit: "phần", batchCost: 40000, batchYield: 20, unitCost: 2000 },
+        { name: "Sữa đặc / Nước cốt dừa", unit: "ml", batchCost: 24000, batchYield: 20, unitCost: 1200 },
+        { name: "Đá viên", unit: "phần", batchCost: 15000, batchYield: 30, unitCost: 500 },
+        { name: "Ly + Nắp + Ống hút", unit: "bộ", batchCost: 40000, batchYield: 50, unitCost: 800 },
+      ],
+    },
+  },
   knowledgeBase: {
     suppliers: [
       { name: "Anh Ba đá", category: "Mua đá", defaultPrice: 15000, unit: "bao", keywords: ["anh ba", "da anh ba"] },
@@ -708,5 +765,38 @@ export async function restartDuLieuHomNay({ dateKey = localDateKey(), branch = "
 
   await luuDuLieu(data);
   return { resetCount, branch: isAll ? "Tất cả điểm bán" : branch, note };
+}
+
+export async function luuOverheadConfig(overhead) {
+  const data = await docDuLieu();
+  data.overheadConfig = {
+    ...(data.overheadConfig || DEFAULT_DATA.overheadConfig),
+    ...overhead,
+  };
+  await luuDuLieu(data);
+  return data.overheadConfig;
+}
+
+export async function luuCostFormula(drinkId, formula) {
+  const data = await docDuLieu();
+  data.costFormulas = data.costFormulas || {};
+  data.costFormulas[drinkId] = formula;
+  await luuDuLieu(data);
+  return data.costFormulas[drinkId];
+}
+
+export async function capNhatCostChoMon(drinkIdOrName, newCostPrice) {
+  const data = await docDuLieu();
+  const cost = Number(newCostPrice) >= 0 ? Number(newCostPrice) : 0;
+  
+  data.quickItems = (data.quickItems || []).map((item) => {
+    if (item.id === drinkIdOrName || item.name.toLowerCase() === String(drinkIdOrName).toLowerCase()) {
+      return { ...item, costPrice: cost };
+    }
+    return item;
+  });
+
+  await luuDuLieu(data);
+  return data.quickItems;
 }
 
