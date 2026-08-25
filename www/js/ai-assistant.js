@@ -561,15 +561,15 @@ Em đã điều chỉnh lại chính xác thành **${correctedQty} ${lastThu.don
   // 6. PHÂN TÍCH TÀI CHÍNH F&B, COGS, ĐIỂM HÒA VỐN & BÁO CÁO P&L
   if (norm.includes("cogs") || norm.includes("ty le gia von") || norm.includes("hao hut") || norm.includes("kiem tra gia von")) {
     const cogsPercent = todayReport.income > 0 ? Math.round((todayReport.cost / todayReport.income) * 100) : 0;
-    const isGood = cogsPercent >= 25 && cogsPercent <= 38;
+    const isGood = cogsPercent >= 25 && cogsPercent <= 50;
     return {
       type: "financial_advice",
       reply: `📊 **Dạ EV xin báo cáo Kiểm soát Giá Vốn & Hao Hụt (COGS Benchmark)**:
 - **Tổng doanh thu hôm nay**: ${formatMoney(todayReport.income)}
 - **Tổng giá vốn nguyên liệu (COGS)**: ${formatMoney(todayReport.cost)}
-- 🎯 **Tỷ lệ COGS thực tế**: **${cogsPercent}%** (Chuẩn F&B khuyến nghị: **28% – 35%**)
+- 🎯 **Tỷ lệ COGS thực tế**: **${cogsPercent}%** (Chuẩn mục tiêu toàn quán: **45% – 50%**)
 
-${isGood ? "✅ *Đánh giá: Tỷ lệ giá vốn đang ở mức cực kỳ tối ưu và sinh lời tốt!*" : "⚠️ *Cảnh báo: Tỷ lệ giá vốn đang hơi cao, anh/chị kiểm tra lại định lượng ép mía và bảo quản đá nhé!*"}`,
+${isGood ? "✅ *Đánh giá: Tỷ lệ giá vốn đang bám sát định lượng chuẩn sổ tay (Bao bì/màng ép/ống hút/đá 1k, Mía chuẩn 8k/ly vốn 4k)!*" : "⚠️ *Cảnh báo: Tỷ lệ giá vốn đang hơi cao, anh/chị kiểm tra lại định lượng ép mía và bảo quản đá nhé!*"}`,
     };
   }
 
@@ -589,21 +589,31 @@ ${isGood ? "✅ *Đánh giá: Tỷ lệ giá vốn đang ở mức cực kỳ t�
     };
   }
 
-  if (norm.includes("hoa von") || norm.includes("diem hoa von") || norm.includes("can ban bao nhieu ly")) {
-    const avgProfitPerDrink = todayReport.totalDrinks > 0 ? Math.round(todayReport.grossProfit / todayReport.totalDrinks) : 4000;
-    const estimatedDailyFixedCost = 300000;
-    const breakEvenDrinks = Math.ceil(estimatedDailyFixedCost / avgProfitPerDrink);
-    const progress = Math.min(100, Math.round((todayReport.totalDrinks / breakEvenDrinks) * 100));
+  if (norm.includes("hoa von") || norm.includes("diem hoa von") || norm.includes("can ban bao nhieu ly") || norm.includes("bao nhieu tien thi hoa von") || norm.includes("muc tieu")) {
+    const overhead = state.overheadConfig || {};
+    const rent = Number(overhead.rentMonthly) || 6000000;
+    const elec = Number(overhead.electricityMonthly) || 2400000;
+    const water = Number(overhead.waterMonthly) || 150000;
+    const trash = Number(overhead.trashMonthly) || 50000;
+    const depr = Number(overhead.depreciationMonthly) || 300000;
+    const other = Number(overhead.otherMonthly) || 500000;
+    const totalOverhead = rent + elec + water + trash + depr + other; // 9.400.000 đ
+    const dailyFixedCost = Math.round(totalOverhead / 30); // ~313.300 đ
+
+    const targetRevenue = 628000;
+    const currentIncome = todayReport.income || 0;
+    const revProgress = Math.min(100, Math.round((currentIncome / targetRevenue) * 100));
 
     return {
       type: "financial_advice",
-      reply: `🎯 **Dạ EV phân tích Điểm Hòa Vốn (Break-Even Point)**:
-- **Chi phí cố định ước tính**: ${formatMoney(estimatedDailyFixedCost)} / ngày (Mặt bằng + Điện nước 2 quán)
-- **Lãi gộp trung bình mỗi ly**: +${formatMoney(avgProfitPerDrink)} / ly
-- 🏁 **Mục tiêu hòa vốn**: Cần bán tối thiểu **${breakEvenDrinks} ly nước / ngày**.
-- 🚀 **Tiến độ hôm nay**: Đã bán **${todayReport.totalDrinks} ly** (${progress}% mốc hòa vốn).
+      reply: `🎯 **Dạ EV phân tích Điểm Hòa Vốn Hôm Nay Cho Quán**:
+- 🏢 **Định phí mỗi ngày**: **${formatMoney(dailyFixedCost)} / ngày** (Mặt bằng 200k, Điện 30 ký 80k, Nước 5k, Rác, Khấu hao & phát sinh).
+- 💰 **Mục tiêu doanh thu hòa vốn**: **${formatMoney(targetRevenue)} / ngày** (~18.800.000đ/tháng với biên lãi gộp bình quân ~50%).
+- 📊 **Tiến độ hôm nay**: **${formatMoney(currentIncome)} / ${formatMoney(targetRevenue)}** [${Math.round(currentIncome / 1000)}k / ${Math.round(targetRevenue / 1000)}k] (Đạt **${revProgress}%**)
 
-${todayReport.totalDrinks >= breakEvenDrinks ? "🎉 *Quán đã vượt điểm hòa vốn hôm nay! Từ giờ mỗi ly bán ra đều là tiền lãi ròng 100%!*" : `*Còn ${breakEvenDrinks - todayReport.totalDrinks} ly nữa là cán đích hòa vốn ngày hôm nay anh/chị nhé!*`}`,
+${currentIncome >= targetRevenue ? `🎉 **CHÚC MỪNG QUÁN ĐÃ VƯỢT ĐIỂM HÒA VỐN!**\nĐang có lời ròng **+${formatMoney(todayReport.grossProfit - dailyFixedCost)}** bỏ túi trọn vẹn sau khi trừ cả tiền nguyên liệu, tiền mặt bằng và điện 30 ký!` : `⚡ Quán cần thu thêm **${formatMoney(targetRevenue - currentIncome)}** để trả sạch 100% tiền nguyên liệu, tiền mặt bằng (200k) và tiền điện 30 ký (80k) hôm nay ạ!`}
+
+*(💡 Định lượng thực tế EV đã nạp: Bao bì/màng ép/ống hút/đá tính cố định 1k/phần; Mía 1L ko đá 1k; Nước mía chuẩn 8k/ly vốn 4k, ly lớn 10k).*`,
     };
   }
 
@@ -1031,17 +1041,20 @@ export async function hoiGeminiAI(userQuery, state, apiKey) {
   // ÁP DỤNG THUẬT TOÁN NÉN RTK (TOKEN KILLER) TRƯỚC KHI GỬI GEMINI
   const rtkContext = compressStateWithRTK(state, todayReport, b1Report, b2Report);
 
-  const contextPrompt = `Bạn là Thư Ký AI kiêm CFO tên "EV" (phát âm: i vi) của chuỗi 2 chi nhánh quán nước.
+  const contextPrompt = `Bạn là Thư Ký AI kiêm CFO tên "EV" (phát âm: i vi) của chuỗi quán nước.
 NGỮ CẢNH TÀI CHÍNH & KHÁCH QUEN (ĐÃ NÉN RTK):
 - ${rtkContext.menu}
 - ${rtkContext.crm}
 - ${rtkContext.finance}
 
-QUY TẮC PHÂN TÍCH:
+QUY TẮC ĐỊNH LƯỢNG & TÀI CHÍNH THỰC TẾ:
 1. "Khách mua / khách chuyển / tiền mua..." = + Thu tiền bán hàng.
-2. Tra cứu Menu để tính số lượng = Tổng tiền / Đơn giá và Giá vốn = Số lượng * Vốn đơn vị.
-3. Khi gặp khách quen (Chú A, Anh B, Chị Lan...), tự động áp dụng món quen và hình thức thanh toán.
-4. Trả lời bằng Markdown ngắn gọn, ấm áp, chuẩn xác số liệu tài chính, xưng "EV" hoặc "Dạ EV".`;
+2. Nước mía thường chuẩn 8k/ly (vốn 4k), chỉ khi khách dặn thêm ly lớn mới 10k. Mía 1L giá 16k (vốn 10k).
+3. Bao bì + màng ép + ống hút + đá viên tính gộp chung 1k/phần (Mía 1L ko đá vẫn tính chung 1k).
+4. Định phí quán: Mặt bằng 200k/ngày (6tr/tháng), Điện 25-30 ký ~80k/ngày (2.4tr/tháng), Nước 5k, Rác, Khấu hao & phát sinh = ~313.300đ/ngày (9.4tr/tháng).
+5. Mục tiêu doanh thu hòa vốn toàn quán: ~628.000đ/ngày (~18.8tr/tháng với biên lãi gộp bình quân ~50%). Vượt 628k là có lời ròng bỏ túi.
+6. Khi gặp khách quen (Chú A, Anh B, Chị Lan...), tự động áp dụng món quen và hình thức thanh toán.
+7. Trả lời bằng Markdown ngắn gọn, ấm áp, chuẩn xác số liệu tài chính, xưng "EV" hoặc "Dạ EV".`;
 
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
