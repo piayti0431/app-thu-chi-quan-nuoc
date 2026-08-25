@@ -240,20 +240,19 @@ export function phanTichTaiChinhNoiBo(query, state) {
     const bagCost = packaging.bags?.unitCost || 100;
     const strawCost = packaging.straws?.unitCost || 135;
     const iceCost = packaging.ice?.unitCost || 500;
-    const totalPackCost = filmCost + cupCost + bagCost + strawCost + iceCost;
+    const totalPackCost = 1000;
 
-    let ingredientDetail = `   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 45000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
-   - 🥤 **Ly nhựa**: Thùng 2.000 ly (${formatMoney(packaging.cups?.batchCost || 1000000)}) ➔ **${formatMoney(cupCost)} / ly**.
-   - 🛍️ **Bọc / Túi chữ T & Ống hút**: ➔ **${formatMoney(bagCost + strawCost)} / ly**.
-   - 🧊 **Đá viên sạch**: 1 bao (${formatMoney(packaging.ice?.batchCost || 15000)}) ➔ **${formatMoney(iceCost)} / ly**.`;
+    let ingredientDetail = `   - 📦 **Bao bì, màng ép miệng ly, ống hút & đá viên**: Gộp chung cố định ➔ **1.000 đ / phần** (riêng mía 1L không đá vẫn tính chung 1.000đ).
+   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 45000)}) ép ~${(packaging.filmRoll?.batchYield || 2000).toLocaleString("vi-VN")} ly.
+   - 🍃 **Cốt nguyên liệu & hương vị**: ➔ **${formatMoney(Math.max(0, cogs - 1000))} / phần**.`;
 
-    if (targetDrink.id === "nuoc_mia" || targetDrink.name.toLowerCase().includes("mía")) {
-      ingredientDetail = `   - 🎋 **Mía cây tươi**: 1 bó 12 cây 90k = 15kg ép ~45 ly ➔ **2.000 đ / ly** (~0.33kg mía/ly).
-   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 45000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
-   - 🥤 **Ly nhựa**: Thùng 2.000 ly (${formatMoney(packaging.cups?.batchCost || 1000000)}) ➔ **${formatMoney(cupCost)} / ly**.
-   - 🛍️ **Bọc chữ T + Ống hút**: ➔ **${formatMoney(bagCost + strawCost)} / ly**.
-   - 🧊 **Đá viên sạch**: 1 bao (${formatMoney(packaging.ice?.batchCost || 15000)}) ➔ **${formatMoney(iceCost)} / ly**.
-   - 🍋 **Trái tắc thơm kèm**: ➔ **742 đ / ly**.`;
+    if (targetDrink.id === "nuoc_mia_1l" || targetDrink.name.toLowerCase().includes("1 lít")) {
+      ingredientDetail = `   - 🎋 **Mía cây tươi nguyên chất (~1.3kg mía không đá)**: ➔ **9.000 đ / chai**.
+   - 📦 **Bao bì, màng ép miệng ly & ống hút (không đá tính chung)**: ➔ **1.000 đ / chai** (Màng ép ly: ${formatMoney(packaging.filmRoll?.batchCost || 45000)}/cuộn ép ~${(packaging.filmRoll?.batchYield || 2000).toLocaleString("vi-VN")} ly).`;
+    } else if (targetDrink.id === "nuoc_mia" || targetDrink.name.toLowerCase().includes("mía")) {
+      ingredientDetail = `   - 🎋 **Mía cây tươi (1 bó 12 cây 90k = 15kg ~ 45 ly)**: ➔ **2.000 đ / ly** (~0.33kg mía).
+   - 🍋 **Trái tắc thơm kèm**: ➔ **1.000 đ / ly**.
+   - 📦 **Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)**: ➔ **1.000 đ / ly** (Màng ép ly: ${formatMoney(packaging.filmRoll?.batchCost || 45000)}/cuộn ép ~${(packaging.filmRoll?.batchYield || 2000).toLocaleString("vi-VN")} ly).`;
     }
 
     return {

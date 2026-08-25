@@ -199,6 +199,7 @@ export const DEFAULT_DATA = {
     filmRoll: { name: "Màng ép ly", unit: "cuộn (2.000 ly)", batchCost: 45000, batchYield: 2000, unitCost: 23 },
     bags: { name: "Bọc / Túi chữ T", unit: "bọc", batchCost: 25000, batchYield: 250, unitCost: 100 },
     ice: { name: "Đá viên sạch", unit: "bao", batchCost: 15000, batchYield: 30, unitCost: 500 },
+    comboPackaging: { name: "Bao bì + Màng ép + Ống hút + Đá (1L ko đá)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
   },
   costFormulas: {
     nuoc_mia: {
@@ -207,11 +208,8 @@ export const DEFAULT_DATA = {
       sellingPrice: 10000,
       ingredients: [
         { name: "Mía cây (1 bó 12 cây 90k = 15kg ~ 45 ly)", unit: "ly (0.33kg)", batchCost: 90000, batchYield: 45, unitCost: 2000 },
-        { name: "Đá viên sạch", unit: "phần", batchCost: 15000, batchYield: 30, unitCost: 500 },
-        { name: "Ly nhựa", unit: "cái", batchCost: 1000000, batchYield: 2000, unitCost: 500 },
-        { name: "Cuộn màng ép miệng ly", unit: "ly", batchCost: 45000, batchYield: 2000, unitCost: 23 },
-        { name: "Ống hút + Túi chữ T", unit: "bộ", batchCost: 270000, batchYield: 2000, unitCost: 235 },
-        { name: "Trái tắc thơm kèm", unit: "trái", batchCost: 20000, batchYield: 27, unitCost: 742 },
+        { name: "Trái tắc thơm kèm", unit: "trái", batchCost: 20000, batchYield: 20, unitCost: 1000 },
+        { name: "Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
     nuoc_mia_1l: {
@@ -219,10 +217,8 @@ export const DEFAULT_DATA = {
       drinkName: "Nước mía 1 lít",
       sellingPrice: 16000,
       ingredients: [
-        { name: "Mía cây tươi (~1.2kg mía)", unit: "chai", batchCost: 90000, batchYield: 12.5, unitCost: 7200 },
-        { name: "Chai nhựa 1L + Nắp", unit: "chai", batchCost: 75000, batchYield: 50, unitCost: 1500 },
-        { name: "Túi đựng 1L + Ống hút dài", unit: "bộ", batchCost: 25000, batchYield: 50, unitCost: 500 },
-        { name: "Trái tắc thơm kèm", unit: "trái", batchCost: 20000, batchYield: 25, unitCost: 800 },
+        { name: "Mía cây tươi nguyên chất (~1.3kg mía không đá)", unit: "chai", batchCost: 90000, batchYield: 10, unitCost: 9000 },
+        { name: "Bao bì, màng ép miệng ly & ống hút (không đá tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
     mia_tac: {
@@ -231,8 +227,8 @@ export const DEFAULT_DATA = {
       sellingPrice: 10000,
       ingredients: [
         { name: "Mía cây tươi (1 bó 90k)", unit: "ly", batchCost: 90000, batchYield: 45, unitCost: 2000 },
-        { name: "Tắc tươi thêm", unit: "phần", batchCost: 45000, batchYield: 30, unitCost: 1500 },
-        { name: "Đá viên + Ly + Màng ép + Ống hút/bọc", unit: "bộ", batchCost: 100000, batchYield: 67, unitCost: 1500 },
+        { name: "Tắc tươi thêm & đường", unit: "phần", batchCost: 40000, batchYield: 20, unitCost: 2000 },
+        { name: "Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
     mia_thom: {
@@ -241,8 +237,8 @@ export const DEFAULT_DATA = {
       sellingPrice: 12000,
       ingredients: [
         { name: "Mía cây tươi (1 bó 90k)", unit: "ly", batchCost: 90000, batchYield: 45, unitCost: 2000 },
-        { name: "Thơm (Dứa) tươi ép kèm", unit: "phần", batchCost: 35000, batchYield: 10, unitCost: 3500 },
-        { name: "Đá viên + Ly + Màng ép + Ống hút/bọc", unit: "bộ", batchCost: 100000, batchYield: 67, unitCost: 1500 },
+        { name: "Thơm (Dứa) tươi ép kèm", unit: "phần", batchCost: 40000, batchYield: 10, unitCost: 4000 },
+        { name: "Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
     mia_cam: {
@@ -251,8 +247,8 @@ export const DEFAULT_DATA = {
       sellingPrice: 17000,
       ingredients: [
         { name: "Mía cây tươi (1 bó 90k)", unit: "ly", batchCost: 90000, batchYield: 45, unitCost: 2000 },
-        { name: "Cam sành tươi vắt (2 trái)", unit: "trái", batchCost: 35000, batchYield: 5, unitCost: 6500 },
-        { name: "Đá viên + Ly + Màng ép + Ống hút/bọc", unit: "bộ", batchCost: 100000, batchYield: 67, unitCost: 1500 },
+        { name: "Cam sành tươi vắt (2 trái)", unit: "trái", batchCost: 35000, batchYield: 5, unitCost: 7000 },
+        { name: "Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
     tra_tac: {
@@ -260,10 +256,8 @@ export const DEFAULT_DATA = {
       drinkName: "Trà tắc",
       sellingPrice: 12000,
       ingredients: [
-        { name: "Trà túi lọc (Hộp 80k ra 9L = 45 ly)", unit: "ly", batchCost: 80000, batchYield: 45, unitCost: 1778 },
-        { name: "Sốt tắc (Đường 33k + Tắc 45k = 78k pha 6L)", unit: "phần", batchCost: 78000, batchYield: 30, unitCost: 2600 },
-        { name: "Đường cát & Tắc tươi thêm", unit: "phần", batchCost: 20000, batchYield: 15, unitCost: 1364 },
-        { name: "Đá viên + Ly + Màng ép + Ống hút/bọc", unit: "bộ", batchCost: 100000, batchYield: 79, unitCost: 1258 },
+        { name: "Cốt trà túi lọc (Hộp 80k) + Sốt tắc + Đường", unit: "ly", batchCost: 180000, batchYield: 30, unitCost: 6000 },
+        { name: "Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
     nuoc_cam: {
@@ -271,10 +265,8 @@ export const DEFAULT_DATA = {
       drinkName: "Nước cam",
       sellingPrice: 15000,
       ingredients: [
-        { name: "Cam sành tươi (theo thị trường)", unit: "phần", batchCost: 25000, batchYield: 5, unitCost: 5000 },
-        { name: "Đường cát / Nước đường", unit: "phần", batchCost: 22000, batchYield: 30, unitCost: 700 },
-        { name: "Đá viên sạch", unit: "phần", batchCost: 15000, batchYield: 30, unitCost: 500 },
-        { name: "Ly + Nắp + Ống hút/bọc", unit: "bộ", batchCost: 40000, batchYield: 50, unitCost: 800 },
+        { name: "Cam sành tươi (theo thị trường) + Đường", unit: "phần", batchCost: 30000, batchYield: 5, unitCost: 6000 },
+        { name: "Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
     rau_ma_dau_xanh: {
@@ -282,10 +274,8 @@ export const DEFAULT_DATA = {
       drinkName: "Rau má đậu xanh",
       sellingPrice: 15000,
       ingredients: [
-        { name: "Rau má tươi (1kg = 30k xay 12.5 ly)", unit: "ly", batchCost: 30000, batchYield: 12.5, unitCost: 2400 },
-        { name: "Đậu xanh chín tán nhuyễn + Đường", unit: "phần", batchCost: 40000, batchYield: 20, unitCost: 2000 },
-        { name: "Sữa đặc / Cốt dừa", unit: "ml", batchCost: 24000, batchYield: 30, unitCost: 800 },
-        { name: "Đá viên + Ly + Màng ép + Ống hút", unit: "bộ", batchCost: 40000, batchYield: 50, unitCost: 800 },
+        { name: "Rau má tươi xay + Đậu xanh chín + Đường", unit: "ly", batchCost: 100000, batchYield: 20, unitCost: 5000 },
+        { name: "Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
       ],
     },
   },
@@ -296,12 +286,12 @@ export const DEFAULT_DATA = {
     ],
     rules: [
       "Định mức Mía: 1 bó mía 12 cây dài chưa bào (90.000đ) bào ra được 15kg mía cây (~6.000đ - 7.000đ/kg). 1kg mía ép được 3 ly mía thường.",
-      "Giá cost 1 ly mía thường: 4.000đ (tiền mía ~2.000đ + ly 500đ + màng ép 23đ + ống hút/bọc 235đ + đá 500đ + tắc 742đ).",
-      "Giá cost 1 lít nước mía: 10.000đ.",
+      "Giá cost 1 ly mía thường: 4.000đ (tiền mía ~2.000đ + tắc 1.000đ + bao bì/màng ép/ống hút/đá 1.000đ).",
+      "Giá cost 1 lít nước mía: 10.000đ (tiền mía ~9.000đ + bao bì/màng ép/ống hút không đá 1.000đ).",
       "Giá cost Mía tắc: 5.000đ | Mía thơm: 7.000đ | Mía cam: 10.000đ (cam tự hiệu chỉnh theo giá thị trường).",
+      "Định mức Bao bì & Đá viên: Tiền bao bì, màng ép miệng ly, ống hút và đá viên được tính gộp chung cố định 1.000đ/phần (riêng mía 1 lít không dùng đá nhưng có bao bì/màng ép/ống hút nên vẫn tính chung 1.000đ).",
       "Định mức Rau má: 1kg rau má tươi (30.000đ) xay được 12.5 ly rau má, đường 20k/kg.",
       "Định mức Trà tắc: Hộp trà túi lọc 80.000đ nấu được 9 lít trà (45 ly). Sốt tắc: 1kg đường (33k) + 1.5kg tắc (45k) = 1.8L sốt tắc pha được 6 lít trà. Giá cost 1 ly trà tắc: 7.000đ.",
-      "Vật tư bao bì chuẩn: 2.000 ly nhựa = 1.000.000đ (500đ/ly); Ống hút 1 bao 10 bịch = 270.000đ (27k/bịch); Cuộn màng ép miệng ly 45.000đ ép được 2.000 ly (~23đ/ly).",
       "Tỷ lệ giá vốn COGS mục tiêu: 28% - 40% doanh thu",
       "Định phí vận hành thực tế: Mặt bằng 200k/ngày (6.000.000đ/tháng), Điện 25-30 ký/ngày chạy 8h-22h (~2.400.000đ/tháng), Nước rửa máy (~150.000đ/tháng), Phát sinh (~500.000đ/tháng).",
       "Điểm hòa vốn thực tế: Bán tối thiểu 52 - 53 ly mía/ngày (với lãi gộp 6.000đ/ly) là bù đủ toàn bộ tiền mặt bằng, điện 30 ký, nước và chi phí phát sinh.",
