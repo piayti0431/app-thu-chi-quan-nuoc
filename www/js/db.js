@@ -598,6 +598,7 @@ export async function capNhatCauHinhSync(sync) {
 export async function capNhatCurrentBranch(branchName) {
   const data = await docDuLieu();
   data.currentBranch = branchName;
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.currentBranch;
 }
@@ -608,6 +609,7 @@ export async function luuDanhSachChiNhanh(branches) {
   if (!data.branches.some((b) => b.name === data.currentBranch)) {
     data.currentBranch = data.branches[0]?.name || "Quán Nhà (Chính)";
   }
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.branches;
 }
@@ -652,6 +654,7 @@ export async function luuDanhSachMenu(menuItems) {
     return tx;
   });
 
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.quickItems;
 }
@@ -664,6 +667,7 @@ export async function capNhatGiaNhanh(prices) {
     price: nextPrices[index] > 0 ? nextPrices[index] : item.price,
   }));
   data.quickPrices = data.quickItems.map((item) => item.price);
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.quickItems;
 }
@@ -701,6 +705,7 @@ export async function luuTienThoiDauNgay(ngay, soTien, branch = "Quán Nhà (Ch�
   data.openingCashByDate = data.openingCashByDate || {};
   const key = `${ngay}_${branch}`;
   data.openingCashByDate[key] = Number(soTien) >= 0 ? Number(soTien) : 0;
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.openingCashByDate[key];
 }
@@ -708,6 +713,7 @@ export async function luuTienThoiDauNgay(ngay, soTien, branch = "Quán Nhà (Ch�
 export async function luuTienThoiMacDinh(soTien) {
   const data = await docDuLieu();
   data.defaultOpeningCash = Number(soTien) >= 0 ? Number(soTien) : 500000;
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.defaultOpeningCash;
 }
@@ -728,6 +734,7 @@ export async function luuKhachQuen(customer) {
       ...customer,
     });
   }
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.crmCustomers;
 }
@@ -735,6 +742,7 @@ export async function luuKhachQuen(customer) {
 export async function xoaKhachQuen(customerId) {
   const data = await docDuLieu();
   data.crmCustomers = (data.crmCustomers || []).filter((c) => c.id !== customerId);
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.crmCustomers;
 }
@@ -743,6 +751,7 @@ export async function luuTriThucEV(key, value) {
   const data = await docDuLieu();
   data.knowledgeBase = data.knowledgeBase || {};
   data.knowledgeBase[key] = value;
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.knowledgeBase;
 }
@@ -795,6 +804,7 @@ export async function restartDuLieuHomNay({ dateKey = localDateKey(), branch = "
     timestamp: now,
   });
 
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return { resetCount, branch: isAll ? "Tất cả điểm bán" : branch, note };
 }
@@ -844,6 +854,7 @@ export async function luuCostFormula(drinkId, formula) {
   const data = await docDuLieu();
   data.costFormulas = data.costFormulas || {};
   data.costFormulas[drinkId] = formula;
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.costFormulas[drinkId];
 }
@@ -859,6 +870,7 @@ export async function capNhatCostChoMon(drinkIdOrName, newCostPrice) {
     return item;
   });
 
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.quickItems;
 }

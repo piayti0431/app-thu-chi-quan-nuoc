@@ -131,7 +131,7 @@ export async function dongBo() {
       const { error } = await activeClient
         .from("giao_dich")
         .upsert(
-          pending.map((item) => toRemoteTransaction(item, currentDeviceId, true)),
+          pending.map((item) => toRemoteTransaction(item, currentDeviceId, true, userId)),
           { onConflict: "id" }
         );
       if (error) pushError = error;
@@ -146,7 +146,7 @@ export async function dongBo() {
         const { error: fallbackError } = await activeClient
           .from("giao_dich")
           .upsert(
-            pending.map((item) => toRemoteTransaction(item, currentDeviceId, false)),
+            pending.map((item) => toRemoteTransaction(item, currentDeviceId, false, userId)),
             { onConflict: "id" }
           );
         if (fallbackError) throw fallbackError;

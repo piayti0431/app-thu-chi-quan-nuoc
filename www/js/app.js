@@ -2089,6 +2089,13 @@ function initEventListeners() {
     }
   });
 
+  // Periodic heartbeat sync every 12 seconds when visible
+  setInterval(() => {
+    if (document.visibilityState === "visible" && authLoggedIn) {
+      triggerAutoSync();
+    }
+  }, 12000);
+
   setupAIAssistant();
 }
 

@@ -1,4 +1,4 @@
-export function toBaseRemoteTransaction(item, deviceId = "local") {
+export function toBaseRemoteTransaction(item, deviceId = "local", userId = "") {
   const extMeta = {
     cn: item.chiNhanh,
     sl: item.soLuong,
@@ -12,7 +12,7 @@ export function toBaseRemoteTransaction(item, deviceId = "local") {
     ? `${cleanGhiChu} [EXT:${JSON.stringify(extMeta)}]`
     : `[EXT:${JSON.stringify(extMeta)}]`;
 
-  return {
+  const payload = {
     id: item.id,
     device_id: item.deviceId || deviceId,
     ngay: item.ngay,
@@ -26,11 +26,13 @@ export function toBaseRemoteTransaction(item, deviceId = "local") {
     deleted: Boolean(item.deleted),
     updated_at: item.updatedAt || new Date().toISOString(),
   };
+  if (userId) payload.user_id = userId;
+  return payload;
 }
 
-export function toRemoteTransaction(item, deviceId = "local", useExtended = true) {
-  if (!useExtended) return toBaseRemoteTransaction(item, deviceId);
-  return {
+export function toRemoteTransaction(item, deviceId = "local", useExtended = true, userId = "") {
+  if (!useExtended) return toBaseRemoteTransaction(item, deviceId, userId);
+  const payload = {
     id: item.id,
     device_id: item.deviceId || deviceId,
     ngay: item.ngay,
@@ -50,6 +52,8 @@ export function toRemoteTransaction(item, deviceId = "local", useExtended = true
     deleted: Boolean(item.deleted),
     updated_at: item.updatedAt || new Date().toISOString(),
   };
+  if (userId) payload.user_id = userId;
+  return payload;
 }
 
 export function fromRemoteTransaction(row) {
