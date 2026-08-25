@@ -3,6 +3,7 @@ import {
   capNhatCostChoMon,
   capNhatCurrentBranch,
   capNhatGiaNhanh,
+  capNhatLaiGiaCostToanBoGiaoDich,
   docDuLieu,
   luuCostFormula,
   luuDanhSachChiNhanh,
@@ -2600,6 +2601,10 @@ async function init() {
   // Set default dates
   $("#statsDateInput").value = statsDate;
   $("#statsWeekInput").value = statsWeekDate;
+
+  // Auto-refresh transaction costs according to latest menu cost config
+  await capNhatLaiGiaCostToanBoGiaoDich();
+  state = await docDuLieu();
 
   // Render everything
   renderAll();

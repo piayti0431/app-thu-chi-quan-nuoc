@@ -726,6 +726,52 @@ export async function capNhatGiaNhanh(prices) {
   return data.quickItems;
 }
 
+export async function capNhatLaiGiaCostToanBoGiaoDich(targetDate = null) {
+  const data = await docDuLieu();
+  const costMap = new Map();
+  (data.quickItems || []).forEach((m) => {
+    const cost = Number(m.costPrice) >= 0 ? Number(m.costPrice) : 0;
+    if (m.name) costMap.set(m.name.toLowerCase().trim(), cost);
+    if (m.shortName) costMap.set(m.shortName.toLowerCase().trim(), cost);
+    if (m.category) costMap.set(m.category.toLowerCase().trim(), cost);
+  });
+
+  const now = new Date().toISOString();
+  let updatedCount = 0;
+  data.ds = (data.ds || []).map((tx) => {
+    if (tx.loai === "thu" && !tx.deleted && (!targetDate || tx.ngay === targetDate)) {
+      const name = (tx.tenMon || tx.danhMuc || tx.ghiChu || tx.cauNoiGoc || "").toLowerCase().trim();
+      let matchedCost = null;
+      for (const [key, costVal] of costMap.entries()) {
+        if (key && (name === key || name.includes(key) || key.includes(name))) {
+          matchedCost = costVal;
+          break;
+        }
+      }
+      if (matchedCost !== null && matchedCost >= 0) {
+        const qty = Number(tx.soLuong) || 1;
+        if (tx.giaCostDonVi !== matchedCost || tx.tongGiaCost !== matchedCost * qty) {
+          updatedCount++;
+          return {
+            ...tx,
+            giaCostDonVi: matchedCost,
+            tongGiaCost: matchedCost * qty,
+            daSync: false,
+            updatedAt: now,
+          };
+        }
+      }
+    }
+    return tx;
+  });
+
+  if (updatedCount > 0) {
+    data.settingsVersion = Date.now();
+    await luuDuLieu(data);
+  }
+  return { updatedCount };
+}
+
 export async function xoaTatCaDuLieu() {
   const data = await docDuLieu();
   const now = new Date().toISOString();
