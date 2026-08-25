@@ -218,6 +218,15 @@ export function phanTichTaiChinhNoiBo(query, state) {
     const overheadPercent = ((overheadPerCup / sellingPrice) * 100).toFixed(1);
     const netPercent = ((netProfit / sellingPrice) * 100).toFixed(1);
 
+    let ingredientDetail = "   - *Bao gồm: Mía/trái cây tươi, đá viên sạch, ly nhựa + nắp, ống hút, túi chữ T...*";
+    if (targetDrink.id === "nuoc_mia" || targetDrink.name.toLowerCase().includes("mía")) {
+      ingredientDetail = `   - 🎋 **Mía cây tươi**: 1 bó 10kg (90.000đ) ép được ước chừng ~20 ly ➔ **4.500 đ / ly** (~0.5kg mía/ly).
+   - 🧊 **Đá viên sạch**: 1 bao 15.000đ dùng 30 ly ➔ **500 đ / ly**.
+   - 🥤 **Ly nhựa + Nắp ép**: 1 cây 50 cái giá 35.000đ ➔ **700 đ / ly**.
+   - 🛍️ **Ống hút + Quai xách túi chữ T**: ➔ **100 đ / ly**.
+   - 🍋 **Trái tắc thơm ép kèm**: ➔ **200 đ / ly**.`;
+    }
+
     return {
       type: "analysis",
       category: "cost_breakdown",
@@ -225,7 +234,7 @@ export function phanTichTaiChinhNoiBo(query, state) {
 
 1. 💵 **Giá Bán Ra**: **${formatMoney(sellingPrice)}** / ly (100%)
 2. 📦 **Tiền Vốn Nguyên Liệu (COGS)**: **${formatMoney(cogs)}** (${cogsPercent}%)
-   - *Bao gồm: Mía/trái cây tươi, đá viên sạch, ly nhựa + nắp, ống hút, túi chữ T...*
+${ingredientDetail}
 3. 🏢 **Phân Bổ Mặt Bằng & Vận Hành**: **${formatMoney(overheadPerCup)}** (${overheadPercent}%)
    - *Tính trên tiền thuê mặt bằng (${formatMoney(overhead.rentMonthly || 6000000)}/tháng) + điện nước (${formatMoney(overhead.utilitiesMonthly || 1200000)}/tháng) chia cho ${overhead.expectedCupsPerDay || 80} ly/ngày.*
 4. 🎯 **TỔNG CHI PHÍ THỰC TẾ 1 LY**: **${formatMoney(totalCost)}** (${((totalCost / sellingPrice) * 100).toFixed(1)}%)

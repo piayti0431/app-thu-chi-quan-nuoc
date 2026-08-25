@@ -174,13 +174,24 @@ export const DEFAULT_DATA = {
     nuoc_mia: {
       drinkId: "nuoc_mia",
       drinkName: "Nước mía thường",
-      sellingPrice: 8000,
+      sellingPrice: 10000,
       ingredients: [
-        { name: "Mía cây (tươi)", unit: "khúc", batchCost: 150000, batchYield: 75, unitCost: 2000 },
+        { name: "Mía cây (1 bó 10kg = 90k ~ 20 ly)", unit: "ly (0.5kg)", batchCost: 90000, batchYield: 20, unitCost: 4500 },
         { name: "Đá viên (sạch)", unit: "phần", batchCost: 15000, batchYield: 30, unitCost: 500 },
         { name: "Ly nhựa + Nắp ép", unit: "bộ", batchCost: 35000, batchYield: 50, unitCost: 700 },
-        { name: "Ống hút + Quai xách", unit: "bộ", batchCost: 25000, batchYield: 250, unitCost: 100 },
+        { name: "Ống hút + Quai xách chữ T", unit: "bộ", batchCost: 25000, batchYield: 250, unitCost: 100 },
         { name: "Trái tắc / chanh", unit: "trái", batchCost: 20000, batchYield: 100, unitCost: 200 },
+      ],
+    },
+    nuoc_mia_1l: {
+      drinkId: "nuoc_mia_1l",
+      drinkName: "Nước mía 1 lít",
+      sellingPrice: 20000,
+      ingredients: [
+        { name: "Mía cây tươi (~1.3kg mía)", unit: "chai", batchCost: 90000, batchYield: 7.5, unitCost: 12000 },
+        { name: "Chai nhựa 1L + Nắp", unit: "chai", batchCost: 75000, batchYield: 50, unitCost: 1500 },
+        { name: "Túi đựng 1L + Ống hút dài", unit: "bộ", batchCost: 25000, batchYield: 100, unitCost: 250 },
+        { name: "Trái tắc / chanh", unit: "trái", batchCost: 20000, batchYield: 40, unitCost: 500 },
       ],
     },
     tra_tac: {
@@ -225,7 +236,10 @@ export const DEFAULT_DATA = {
       { name: "Vựa mía Năm", category: "Mua mía", defaultPrice: 180000, unit: "bó", keywords: ["vua nam", "vua mia nam", "chu nam"] },
     ],
     rules: [
-      "Tỷ lệ giá vốn COGS mục tiêu: 28% - 35% doanh thu",
+      "Định mức Nước Mía Thực Tế: 1 bó mía = 10kg = 90.000đ ép được ước chừng ~20 ly (bình quân 4.500đ tiền mía/ly, 0.5kg mía/ly).",
+      "Chi phí bao bì & phụ gia 1 ly nước mía: Đá viên (500đ) + Ly nắp ép (700đ) + Ống hút/túi chữ T (100đ) + Tắc (200đ) = 1.500đ.",
+      "Tổng Vốn Nguyên Liệu 1 ly mía (COGS): 4.500đ + 1.500đ = 6.000đ/ly. Giá bán 10.000đ -> Lãi gộp nguyên liệu: 4.000đ/ly (40%).",
+      "Tỷ lệ giá vốn COGS mục tiêu: 28% - 40% doanh thu",
       "Khách quen có thể dùng từ 'như cũ' để order món quen",
       "Tiền nợ không tính vào tiền mặt trong két cho tới khi khách trả nợ",
       "Điểm hòa vốn ước tính toàn hệ thống: 120 ly / ngày",
