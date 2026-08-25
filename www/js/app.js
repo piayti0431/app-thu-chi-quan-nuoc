@@ -30,6 +30,7 @@ import {
   daDangNhap,
   dongBo,
   dungRealtime,
+  phatTinHieuSync,
   syncErrorMessage,
 } from "./sync.js";
 import { caiCapNhat, kiemTraCapNhat, layPhienBanHienTai } from "./updater.js";
@@ -1205,6 +1206,7 @@ async function triggerAutoSync() {
     state = await docDuLieu();
     renderAll();
     if (syncStatus) syncStatus.textContent = "Đồng bộ sẵn sàng";
+    await phatTinHieuSync();
   } catch (err) {
     console.warn("Auto sync failed", err);
     const syncStatus = $("#syncStatus");

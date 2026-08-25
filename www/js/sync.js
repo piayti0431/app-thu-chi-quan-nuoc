@@ -152,8 +152,19 @@ export async function dongBo() {
   const merged = mergeTransactions(data.ds, remoteRows || []);
   data.ds = merged.items;
 
-  // 3. SYNC SETTINGS & CONFIG ACROSS DEVICES (MENU, BRANCHES, COST, OPENING CASH, CRM)
-  const remoteSettings = session.user?.user_metadata?.app_settings;
+  // 3. FETCH FRESH USER METADATA FROM SUPABASE SERVER
+  let freshUser = session.user;
+  try {
+    const userRes = await activeClient.auth.getUser();
+    if (userRes.data?.user) {
+      freshUser = userRes.data.user;
+    }
+  } catch (userErr) {
+    console.warn("Could not fetch fresh user object, falling back to session user:", userErr);
+  }
+
+  // 4. SYNC SETTINGS & CONFIG ACROSS DEVICES (MENU, BRANCHES, COST, OPENING CASH, CRM)
+  const remoteSettings = freshUser?.user_metadata?.app_settings;
   const localSettingsVersion = Number(data.settingsVersion) || 0;
 
   if (remoteSettings && Number(remoteSettings.version) > localSettingsVersion) {
@@ -241,6 +252,21 @@ export async function dungRealtime() {
   await client.removeChannel(channel);
 }
 
+export async function phatTinHieuSync() {
+  try {
+    if (realtimeChannel && typeof realtimeChannel.send === "function") {
+      const data = await docDuLieu();
+      await realtimeChannel.send({
+        type: "broadcast",
+        event: "sync_ping",
+        payload: { deviceId: data.sync?.deviceId || "device", time: Date.now() },
+      });
+    }
+  } catch (err) {
+    console.warn("Could not broadcast sync ping:", err);
+  }
+}
+
 export async function batDauRealtime(onRemoteChange) {
   const activeClient = await ensureClient();
   if (!activeClient?.channel) return { ok: false, message: "Supabase không hỗ trợ realtime" };
@@ -257,6 +283,20 @@ export async function batDauRealtime(onRemoteChange) {
   // Scoped to User ID so all devices of the same account connect to the EXACT SAME realtime channel
   realtimeChannel = activeClient
     .channel(`giao-dich-${userId}`)
+    .on(
+      "broadcast",
+      { event: "sync_ping" },
+      async (payload) => {
+        if (payload?.payload?.deviceId && payload.payload.deviceId === currentDeviceId) return;
+        if (realtimeSyncing) return;
+        realtimeSyncing = true;
+        try {
+          await onRemoteChange?.(payload);
+        } finally {
+          realtimeSyncing = false;
+        }
+      },
+    )
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "giao_dich" },
