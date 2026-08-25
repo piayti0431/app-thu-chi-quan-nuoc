@@ -293,28 +293,25 @@ export async function dongBo() {
 
     // 1. Push settings record to PostgreSQL `giao_dich` table
     try {
-      const dbSettingsRecord = {
+      const baseSettingsRecord = {
         id: 9000000000000000,
         device_id: currentDeviceId,
         user_id: userId,
         ngay: "2099-12-31",
         gio: "23:59:59",
-        loai: "sys_settings",
+        loai: "thu",
         so_tien: 0,
         danh_muc: "APP_SETTINGS",
         ghi_chu: JSON.stringify(settingsPayload),
         cau_noi_goc: "Cấu hình menu & chi nhánh quán",
         da_sua_tay: false,
-        chi_nhanh: "Quán Nhà (Chính)",
-        so_luong: 1,
-        don_vi_tinh: "ly",
-        phuong_thuc: "tien_mat",
-        gia_cost_don_vi: 0,
-        tong_gia_cost: 0,
         deleted: false,
         updated_at: new Date(newVersion).toISOString(),
       };
-      await activeClient.from("giao_dich").upsert([dbSettingsRecord], { onConflict: "id" });
+      const { error: upsertErr } = await activeClient.from("giao_dich").upsert([baseSettingsRecord], { onConflict: "id" });
+      if (upsertErr) {
+        console.warn("DB settings upsert warning:", upsertErr);
+      }
     } catch (dbSettingsErr) {
       console.warn("Push settings to giao_dich table warning:", dbSettingsErr);
     }

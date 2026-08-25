@@ -1714,6 +1714,22 @@ function initEventListeners() {
     triggerAutoSync();
   });
 
+  $("#forceSyncMenuBtn")?.addEventListener("click", async () => {
+    showToast("Đang đồng bộ và kéo Menu từ máy chủ...");
+    try {
+      // Force settings version to 0 to unconditionally pull latest settings from cloud
+      const currentData = await docDuLieu();
+      currentData.settingsVersion = 0;
+      await luuDuLieu(currentData);
+      await dongBo();
+      state = await docDuLieu();
+      renderAll();
+      showToast(`⚡ Đã tải Menu mới từ máy chủ thành công (${(state.quickItems || []).length} món)!`);
+    } catch (err) {
+      showToast(`Lỗi tải Menu: ${err?.message || err}`, true);
+    }
+  });
+
   // ----------------------------------------------------
   // COST CALCULATOR MODAL EVENTS
   // ----------------------------------------------------

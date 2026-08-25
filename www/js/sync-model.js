@@ -113,7 +113,14 @@ export function isSettingsRow(rowOrItem) {
   if (!rowOrItem) return false;
   const id = Number(rowOrItem.id);
   const loai = rowOrItem.loai || rowOrItem.loai_giao_dich;
-  return id === 9000000000000000 || loai === "sys_settings";
+  const danhMuc = rowOrItem.danhMuc || rowOrItem.danh_muc;
+  const ghiChu = rowOrItem.ghiChu || rowOrItem.ghi_chu || "";
+  return (
+    id === 9000000000000000 ||
+    loai === "sys_settings" ||
+    danhMuc === "APP_SETTINGS" ||
+    (typeof ghiChu === "string" && ghiChu.startsWith('{"version":'))
+  );
 }
 
 export function mergeTransactions(localItems = [], remoteRows = []) {
