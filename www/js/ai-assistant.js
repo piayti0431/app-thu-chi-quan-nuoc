@@ -111,7 +111,8 @@ export function phanTichTaiChinhNoiBo(query, state) {
   // 1. TỰ HỌC THÔNG TIN KHÁCH QUEN QUA CHAT (IN-CHAT CRM LEARNING)
   const isLearnCustomer =
     (norm.includes("nho la") || norm.includes("ghi nho") || norm.includes("luu lai") || norm.includes("day ev") || norm.includes("hoc nhe") || norm.includes("nho nhe")) &&
-    (norm.includes("uong") || norm.includes("lay") || norm.includes("hay") || norm.includes("khach") || norm.includes("chu") || norm.includes("anh") || norm.includes("chi"));
+    (/\b(chu|anh|chi|bac|co|em|khach)\b/.test(norm)) &&
+    (norm.includes("uong") || norm.includes("lay") || norm.includes("hay") || norm.includes("quen"));
 
   if (isLearnCustomer) {
     let custName = "Khách Quen";
@@ -155,6 +156,24 @@ export function phanTichTaiChinhNoiBo(query, state) {
 - 💳 **Thanh toán**: ${isCK ? "Chuyển khoản QR" : "Tiền mặt"}
 
 *Lần sau anh/chị chỉ cần bảo "${custName} lấy như cũ" hoặc "${custName} lấy 2 ly", EV sẽ tự động ghi sổ chuẩn xác ngay ạ!*`,
+    };
+  }
+
+  // 1.1 TỰ HỌC TRI THỨC VẬN HÀNH, GIÁ CẢ & ĐỊNH MỚI TRONG LÚC HOẠT ĐỘNG (IN-FLIGHT OPERATIONAL KNOWLEDGE)
+  const isLearnRule =
+    (norm.includes("nho la") || norm.includes("ghi nho") || norm.includes("luu lai") || norm.includes("day ev") || norm.includes("tu nay") || norm.includes("tu hom nay") || norm.includes("nho nhe")) &&
+    !isLearnCustomer &&
+    (norm.includes("gia") || norm.includes("tien") || norm.includes("von") || norm.includes("cost") || norm.includes("mat bang") || norm.includes("dien") || norm.includes("nuoc") || /\b(da|da vien|da bao)\b/.test(norm) || norm.includes("quy tac") || norm.includes("luat") || norm.includes("kg") || norm.includes("bao") || norm.includes("moi ngay") || norm.includes("1 thang"));
+
+  if (isLearnRule) {
+    const cleanRule = query.replace(/^(?:ev|i\s*vi|e\s*vi|ê\s*vi|evi)?\s*(?:ơi|oi|nhé|nhe|giúp|cho)?\s*(?:nhớ\s+là|ghi\s+nhớ|lưu\s+lại|từ\s+nay|từ\s+hôm\s+nay)?\s*/i, "").trim();
+    return {
+      type: "action",
+      action: "learn_knowledge",
+      rule: cleanRule || query,
+      reply: `🧠 **Dạ EV đã nạp và ghi nhớ Tri Thức Mới vào bộ não thành công**:
+- 📌 **Nội dung tiếp thu**: *"${cleanRule || query}"*
+- 💡 **Khả năng áp dụng**: EV sẽ tự động áp dụng thông tin này vào các phép tính giá vốn, kiểm soát hao hụt và phản biện số liệu cho các ca bán hàng tiếp theo ạ!`,
     };
   }
 
@@ -981,6 +1000,35 @@ ${breakdownLines}
     const branchToUse = parsed.chiNhanh || targetBranch || state.currentBranch || "Quán Nhà (Chính)";
     const paymentText = parsed.phuongThuc === "chuyen_khoan" ? " (Chuyển khoản QR)" : " (Tiền mặt)";
     const isThu = parsed.loai === "thu";
+
+    // Phản biện số tiền bất thường (Critical Anomaly Check):
+    if (isThu && parsed.soLuong > 0 && parsed.soTien >= 50000) {
+      const defaultItem = (state.quickItems || []).find((i) => i.name.toLowerCase() === parsed.danhMuc?.toLowerCase());
+      const standardPrice = defaultItem ? Number(defaultItem.price) : 8000;
+      const expectedTotal = standardPrice * parsed.soLuong;
+
+      // Nếu số tiền lệch quá 2.5 lần và không có từ khóa tip / boa / lít
+      if (parsed.soTien >= expectedTotal * 2.5 && !norm.includes("tip") && !norm.includes("boa") && !norm.includes("lit") && !norm.includes("1l") && !norm.includes("chai")) {
+        conversationContext.pendingDiscrepancy = {
+          money: parsed.soTien,
+          product: parsed.danhMuc,
+          unitPrice: standardPrice,
+          unitCost: parsed.giaCostDonVi || 4000,
+          paymentMethod: parsed.phuongThuc || "tien_mat",
+          branch: branchToUse,
+        };
+
+        const impliedCups = Math.round(parsed.soTien / standardPrice);
+        return {
+          type: "question",
+          reply: `🤔 **Dạ EV xin phép phản biện để làm rõ số liệu ạ**:
+- **Món**: **${parsed.danhMuc}** (${parsed.soLuong} ${parsed.donViTinh || "ly"}) theo giá chuẩn chỉ khoảng **${formatMoney(expectedTotal)}** (hoặc ${formatMoney(10000 * parsed.soLuong)} nếu là ly lớn).
+- Nhưng câu của anh/chị có số tiền là **${formatMoney(parsed.soTien)}** (tương đương ${impliedCups} ly).
+
+👉 Anh/Chị cho EV hỏi đây là **khách mua ${impliedCups} ly**, khách mua **nước mía 1 lít**, hay **khách cho tiền bo (tip)** để EV ghi nhận chuẩn xác vào sổ ạ?`,
+        };
+      }
+    }
 
     conversationContext.lastTransaction = {
       ...parsed,

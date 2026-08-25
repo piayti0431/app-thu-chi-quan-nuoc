@@ -606,4 +606,40 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Chat History Persistence: messages saved, retrieved, and cleared accurately");
 }
 
+// Test 25: Tự học tri thức vận hành mới trong lúc hoạt động
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [],
+    crmCustomers: [],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV ghi nhớ là cam sành hôm nay 25k 1 kg nhé", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "learn_knowledge");
+  assert.ok(res.reply.includes("Tri Thức Mới"));
+  assert.ok(res.rule.includes("cam sành hôm nay 25k 1 kg"));
+
+  console.log("PASS EV In-flight Operational Learning: 'EV ghi nhớ là cam sành...' -> learns new business rule");
+}
+
+// Test 26: Khả năng phản biện khi phát hiện số liệu bất thường (2 ly mía 100k)
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000 }],
+    crmCustomers: [],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("khách mua 2 ly mía thường 100k", mockState);
+  assert.equal(res.type, "question", "2 ly mía chuẩn 16k nhưng ghi 100k -> EV phải phản biện hỏi lại");
+  assert.ok(res.reply.includes("phản biện"));
+  assert.ok(res.reply.includes("100.000"));
+  assert.ok(res.reply.includes("16.000"));
+
+  console.log("PASS EV Critical Reasoning: '2 ly mía 100k' -> questions discrepancy vs standard price");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");
