@@ -258,6 +258,7 @@ export const DEFAULT_DATA = {
     supabaseAnon:
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidnBzYW90cW1kZHR2Y3hreXh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMTMyNTMsImV4cCI6MjA5OTY4OTI1M30.gTCFBYF1P7ZjwJ87oXoh79gpuKIXZwZtkB79WzO3UGY",
   },
+  aiChatHistory: [],
 };
 
 function isNative() {
@@ -434,6 +435,7 @@ export function mergeData(data) {
     packagingConfig: { ...(base.packagingConfig || {}), ...(data?.packagingConfig || {}) },
     costFormulas: { ...(base.costFormulas || {}), ...(data?.costFormulas || {}) },
     crmCustomers: Array.isArray(data?.crmCustomers) ? data.crmCustomers : (base.crmCustomers || []),
+    aiChatHistory: Array.isArray(data?.aiChatHistory) ? data.aiChatHistory : (base.aiChatHistory || []),
     restartLogs: Array.isArray(data?.restartLogs) ? data.restartLogs : (base.restartLogs || []),
     dailyClosings: Array.isArray(data?.dailyClosings) ? data.dailyClosings : (base.dailyClosings || []),
     knowledgeBase: { ...(base.knowledgeBase || {}), ...(data?.knowledgeBase || {}) },
@@ -859,5 +861,40 @@ export async function capNhatCostChoMon(drinkIdOrName, newCostPrice) {
 
   await luuDuLieu(data);
   return data.quickItems;
+}
+
+export async function luuTinNhanAIChat({ sender = "user", text = "", action = null, id = null, meta = null } = {}) {
+  const data = await docDuLieu();
+  data.aiChatHistory = Array.isArray(data.aiChatHistory) ? data.aiChatHistory : [];
+
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const newMsg = {
+    id: id || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    sender: sender === "user" ? "user" : "bot",
+    text: String(text || ""),
+    action: action || null,
+    meta: meta || null,
+    timestamp: now.toISOString(),
+    time: timeStr,
+  };
+
+  data.aiChatHistory.push(newMsg);
+  // Keep up to last 150 messages for optimal sync
+  if (data.aiChatHistory.length > 150) {
+    data.aiChatHistory = data.aiChatHistory.slice(-150);
+  }
+
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return data.aiChatHistory;
+}
+
+export async function xoaLichSuAIChat() {
+  const data = await docDuLieu();
+  data.aiChatHistory = [];
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return data.aiChatHistory;
 }
 

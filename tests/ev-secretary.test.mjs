@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
+
+const store = new Map();
+if (typeof globalThis.localStorage === "undefined") {
+  globalThis.localStorage = {
+    getItem: (key) => store.get(key) || null,
+    setItem: (key, val) => store.set(key, String(val)),
+    removeItem: (key) => store.delete(key),
+    clear: () => store.clear(),
+  };
+}
+
 import { phanTichChiTiet, stripWakeWordAndBranch } from "../www/js/parser.js";
 import { phanTichTaiChinhNoiBo } from "../www/js/ai-assistant.js";
+import { docDuLieu, luuTinNhanAIChat, xoaLichSuAIChat } from "../www/js/db.js";
 
 console.log("Starting ev-secretary.test.mjs...");
 
@@ -571,6 +583,27 @@ console.log("Starting ev-secretary.test.mjs...");
   assert.ok(res.reply.includes("2.000 ly"));
 
   console.log("PASS EV Cost & Overhead Config: 'tiền mặt bằng tiền điện nước rác và màng ép ly cuộn hết bao nhiêu' -> verified detailed breakdown");
+}
+
+// Test 24: Lưu trữ và xóa lịch sử chat AI
+{
+  const testMsg1 = { sender: "user", text: "i vi bán 2 ly nước mía" };
+  const testMsg2 = { sender: "bot", text: "Dạ EV đã ghi sổ 2 ly nước mía 20.000đ" };
+
+  await luuTinNhanAIChat(testMsg1);
+  await luuTinNhanAIChat(testMsg2);
+
+  const state1 = await docDuLieu();
+  assert.ok(Array.isArray(state1.aiChatHistory), "aiChatHistory phải là mảng");
+  assert.ok(state1.aiChatHistory.length >= 2, "Phải có ít nhất 2 tin nhắn");
+  assert.equal(state1.aiChatHistory[state1.aiChatHistory.length - 2].text, testMsg1.text);
+  assert.equal(state1.aiChatHistory[state1.aiChatHistory.length - 1].text, testMsg2.text);
+
+  await xoaLichSuAIChat();
+  const state2 = await docDuLieu();
+  assert.equal(state2.aiChatHistory.length, 0, "Lịch sử chat phải được xóa sạch");
+
+  console.log("PASS EV Chat History Persistence: messages saved, retrieved, and cleared accurately");
 }
 
 console.log("ALL EV Secretary tests passed successfully!");

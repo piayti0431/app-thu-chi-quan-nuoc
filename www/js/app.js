@@ -13,10 +13,12 @@ import {
   luuPackagingConfig,
   luuTienThoiDauNgay,
   luuKhachQuen,
+  luuTinNhanAIChat,
   nhapDuLieuTuJson,
   restartDuLieuHomNay,
   themGiaoDich,
   xoaGiaoDich,
+  xoaLichSuAIChat,
   xoaTatCaDuLieu,
   xuatDuLieuJson,
 } from "./db.js";
@@ -1352,6 +1354,7 @@ function renderAll() {
   renderMenuManager();
   renderOverheadAndPackagingManager();
   renderBranchManager();
+  renderAIChatHistory();
 
   const defaultCashInput = $("#defaultOpeningCashInput");
   if (defaultCashInput) {
@@ -2178,6 +2181,72 @@ function renderMarkdownLite(md) {
     .replace(/\n/g, "<br>");
 }
 
+function renderAIChatHistory() {
+  const chatBox = $("#aiChatBox");
+  if (!chatBox) return;
+
+  const history = state.aiChatHistory || [];
+  if (!history.length) {
+    chatBox.innerHTML = `
+      <div class="ai-msg ai-msg-bot">
+        <div class="ai-msg-avatar">🤖</div>
+        <div class="ai-msg-content">
+          <p>Dạ em là <strong>Thư Ký EV</strong> (phát âm: <em>i vi</em>)! Em sẵn sàng ghi sổ và quản lý doanh thu cho 2 chi nhánh của anh/chị.</p>
+          <p>Anh/Chị chỉ cần bấm Mic hoặc đọc khẩu lệnh: <em>"i vi bán 2 ly nước mía"</em>, <em>"ê vi mua 3 bao đá 30k"</em>, <em>"EV hôm nay 2 quán lời bao nhiêu?"</em></p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  chatBox.innerHTML = history
+    .map((msg) => {
+      const isUser = msg.sender === "user";
+      const avatar = isUser ? "👤" : "🤖";
+      const msgClass = isUser ? "ai-msg ai-msg-user" : "ai-msg ai-msg-bot";
+      const timeBadge = msg.time
+        ? `<small style="display: block; font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; text-align: ${isUser ? "right" : "left"}; font-weight: 600;">${msg.time}</small>`
+        : "";
+
+      if (isUser) {
+        return `
+          <div class="${msgClass}">
+            <div class="ai-msg-avatar">${avatar}</div>
+            <div class="ai-msg-content">
+              <p>${escapeHtml(msg.text)}</p>
+              ${timeBadge}
+            </div>
+          </div>
+        `;
+      } else {
+        const rawHtml = renderMarkdownLite(msg.text);
+        return `
+          <div class="${msgClass}">
+            <div class="ai-msg-avatar">${avatar}</div>
+            <div class="ai-msg-content">
+              ${rawHtml}
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem; gap: 0.5rem;">
+                <button class="ai-tts-btn" data-text="${escapeHtml(msg.text)}" type="button">🔊 Nghe EV đọc</button>
+                ${timeBadge}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    })
+    .join("");
+
+  chatBox.querySelectorAll(".ai-tts-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const plainText = (btn.getAttribute("data-text") || "").replace(/[*_#`[\]()]/g, "");
+      docLai(plainText);
+      showToast("Đang phát âm thanh câu trả lời của EV...");
+    };
+  });
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
 function setupAIAssistant() {
   const chatForm = $("#aiChatForm");
   const chatInput = $("#aiChatInput");
@@ -2186,38 +2255,19 @@ function setupAIAssistant() {
 
   if (!chatForm || !chatInput || !chatBox) return;
 
-  function appendUserMessage(text) {
-    const msgDiv = document.createElement("div");
-    msgDiv.className = "ai-msg ai-msg-user";
-    msgDiv.innerHTML = `
-      <div class="ai-msg-avatar">👤</div>
-      <div class="ai-msg-content"><p>${escapeHtml(text)}</p></div>
-    `;
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
+  renderAIChatHistory();
 
-  function appendBotMessage(markdownText) {
-    const msgDiv = document.createElement("div");
-    msgDiv.className = "ai-msg ai-msg-bot";
-    const rawHtml = renderMarkdownLite(markdownText);
-    msgDiv.innerHTML = `
-      <div class="ai-msg-avatar">🤖</div>
-      <div class="ai-msg-content">
-        ${rawHtml}
-        <button class="ai-tts-btn" type="button">🔊 Nghe EV đọc</button>
-      </div>
-    `;
-    const ttsBtn = msgDiv.querySelector(".ai-tts-btn");
-    if (ttsBtn) {
-      ttsBtn.onclick = () => {
-        const plainText = markdownText.replace(/[*_#`[\]()]/g, "");
-        docLai(plainText);
-        showToast("Đang phát âm thanh câu trả lời của EV...");
-      };
-    }
-    chatBox.appendChild(msgDiv);
-    chatBox.scrollTop = chatBox.scrollHeight;
+  // Nút xóa lịch sử trò chuyện
+  const clearChatBtn = $("#clearAiChatHistoryBtn");
+  if (clearChatBtn) {
+    clearChatBtn.onclick = async () => {
+      if (!confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử trò chuyện AI?")) return;
+      await xoaLichSuAIChat();
+      state = await docDuLieu();
+      renderAIChatHistory();
+      showToast("Đã xóa lịch sử trò chuyện AI");
+      triggerAutoSync();
+    };
   }
 
   // Cài đặt giọng đọc Thư Ký EV
@@ -2269,8 +2319,12 @@ function setupAIAssistant() {
   async function handleSend(text) {
     const q = text.trim();
     if (!q) return;
-    appendUserMessage(q);
     chatInput.value = "";
+
+    // 1. Lưu tin nhắn của người dùng vào DB ngay lập tức
+    await luuTinNhanAIChat({ sender: "user", text: q });
+    state = await docDuLieu();
+    renderAIChatHistory();
 
     const loadingDiv = document.createElement("div");
     loadingDiv.className = "ai-msg ai-msg-bot is-loading";
@@ -2284,6 +2338,8 @@ function setupAIAssistant() {
     try {
       const apiKey = state.sync?.geminiApiKey || "";
       const result = await hoiGeminiAI(q, state, apiKey);
+
+      let botReply = result.reply;
 
       // 1. Lệnh hành động quản lý (Thêm món, Sửa món, Xóa món, Chuyển quán)
       if (result.type === "action") {
@@ -2305,41 +2361,15 @@ function setupAIAssistant() {
           }
 
           await luuDuLieu(state);
-          state = await docDuLieu();
-          renderAll();
-          triggerAutoSync();
-
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
           showToast(`Đã thêm món ${result.item.name}`);
-          return;
-        }
-
-        if (result.action === "delete_menu_item") {
+        } else if (result.action === "delete_menu_item") {
           state.quickItems = (state.quickItems || []).filter((i) => i.id !== result.itemId);
           await luuDuLieu(state);
-          state = await docDuLieu();
-          renderAll();
-          triggerAutoSync();
-
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
           showToast(`Đã xóa món ${result.itemName}`);
-          return;
-        }
-
-        if (result.action === "switch_branch") {
+        } else if (result.action === "switch_branch") {
           await capNhatCurrentBranch(result.branch);
-          state = await docDuLieu();
-          renderAll();
-
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
           showToast(`Đã chuyển sang ${result.branch}`);
-          return;
-        }
-
-        if (result.action === "update_last_transaction") {
+        } else if (result.action === "update_last_transaction") {
           state.ds = state.ds || [];
           const updated = result.updatedTx;
           const idx = state.ds.findIndex((t) => t.id === updated.id);
@@ -2348,34 +2378,14 @@ function setupAIAssistant() {
             state.ds[targetIdx].soLuong = updated.soLuong;
             state.ds[targetIdx].tongGiaCost = updated.tongGiaCost;
             await luuDuLieu(state);
-            state = await docDuLieu();
-            renderAll();
-            triggerAutoSync();
           }
-
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
           showToast(`Đã cập nhật lại thành ${updated.soLuong} ${updated.donViTinh || "ly"}`);
-          return;
-        }
-
-        if (result.action === "learn_customer") {
+        } else if (result.action === "learn_customer") {
           await luuKhachQuen(result.customer);
-          state = await docDuLieu();
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
           showToast(`Đã lưu khách quen: ${result.customer.name}`);
-          return;
-        }
-
-        if (result.action === "customer_debt") {
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
+        } else if (result.action === "customer_debt") {
           showToast(`Đã ghi nợ: ${result.customerName} (${formatMoney(result.debtAmount)})`);
-          return;
-        }
-
-        if (result.action === "restart_today") {
+        } else if (result.action === "restart_today") {
           const scope = result.branch || state.currentBranch || "all";
           await restartDuLieuHomNay({
             dateKey: todayKey(),
@@ -2383,30 +2393,12 @@ function setupAIAssistant() {
             note: result.note || "",
             resetOpeningCash: false,
           });
-          state = await docDuLieu();
-          renderAll();
-          triggerAutoSync();
-
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
           showToast(`Đã restart dữ liệu hôm nay (${scope === "all" ? "Tất cả điểm bán" : scope})`);
-          return;
-        }
-
-        if (result.action === "set_opening_cash") {
+        } else if (result.action === "set_opening_cash") {
           const today = todayKey();
           await luuTienThoiDauNgay(today, result.openingCash, result.branch || state.currentBranch || "Quán Nhà (Chính)");
-          state = await docDuLieu();
-          renderAll();
-          triggerAutoSync();
-
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
           showToast(`Đã lưu tiền thối: ${formatMoney(result.openingCash)}`);
-          return;
-        }
-
-        if (result.action === "set_opening_cash_and_add_transaction") {
+        } else if (result.action === "set_opening_cash_and_add_transaction") {
           const today = todayKey();
           const branchToUse = result.branch || state.currentBranch || "Quán Nhà (Chính)";
           await luuTienThoiDauNgay(today, result.openingCash, branchToUse);
@@ -2427,19 +2419,9 @@ function setupAIAssistant() {
               chiNhanh: branchToUse,
             });
           }
-          state = await docDuLieu();
-          renderAll();
-          triggerAutoSync();
-
-          loadingDiv.remove();
-          appendBotMessage(result.reply);
-          showToast(`Đã lưu tiền thối ${formatMoney(result.openingCash)} & ghi bán ${parsed.danhMuc}`);
-          return;
+          showToast(`Đã lưu tiền thối ${formatMoney(result.openingCash)} & ghi bán ${parsed?.danhMuc}`);
         }
-      }
-
-      // 2. Lệnh ghi chép giao dịch thực tế của Thư Ký EV
-      if (result.type === "command" && result.action === "add_batch_transactions" && Array.isArray(result.items)) {
+      } else if (result.type === "command" && result.action === "add_batch_transactions" && Array.isArray(result.items)) {
         for (const item of result.items) {
           const branchToUse = item.chiNhanh || result.branch || state.currentBranch || "Quán Nhà (Chính)";
           await themGiaoDich({
@@ -2457,17 +2439,8 @@ function setupAIAssistant() {
             chiNhanh: branchToUse,
           });
         }
-        state = await docDuLieu();
-        renderAll();
-        triggerAutoSync();
-
-        loadingDiv.remove();
-        appendBotMessage(result.reply);
         showToast(`Đã ghi sổ ${result.items.length} món (${formatMoney(result.total || 0)})`);
-        return;
-      }
-
-      if (result.type === "command") {
+      } else if (result.type === "command") {
         const parsed = result.parsed || phanTichChiTiet(q, state.quickItems || []);
         if (parsed.soTien > 0) {
           const branchToUse = parsed.chiNhanh || result.branch || state.currentBranch || "Quán Nhà (Chính)";
@@ -2485,11 +2458,8 @@ function setupAIAssistant() {
             daSuaTay: false,
             chiNhanh: branchToUse,
           });
-          state = await docDuLieu();
-          renderAll();
-          triggerAutoSync();
 
-          const confirmationMsg = `✅ **Dạ EV đã ghi sổ thành công**:
+          botReply = `✅ **Dạ EV đã ghi sổ thành công**:
 - **Loại**: ${parsed.loai === "thu" ? "+ Thu tiền bán" : "- Chi tiền"}
 - **Món/Khoản**: **${parsed.danhMuc}** (${parsed.soLuong} ${parsed.donViTinh})
 - **Số tiền**: **${formatMoney(parsed.soTien)}** ${parsed.phuongThuc === "chuyen_khoan" ? "(CK)" : "(Tiền mặt)"}
@@ -2497,18 +2467,22 @@ function setupAIAssistant() {
 - **Giá vốn (Cost)**: ${formatMoney(parsed.tongGiaCost)}
 
 *Dữ liệu đã được cập nhật vào bảng doanh thu hôm nay!*`;
-          loadingDiv.remove();
-          appendBotMessage(confirmationMsg);
           showToast(`EV đã ghi vào ${branchToUse}`);
-          return;
         }
       }
 
-      loadingDiv.remove();
-      appendBotMessage(result.reply);
+      // 2. Lưu câu trả lời của EV/AI vào lịch sử chat
+      await luuTinNhanAIChat({ sender: "bot", text: botReply, action: result.action });
+      state = await docDuLieu();
+      renderAll();
+      triggerAutoSync();
     } catch (e) {
-      loadingDiv.remove();
-      appendBotMessage("Dạ EV xin lỗi, đã xảy ra lỗi khi phân tích. Bạn vui lòng thử lại câu hỏi khác nhé!");
+      const errorMsg = "Dạ EV xin lỗi, đã xảy ra lỗi khi phân tích. Bạn vui lòng thử lại câu hỏi khác nhé!";
+      await luuTinNhanAIChat({ sender: "bot", text: errorMsg });
+      state = await docDuLieu();
+      renderAll();
+    } finally {
+      loadingDiv?.remove();
     }
   }
 

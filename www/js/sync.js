@@ -214,6 +214,9 @@ export async function dongBo() {
     if (Array.isArray(remoteSettings.crmCustomers)) {
       data.crmCustomers = remoteSettings.crmCustomers;
     }
+    if (Array.isArray(remoteSettings.aiChatHistory)) {
+      data.aiChatHistory = remoteSettings.aiChatHistory;
+    }
     if (Array.isArray(remoteSettings.restartLogs)) {
       data.restartLogs = remoteSettings.restartLogs;
     }
@@ -243,6 +246,7 @@ export async function dongBo() {
             defaultOpeningCash: data.defaultOpeningCash || 500000,
             openingCashByDate: data.openingCashByDate || {},
             crmCustomers: data.crmCustomers || [],
+            aiChatHistory: (data.aiChatHistory || []).slice(-100),
             restartLogs: data.restartLogs || [],
             dailyClosings: data.dailyClosings || [],
             knowledgeBase: data.knowledgeBase || {},
