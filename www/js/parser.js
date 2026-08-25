@@ -206,9 +206,7 @@ function parseVietnameseNumber(words) {
 }
 
 function detectType(normalized) {
-  // 1. Dấu hiệu chắc chắn là Thu tiền bán hàng:
-  // - Có từ khóa khách, bán, thu, ck, order, tiền mua nước...
-  // - Hoặc có đơn vị ly/cốc/chai của món nước (trừ khi là 'mua ly', 'mua cốc', 'mua chai')
+  // 1. Dấu hiệu Thu tiền bán hàng khi có đơn vị ly/cốc/chai (VD: "cam tươi 5 ly", "2 ly mía", "1 chai mía 1l")
   const hasDrinkUnit =
     /\b(ly|coc|cốc|chai)\b/.test(normalized) &&
     !normalized.includes("mua ly") &&
@@ -216,29 +214,10 @@ function detectType(normalized) {
     !normalized.includes("mua chai") &&
     !normalized.includes("tien ly");
 
-  const incomeHints = [
-    "khach",
-    "ban",
-    "thu",
-    "chuyen khoan",
-    "ck",
-    "qr",
-    "lay cho",
-    "cho khach",
-    "nguoi ta mua",
-    "tra tien mua",
-    "tien mua",
-    "order",
-    "mua tra tac",
-    "mua nuoc mia",
-    "mua nuoc cam",
-    "mua mia cam",
-    "mua rau ma",
-  ];
-  if (hasDrinkUnit || incomeHints.some((hint) => normalized.includes(hint))) return "thu";
+  if (hasDrinkUnit) return "thu";
 
-  // 2. Dấu hiệu Chi tiền (Quán mua nguyên liệu mía, đá, cam, tắc quả, ly, ống hút, tiền điện, xăng xe...)
-  const expenseHints = [
+  // 2. Dấu hiệu RÕ RÀNG là Chi tiền nguyên liệu / chi phí quán (khi không có đơn vị ly/chai)
+  const expenseExplicit = [
     "mua da",
     "tra tien da",
     "tien da",
@@ -252,6 +231,7 @@ function detectType(normalized) {
     "tac tuoi",
     "mua sua",
     "mua duong",
+    "duong cat",
     "mua dau",
     "mua ong hut",
     "ong hut",
@@ -263,10 +243,58 @@ function detectType(normalized) {
     "tra tien nuoc",
     "do xang",
     "xang xe",
-    "nhap",
+    "tien mua tac",
+    "tien mua duong",
+    "tien mua mia",
+    "tien mua da",
+    "tien mua cam",
+    "tien mua",
     "chi ",
-    "het ",
+    "chi phi",
+    "tra tien",
+    "nhap hang",
+    "nhap ",
+  ];
+
+  // Nếu có từ khóa khách, bán, thu rõ ràng (VD: "khách chuyển khoản 100k tiền mua trà tắc") -> Thu
+  const isCustomerIncome =
+    normalized.includes("khach") ||
+    normalized.includes("ban ") ||
+    normalized.startsWith("ban") ||
+    normalized.includes("thu ") ||
+    normalized.startsWith("thu") ||
+    normalized.includes("lay cho khach") ||
+    normalized.includes("nguoi ta mua");
+
+  if (expenseExplicit.some((hint) => normalized.includes(hint)) && !isCustomerIncome) {
+    return "chi";
+  }
+
+  const incomeHints = [
+    "khach",
+    "ban",
+    "thu",
+    "chuyen khoan",
+    "ck",
+    "qr",
+    "lay cho",
+    "cho khach",
+    "nguoi ta mua",
+    "tra tien mua nuoc",
+    "order",
+    "mua tra tac",
+    "mua nuoc mia",
+    "mua nuoc cam",
+    "mua mia cam",
+    "mua rau ma",
+  ];
+  if (incomeHints.some((hint) => normalized.includes(hint))) return "thu";
+
+  // 3. Dấu hiệu Chi tiền tổng quát
+  const expenseHints = [
     "mua ",
+    "het ",
+    "chi ",
   ];
   if (expenseHints.some((hint) => normalized.includes(hint))) return "chi";
 
@@ -450,6 +478,7 @@ function detectProduct(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS) {
 
 function detectCategory(normalized, type, product) {
   if (type === "thu") return product?.category || THU_CATEGORY;
+  if (normalized.includes("tac") && normalized.includes("duong")) return "Mua tắc và đường";
   if (normalized.includes("cam")) return "Cam tươi";
   if (normalized.includes("rau ma") || normalized.includes("ma tuoi")) return "Rau má tươi";
   if (normalized.includes("sua dac") || normalized.includes("sua")) return "Sữa đặc";

@@ -543,11 +543,40 @@ ${breakdownLines}
     }
 
     const singleResult = phanTichChiTiet(query, state.quickItems || []);
-    if (singleResult && (singleResult.slots?.productId || singleResult.danhMuc !== "Thu khác")) {
+    if (singleResult && (singleResult.slots?.productId || singleResult.danhMuc !== "Thu khác" || singleResult.loai === "chi")) {
       conversationContext.pendingMissingItems = null;
       const branchToUse = pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)";
       const isCK = pending.paymentMethod === "chuyen_khoan";
       const finalAmount = pending.money || singleResult.soTien;
+
+      if (singleResult.loai === "chi") {
+        const parsedTx = {
+          ...singleResult,
+          loai: "chi",
+          soTien: finalAmount,
+          phuongThuc: pending.paymentMethod || singleResult.phuongThuc || "tien_mat",
+          giaCostDonVi: 0,
+          tongGiaCost: 0,
+          chiNhanh: branchToUse,
+          cauNoiGoc: `${query} (Khoản chi: ${formatMoney(finalAmount)})`,
+        };
+
+        conversationContext.lastTransaction = parsedTx;
+
+        return {
+          type: "command",
+          action: "add_transaction",
+          branch: branchToUse,
+          parsed: parsedTx,
+          reply: `✅ **Dạ EV đã làm rõ và ghi sổ chi phí thành công**:
+- **Loại**: - Chi tiền mua hàng / nguyên liệu
+- **Hạng mục chi**: **${singleResult.danhMuc}** (${singleResult.soLuong} ${singleResult.donViTinh || "lần"})
+- **Số tiền**: **${formatMoney(finalAmount)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})
+- **Điểm bán**: **${branchToUse}**
+
+*Khoản chi ${formatMoney(finalAmount)} đã được lưu vào sổ chi phí và trừ vào tiền két của quán!*`,
+        };
+      }
 
       const matchedItem = (state.quickItems || []).find((i) => i.id === singleResult.slots?.productId || i.name.toLowerCase() === singleResult.danhMuc?.toLowerCase());
       let unitCost = Number(matchedItem?.costPrice) || singleResult.giaCostDonVi || 4000;
@@ -564,6 +593,7 @@ ${breakdownLines}
 
       const parsedTx = {
         ...singleResult,
+        loai: "thu",
         soTien: finalAmount,
         soLuong: qty,
         phuongThuc: pending.paymentMethod,
@@ -1230,20 +1260,36 @@ ${breakdownLines}
   if (!hasDrinkName && !isExpenseIntent && extractedMoneyOnly >= 1000) {
     const isCK = norm.includes("chuyen") || norm.includes("ck") || norm.includes("qr") || norm.includes("bank");
     const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+    const isExplicitThu = norm.includes("thu") || norm.includes("ban") || norm.includes("khach") || norm.includes("tra tien mua");
+    const isExplicitChi = norm.includes("chi") || norm.includes("mua") || norm.includes("tra tien") || norm.includes("nhap");
+
     conversationContext.pendingMissingItems = {
       money: extractedMoneyOnly,
       paymentMethod: isCK ? "chuyen_khoan" : "tien_mat",
       branch: branchToUse,
+      intentHint: isExplicitChi ? "chi" : (isExplicitThu ? "thu" : "unknown"),
     };
 
-    const isTotal = norm.includes("tong") || norm.includes("don nay") || norm.includes("ca thay") || norm.includes("tong cong");
-    const title = isTotal ? `đơn hàng tổng **${formatMoney(extractedMoneyOnly)}**` : `số tiền thu **${formatMoney(extractedMoneyOnly)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})`;
-
-    return {
-      type: "question",
-      intent: "missing_items",
-      reply: `Dạ EV ghi nhận ${title} ạ! 🥤\n\nAnh/Chị cho EV hỏi trong đơn **${formatMoney(extractedMoneyOnly)}** này gồm **những món nước nào** (ví dụ: *5 ly mía thường, 2 ly cam...*) để EV trừ kho nguyên liệu và tính tiền vốn (cost) chính xác cho quán nhé?`,
-    };
+    if (isExplicitThu) {
+      return {
+        type: "question",
+        intent: "missing_items",
+        reply: `Dạ EV ghi nhận số tiền thu **${formatMoney(extractedMoneyOnly)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"}) ạ! 🥤\n\nAnh/Chị cho EV hỏi trong đơn này gồm **những món nước nào** (ví dụ: *5 ly mía thường, 2 ly cam...*) để EV trừ kho nguyên liệu và tính tiền vốn (cost) chính xác cho quán nhé?`,
+      };
+    } else if (isExplicitChi) {
+      return {
+        type: "question",
+        intent: "missing_expense_item",
+        reply: `Dạ EV ghi nhận khoản chi **${formatMoney(extractedMoneyOnly)}** ạ! 💸\n\nAnh/Chị cho EV hỏi đây là tiền chi cho **mục gì** (ví dụ: *mua đá, mua mía, mua tắc và đường, tiền điện...*) để EV phân loại sổ chi phí cho quán nhé?`,
+      };
+    } else {
+      // Đọc số tiền trần trụi (ví dụ: "80k", "50k", "160k")
+      return {
+        type: "question",
+        intent: "missing_items_or_expense",
+        reply: `Dạ EV ghi nhận số tiền **${formatMoney(extractedMoneyOnly)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"}) ạ! 📝\n\nAnh/Chị cho EV hỏi **${formatMoney(extractedMoneyOnly)}** này là **tiền thu bán nước** (gồm những món nào) hay **tiền chi mua nguyên liệu/khoản chi nào** để EV ghi sổ chính xác cho quán nhé?`,
+      };
+    }
   }
 
   // 16. PHÂN TÍCH GIAO DỊCH ĐƠN LẺ (BÁN NƯỚC / CHI TIỀN / MUA NGUYÊN LIỆU)

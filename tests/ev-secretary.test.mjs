@@ -838,4 +838,28 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Admin: 'EV bật dark mode' -> action: toggle_dark_mode");
 }
 
+// Test 37: Người dùng nói "80k" -> EV hỏi làm rõ -> Người dùng đáp "tiền mua tắc và đường" -> EV ghi - Chi 80.000đ
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000 }],
+    ds: [],
+  };
+
+  const res1 = phanTichTaiChinhNoiBo("80k", mockState);
+  assert.equal(res1.type, "question");
+  assert.ok(res1.reply.includes("80.000"));
+  assert.ok(res1.reply.includes("tiền thu bán nước") && res1.reply.includes("tiền chi mua"));
+
+  // User trả lời: "tiền mua tắc và đường"
+  const res2 = phanTichTaiChinhNoiBo("tiền mua tắc và đường", mockState);
+  assert.equal(res2.type, "command");
+  assert.equal(res2.parsed.loai, "chi", "Phải là khoản CHI chứ không được nhầm thành THU");
+  assert.equal(res2.parsed.soTien, 80000);
+  assert.equal(res2.parsed.danhMuc, "Mua tắc và đường");
+  assert.ok(res2.reply.includes("Chi tiền"));
+
+  console.log("PASS EV Expense Clarification: '80k' -> asks clarification -> 'tiền mua tắc và đường' -> records - Chi 80k Mua tắc và đường");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");
