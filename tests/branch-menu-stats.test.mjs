@@ -94,7 +94,7 @@ const customMenu = [
   { id: "tra_tac", name: "Trà tắc", category: "Trà tắc", price: 12000, costPrice: 5000 },
 ];
 assert.equal(phanTich("3 ly nước mía", customMenu).soTien, 30000);
-assert.equal(phanTich("3 ly nước mía", customMenu).tongGiaCost, 12000);
+assert.equal(phanTich("3 ly nước mía", customMenu).tongGiaCost, 15000); // 3 ly x 5k vốn = 15k
 assert.equal(phanTich("2 trà tắc", customMenu).soTien, 24000);
 assert.equal(phanTich("2 trà tắc", customMenu).tongGiaCost, 10000);
 console.log("PASS Custom menu dynamic pricing & cost");

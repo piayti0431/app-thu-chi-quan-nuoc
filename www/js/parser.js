@@ -721,7 +721,15 @@ export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
     unit = expenseInfo.unit;
   }
 
-  const unitCost = Number(product?.costPrice) >= 0 ? Number(product.costPrice) : 0;
+  let unitCost = Number(product?.costPrice) >= 0 ? Number(product.costPrice) : 0;
+  if (product?.id === "nuoc_mia" && money.amount > 0 && qty > 0) {
+    const unitPrice = money.amount / qty;
+    if (unitPrice >= 9500) {
+      unitCost = 5000;
+    } else {
+      unitCost = 4000;
+    }
+  }
   const totalCost = loai === "thu" ? qty * unitCost : 0;
   const phuongThuc = detectPaymentMethod(normalized);
 

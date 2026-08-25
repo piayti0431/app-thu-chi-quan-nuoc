@@ -538,8 +538,16 @@ ${breakdownLines}
       const finalAmount = pending.money || singleResult.soTien;
 
       const matchedItem = (state.quickItems || []).find((i) => i.id === singleResult.slots?.productId || i.name.toLowerCase() === singleResult.danhMuc?.toLowerCase());
-      const unitCost = Number(matchedItem?.costPrice) || singleResult.giaCostDonVi || 4000;
+      let unitCost = Number(matchedItem?.costPrice) || singleResult.giaCostDonVi || 4000;
       const qty = singleResult.soLuong || 1;
+      const unitP = finalAmount / qty;
+      if (singleResult.danhMuc?.toLowerCase().includes("mía") || matchedItem?.id === "nuoc_mia") {
+        if (unitP >= 9500 && !singleResult.danhMuc?.toLowerCase().includes("lít") && !singleResult.danhMuc?.toLowerCase().includes("cam")) {
+          unitCost = 5000;
+        } else if (unitP < 9500) {
+          unitCost = 4000;
+        }
+      }
       const totalCost = qty * unitCost;
 
       const parsedTx = {
@@ -1212,7 +1220,7 @@ NGỮ CẢNH TÀI CHÍNH & KHÁCH QUEN (ĐÃ NÉN RTK):
 
 QUY TẮC ĐỊNH LƯỢNG & TÀI CHÍNH VẬN HÀNH THỰC TẾ:
 1. "Khách mua / khách chuyển / tiền mua / bán..." = + Thu tiền bán hàng.
-2. Nước mía thường chuẩn 8k/ly (vốn 4k). CHỈ khi khách dặn/yêu cầu ly lớn mới tính 10k (vốn 4k). Mía 1L giá 16k (vốn 10k).
+2. Nước mía thường chuẩn 8k/ly (vốn 4k). CHỈ khi khách dặn/yêu cầu ly lớn mới tính 10k (vốn 5k). Mía 1L giá 16k (vốn 10k).
 3. Bao bì + màng ép + ống hút + đá viên tính gộp chung 1k/phần (Mía 1L ko đá vẫn tính chung 1k).
 4. Định phí quán: Mặt bằng 200k/ngày (6tr/tháng), Điện 25-30 ký ~80k/ngày (2.4tr/tháng), Nước 5k, Rác, Khấu hao & phát sinh = ~313.300đ/ngày (9.4tr/tháng).
 5. Mục tiêu doanh thu hòa vốn toàn quán: ~628.000đ/ngày (~18.8tr/tháng với biên lãi gộp bình quân ~50%). Vượt 628k là bắt đầu có lời ròng thực tế bỏ túi.
