@@ -172,14 +172,15 @@ function getDrinkIconSvg(iconName) {
 
 function renderBranchSelectors() {
   const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
-  const current = state.currentBranch || branches[0]?.name || "Quán Nhà (Chính)";
+  const current = state.currentBranch || "all";
 
   // Topbar branch selector
   const topSelect = $("#currentBranchSelect");
   if (topSelect) {
-    topSelect.innerHTML = branches
-      .map((b) => `<option value="${b.name}" ${b.name === current ? "selected" : ""}>${b.name}</option>`)
-      .join("");
+    topSelect.innerHTML = `
+      <option value="all" ${current === "all" ? "selected" : ""}>🏢 Tất cả điểm bán</option>
+      ${branches.map((b) => `<option value="${b.name}" ${b.name === current ? "selected" : ""}>📍 ${b.name}</option>`).join("")}
+    `;
   }
 
   // Stats branch filter
@@ -218,6 +219,10 @@ function renderQuickButtons() {
       const item = quickItems.find((q) => q.id === id);
       if (!item) return;
 
+      const activeBranch = (state.currentBranch && state.currentBranch !== "all")
+        ? state.currentBranch
+        : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
+
       const tx = await themGiaoDich({
         loai: "thu",
         soTien: item.price,
@@ -228,12 +233,12 @@ function renderQuickButtons() {
         ghiChu: item.note || `Bán 1 ${item.name}`,
         cauNoiGoc: `Bán 1 ${item.name}`,
         daSuaTay: false,
-        chiNhanh: state.currentBranch,
+        chiNhanh: activeBranch,
       });
 
       state = await docDuLieu();
       renderAll();
-      showToast(`+1 ${item.name} (${formatMoney(item.price)})`);
+      showToast(`+1 ${item.name} (${formatMoney(item.price)}) - ${activeBranch}`);
       triggerAutoSync();
     };
   });
@@ -249,8 +254,11 @@ function renderCategoryDatalist() {
 
 function renderToday() {
   const today = todayKey();
+  const selectedBranch = state.currentBranch || "all";
+  const isAll = selectedBranch === "all";
+
   const items = (state.ds || []).filter(
-    (item) => !item.deleted && item.ngay === today && (statsBranch === "all" || item.chiNhanh === state.currentBranch),
+    (item) => !item.deleted && item.ngay === today && (isAll || item.chiNhanh === selectedBranch),
   );
 
   const income = items.filter((item) => item.loai === "thu").reduce((sum, item) => sum + Number(item.soTien || 0), 0);
@@ -261,14 +269,15 @@ function renderToday() {
   $("#todayExpense").textContent = formatMoney(expense);
   $("#todayBalance").textContent = formatMoney(balance);
   if ($("#todayOpeningCashDisplay")) {
-    $("#todayOpeningCashDisplay").textContent = formatMoney(getTodayOpeningCash());
+    $("#todayOpeningCashDisplay").textContent = formatMoney(getTodayOpeningCash(selectedBranch));
   }
 
   const list = $("#todayList");
   if (!list) return;
 
+  const branchTitle = isAll ? "Tất cả điểm bán" : selectedBranch;
   if (!items.length) {
-    list.innerHTML = `<p class="empty-state">Chưa có giao dịch nào hôm nay tại ${state.currentBranch}. Bấm nút món hoặc nói vào Mic để ghi sổ.</p>`;
+    list.innerHTML = `<p class="empty-state">Chưa có giao dịch nào hôm nay tại <strong>${branchTitle}</strong>. Bấm nút món hoặc nói vào Mic để ghi sổ.</p>`;
     return;
   }
 
@@ -319,9 +328,12 @@ function renderHistory() {
   const list = $("#historyList");
   if (!list) return;
 
-  const items = (state.ds || []).filter((item) => !item.deleted);
+  const selectedBranch = state.currentBranch || "all";
+  const isAll = selectedBranch === "all";
+
+  const items = (state.ds || []).filter((item) => !item.deleted && (isAll || item.chiNhanh === selectedBranch));
   if (!items.length) {
-    list.innerHTML = `<p class="empty-state">Lịch sử giao dịch trống.</p>`;
+    list.innerHTML = `<p class="empty-state">Lịch sử giao dịch trống tại <strong>${isAll ? "tất cả điểm bán" : selectedBranch}</strong>.</p>`;
     return;
   }
 
@@ -372,10 +384,22 @@ function renderHistory() {
 // DAILY CLOSING DIALOG (PHIẾU TỔNG KẾT NGÀY)
 // ----------------------------------------------------
 
-function getTodayOpeningCash() {
+function getTodayOpeningCash(branchParam = null) {
   const today = todayKey();
-  const branch = state.currentBranch || "Quán Nhà (Chính)";
-  const key = `${today}_${branch}`;
+  const targetBranch = branchParam !== null ? branchParam : (state.currentBranch || "all");
+  const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
+
+  if (targetBranch === "all") {
+    return branches.reduce((sum, b) => {
+      const key = `${today}_${b.name}`;
+      const val = state.openingCashByDate && state.openingCashByDate[key] !== undefined
+        ? Number(state.openingCashByDate[key])
+        : (Number(state.defaultOpeningCash) >= 0 ? Number(state.defaultOpeningCash) : 500000);
+      return sum + val;
+    }, 0);
+  }
+
+  const key = `${today}_${targetBranch}`;
   if (state.openingCashByDate && state.openingCashByDate[key] !== undefined) {
     return Number(state.openingCashByDate[key]);
   }
@@ -387,11 +411,12 @@ function openDailyClosingModal() {
   if (!dialog) return;
 
   const today = todayKey();
-  const currentBranch = state.currentBranch || "Quán Nhà (Chính)";
-  const openingCash = getTodayOpeningCash();
-  const report = dailyReport(state.ds || [], today, currentBranch, openingCash);
+  const currentBranch = state.currentBranch || "all";
+  const isAll = currentBranch === "all";
+  const openingCash = getTodayOpeningCash(currentBranch);
+  const report = dailyReport(state.ds || [], today, isAll ? null : currentBranch, openingCash);
 
-  $("#closingBranchLabel").textContent = `Điểm bán: ${currentBranch}`;
+  $("#closingBranchLabel").textContent = isAll ? "Điểm bán: Tất cả điểm bán (Toàn hệ thống)" : `Điểm bán: ${currentBranch}`;
   $("#closingDateHeader").textContent = `📋 Phiếu Tổng Kết Ngày ${formatDate(today)}`;
 
   $("#closingIncome").textContent = formatMoney(report.income);
@@ -981,7 +1006,8 @@ function initEventListeners() {
       await capNhatCurrentBranch(selected);
       state = await docDuLieu();
       renderAll();
-      showToast(`Đã chuyển sang điểm bán: ${selected}`);
+      const label = selected === "all" ? "Tất cả điểm bán" : selected;
+      showToast(`Đã chuyển sang xem: ${label}`);
     };
   }
 
@@ -1000,9 +1026,10 @@ function initEventListeners() {
 
   // Read today report button (Speech)
   $("#readTodayReportBtn")?.addEventListener("click", () => {
-    const report = dailyReport(state.ds || [], todayKey(), state.currentBranch);
+    const isAll = state.currentBranch === "all" || !state.currentBranch;
+    const report = dailyReport(state.ds || [], todayKey(), isAll ? null : state.currentBranch, getTodayOpeningCash());
     docLai(report.detailedText || report.text);
-    showToast("Đang phát loa đọc doanh số hôm nay...");
+    showToast(`Đang phát loa đọc doanh số ${isAll ? "tất cả điểm bán" : state.currentBranch}...`);
   });
 
   // Radio button loai switch (Thu / Chi) in manual form
@@ -1046,6 +1073,9 @@ function initEventListeners() {
       }
 
       const phuongThuc = $("#manualPaymentMethodGroup input[name='phuongThuc']:checked")?.value || "tien_mat";
+      const activeBranch = (state.currentBranch && state.currentBranch !== "all")
+        ? state.currentBranch
+        : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
 
       await themGiaoDich({
         loai,
@@ -1059,7 +1089,7 @@ function initEventListeners() {
         ghiChu: note,
         cauNoiGoc: note || `${loai === "thu" ? "Bán" : "Chi"} ${qty} ${unit} ${category}${phuongThuc === "chuyen_khoan" ? " (CK)" : ""}`,
         daSuaTay: true,
-        chiNhanh: state.currentBranch,
+        chiNhanh: activeBranch,
       });
 
       state = await docDuLieu();
@@ -1282,7 +1312,10 @@ function initEventListeners() {
 
   // CSV & JSON Backup buttons
   $("#exportTodayBtn")?.addEventListener("click", () => {
-    const items = (state.ds || []).filter((it) => !it.deleted && it.ngay === todayKey());
+    const isAll = state.currentBranch === "all" || !state.currentBranch;
+    const items = (state.ds || []).filter(
+      (it) => !it.deleted && it.ngay === todayKey() && (isAll || it.chiNhanh === state.currentBranch),
+    );
     const header = "Mã,Ngày,Giờ,Điểm bán,Loại,Danh mục,Số lượng,Số tiền (đ),Giá vốn (đ),Ghi chú\n";
     const rows = items
       .map(
@@ -1294,9 +1327,10 @@ function initEventListeners() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ThuChi_${todayKey()}.csv`;
+    const branchSuffix = isAll ? "TatCa" : state.currentBranch.replace(/\s+/g, "_");
+    a.download = `ThuChi_${branchSuffix}_${todayKey()}.csv`;
     a.click();
-    showToast("Đã xuất bảng tính Excel hôm nay");
+    showToast(`Đã xuất bảng tính Excel cho ${isAll ? "tất cả điểm bán" : state.currentBranch}`);
   });
 
   $("#backupBtn")?.addEventListener("click", async () => {

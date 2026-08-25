@@ -81,8 +81,9 @@ export function formatReportMoney(value) {
 }
 
 export function dailyReport(transactions, dateKey, branch = null, openingCash = 500000) {
+  const isAll = !branch || branch === "all" || branch === "Tất cả điểm bán";
   const items = transactions.filter(
-    (item) => !item.deleted && item.ngay === dateKey && (!branch || branch === "Tất cả điểm bán" || item.chiNhanh === branch),
+    (item) => !item.deleted && item.ngay === dateKey && (isAll || item.chiNhanh === branch),
   );
   const income = items
     .filter((item) => item.loai === "thu")
