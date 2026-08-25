@@ -116,15 +116,22 @@ export async function dongBo() {
   if (!activeClient) return { ok: false, message: "Chưa cấu hình Supabase" };
 
   const sessionResult = await activeClient.auth.getSession();
-  if (!sessionResult.data?.session) return { ok: false, message: "Chưa đăng nhập Supabase" };
+  const session = sessionResult.data?.session;
+  if (!session) return { ok: false, message: "Chưa đăng nhập Supabase" };
 
+  const userId = session.user?.id || "";
   let data = await docDuLieu();
+  const currentDeviceId = data.sync?.deviceId || "local_device";
   const pending = pendingTransactions(data.ds);
 
+  // 1. PUSH PENDING TRANSACTIONS TO SUPABASE
   if (pending.length) {
     const { error } = await activeClient
       .from("giao_dich")
-      .upsert(pending.map((item) => toRemoteTransaction(item, data.sync?.deviceId)), { onConflict: "id" });
+      .upsert(
+        pending.map((item) => toRemoteTransaction(item, currentDeviceId)),
+        { onConflict: "id" }
+      );
     if (error) throw error;
 
     data.ds = data.ds.map((item) =>
@@ -133,6 +140,7 @@ export async function dongBo() {
     await luuDuLieu(data);
   }
 
+  // 2. PULL ALL TRANSACTIONS FOR THIS ACCOUNT FROM SUPABASE
   const { data: remoteRows, error: pullError } = await activeClient
     .from("giao_dich")
     .select("*")
@@ -143,7 +151,60 @@ export async function dongBo() {
   data = await docDuLieu();
   const merged = mergeTransactions(data.ds, remoteRows || []);
   data.ds = merged.items;
-  data.sync = { ...(data.sync || {}), lastPulledAt: new Date().toISOString() };
+
+  // 3. SYNC SETTINGS & CONFIG ACROSS DEVICES (MENU, BRANCHES, COST, OPENING CASH, CRM)
+  const remoteSettings = session.user?.user_metadata?.app_settings;
+  const localSettingsVersion = Number(data.settingsVersion) || 0;
+
+  if (remoteSettings && Number(remoteSettings.version) > localSettingsVersion) {
+    // Remote has newer settings -> pull to this device
+    if (Array.isArray(remoteSettings.quickItems) && remoteSettings.quickItems.length > 0) {
+      data.quickItems = remoteSettings.quickItems;
+    }
+    if (Array.isArray(remoteSettings.branches) && remoteSettings.branches.length > 0) {
+      data.branches = remoteSettings.branches;
+    }
+    if (remoteSettings.overheadConfig) {
+      data.overheadConfig = remoteSettings.overheadConfig;
+    }
+    if (remoteSettings.costFormulas) {
+      data.costFormulas = remoteSettings.costFormulas;
+    }
+    if (remoteSettings.defaultOpeningCash) {
+      data.defaultOpeningCash = remoteSettings.defaultOpeningCash;
+    }
+    if (remoteSettings.openingCashByDate) {
+      data.openingCashByDate = { ...(data.openingCashByDate || {}), ...remoteSettings.openingCashByDate };
+    }
+    if (Array.isArray(remoteSettings.crmCustomers)) {
+      data.crmCustomers = remoteSettings.crmCustomers;
+    }
+    data.settingsVersion = remoteSettings.version;
+  } else if (!remoteSettings || localSettingsVersion > (Number(remoteSettings?.version) || 0)) {
+    // Local has newer settings -> push to user metadata on Supabase
+    const newVersion = Date.now();
+    try {
+      await activeClient.auth.updateUser({
+        data: {
+          app_settings: {
+            version: newVersion,
+            quickItems: data.quickItems || [],
+            branches: data.branches || [],
+            overheadConfig: data.overheadConfig || {},
+            costFormulas: data.costFormulas || {},
+            defaultOpeningCash: data.defaultOpeningCash || 500000,
+            openingCashByDate: data.openingCashByDate || {},
+            crmCustomers: data.crmCustomers || [],
+          },
+        },
+      });
+      data.settingsVersion = newVersion;
+    } catch (metaErr) {
+      console.warn("Sync settings to user metadata warning:", metaErr);
+    }
+  }
+
+  data.sync = { ...(data.sync || {}), lastPulledAt: new Date().toISOString(), accountEmail: session.user?.email || "" };
   await luuDuLieu(data);
 
   const changed = pending.length + merged.stats.pulled + merged.stats.removed;
@@ -169,14 +230,17 @@ export async function batDauRealtime(onRemoteChange) {
   if (!activeClient?.channel) return { ok: false, message: "Supabase không hỗ trợ realtime" };
 
   const sessionResult = await activeClient.auth.getSession();
-  if (!sessionResult.data?.session) return { ok: false, message: "Chưa đăng nhập Supabase" };
+  const session = sessionResult.data?.session;
+  if (!session) return { ok: false, message: "Chưa đăng nhập Supabase" };
 
   const data = await docDuLieu();
   const currentDeviceId = data.sync?.deviceId || "";
+  const userId = session.user?.id || "account";
   await dungRealtime();
 
+  // Scoped to User ID so all devices of the same account connect to the EXACT SAME realtime channel
   realtimeChannel = activeClient
-    .channel(`giao-dich-${currentDeviceId || "device"}`)
+    .channel(`giao-dich-${userId}`)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "giao_dich" },

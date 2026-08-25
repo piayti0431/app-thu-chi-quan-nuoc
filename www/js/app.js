@@ -1192,20 +1192,37 @@ function renderAll() {
 }
 
 // ----------------------------------------------------
-// AUTO SYNC & SUPABASE
+// AUTO SYNC & SUPABASE (ĐỒNG BỘ ĐA THIẾT BỊ THEO TÀI KHOẢN)
 // ----------------------------------------------------
 
 async function triggerAutoSync() {
   try {
     const isAuth = await daDangNhap();
     if (!isAuth) return;
+    const syncStatus = $("#syncStatus");
+    if (syncStatus) syncStatus.textContent = "Đang đồng bộ...";
     await dongBo();
     state = await docDuLieu();
     renderAll();
-    const syncStatus = $("#syncStatus");
     if (syncStatus) syncStatus.textContent = "Đồng bộ sẵn sàng";
   } catch (err) {
     console.warn("Auto sync failed", err);
+    const syncStatus = $("#syncStatus");
+    if (syncStatus) syncStatus.textContent = "Lỗi đồng bộ";
+  }
+}
+
+async function startRealtimeListener() {
+  try {
+    await batDauRealtime(async (payload) => {
+      console.log("Realtime remote change received:", payload);
+      await dongBo();
+      state = await docDuLieu();
+      renderAll();
+      showToast("⚡ Đã cập nhật giao dịch mới từ thiết bị khác!");
+    });
+  } catch (err) {
+    console.warn("Could not start realtime listener:", err);
   }
 }
 
@@ -1761,11 +1778,15 @@ function initEventListeners() {
       return;
     }
     try {
+      showToast("Đang đăng nhập...");
       await dangNhap(email, pass);
-      showToast("Đăng nhập thành công!");
       authLoggedIn = true;
       $("#authScreen").hidden = true;
-      triggerAutoSync();
+      $(".app-shell")?.classList.remove("is-auth-locked");
+      showToast("Đăng nhập thành công! Đang tải dữ liệu từ tài khoản...");
+      await triggerAutoSync();
+      await startRealtimeListener();
+      showToast("Dữ liệu tài khoản đã được đồng bộ!");
     } catch (err) {
       showToast(`Lỗi đăng nhập: ${err.message}`, true);
     }
@@ -1787,7 +1808,7 @@ function initEventListeners() {
   });
 
   $("#syncNowBtn")?.addEventListener("click", async () => {
-    showToast("Đang đồng bộ...");
+    showToast("Đang đồng bộ dữ liệu với máy chủ...");
     try {
       await dongBo();
       state = await docDuLieu();
@@ -1804,12 +1825,15 @@ function initEventListeners() {
     const email = $("#authEmail")?.value?.trim();
     const pass = $("#authPassword")?.value?.trim();
     try {
+      showToast("Đang đăng nhập...");
       await dangNhap(email, pass);
       $("#authScreen").hidden = true;
       $(".app-shell")?.classList.remove("is-auth-locked");
       authLoggedIn = true;
-      showToast("Đăng nhập thành công!");
-      triggerAutoSync();
+      showToast("Đăng nhập thành công! Đang tải dữ liệu tài khoản...");
+      await triggerAutoSync();
+      await startRealtimeListener();
+      showToast("Dữ liệu tài khoản đã được đồng bộ!");
     } catch (err) {
       showToast(`Lỗi đăng nhập: ${err.message}`, true);
     }
@@ -1827,6 +1851,16 @@ function initEventListeners() {
       showToast("Đã tạo tài khoản! Vui lòng bấm Đăng nhập.");
     } catch (err) {
       showToast(`Lỗi tạo tài khoản: ${err.message}`, true);
+    }
+  });
+
+  // Auto-sync on window focus / app resume
+  window.addEventListener("focus", () => {
+    triggerAutoSync();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      triggerAutoSync();
     }
   });
 
@@ -2355,7 +2389,8 @@ async function init() {
         $("#authScreen").hidden = true;
         $(".app-shell")?.classList.remove("is-auth-locked");
         authLoggedIn = true;
-        triggerAutoSync();
+        await triggerAutoSync();
+        await startRealtimeListener();
       }
     } catch {
       $("#authScreen").hidden = false;
