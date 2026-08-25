@@ -294,7 +294,7 @@ export const DEFAULT_DATA = {
       "Định mức Trà tắc: Hộp trà túi lọc 80.000đ nấu được 9 lít trà (45 ly). Sốt tắc: 1kg đường (33k) + 1.5kg tắc (45k) = 1.8L sốt tắc pha được 6 lít trà. Giá cost 1 ly trà tắc: 7.000đ.",
       "Tỷ lệ giá vốn COGS mục tiêu: 28% - 40% doanh thu",
       "Định phí vận hành thực tế: Mặt bằng 200k/ngày (6.000.000đ/tháng), Điện 25-30 ký/ngày chạy 8h-22h (~2.400.000đ/tháng), Nước rửa máy (~150.000đ/tháng), Phát sinh (~500.000đ/tháng).",
-      "Điểm hòa vốn thực tế: Với giá bán chuẩn 8.000đ/ly (lãi gộp 4.000đ/ly), quán cần bán khoảng 78 - 79 ly mía/ngày để bù đủ toàn bộ tiền mặt bằng (200k/ngày), điện 30 ký, nước và chi phí phát sinh.",
+      "Doanh thu hòa vốn toàn quán theo số tiền: Cần đạt tối thiểu ~630.000đ doanh thu tổng/ngày (~18.800.000đ/tháng) với biên lãi gộp bình quân ~50% của các món trong menu để trang trải 100% tiền mặt bằng (200k/ngày), điện 30 ký, nước và phát sinh.",
       "Khách quen có thể dùng từ 'như cũ' để order món quen",
       "Tiền nợ không tính vào tiền mặt trong két cho tới khi khách trả nợ",
     ],

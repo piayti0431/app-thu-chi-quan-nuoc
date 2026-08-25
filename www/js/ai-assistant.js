@@ -255,6 +255,8 @@ export function phanTichTaiChinhNoiBo(query, state) {
    - 📦 **Bao bì, màng ép miệng ly, ống hút & đá viên (tính chung)**: ➔ **1.000 đ / ly** (Màng ép ly: ${formatMoney(packaging.filmRoll?.batchCost || 45000)}/cuộn ép ~${(packaging.filmRoll?.batchYield || 2000).toLocaleString("vi-VN")} ly).`;
     }
 
+    const breakEvenRevenueDay = Math.ceil((totalOverhead / 30) / 0.50);
+
     return {
       type: "analysis",
       category: "cost_breakdown",
@@ -272,9 +274,10 @@ ${ingredientDetail}
 4. 🎯 **TỔNG CHI PHÍ THỰC TẾ 1 LY**: **${formatMoney(totalCost)}** (${totalCostPercent}%)
 5. 💰 **LỢI NHUẬN RÒNG TRÊN 1 LY**: **+${formatMoney(netProfit)}** (Tỷ suất sinh lời: **${netPercent}%**)
 
-⚖️ **ĐIỂM HÒA VỐN**:
-- Quán cần bán tối thiểu **${breakEvenDay} ly/ngày** để bù đủ toàn bộ tiền mặt bằng, điện nước và rác.
-- Bán từ ly thứ **${breakEvenDay + 1}** trở đi trong ngày là **LỜI RÒNG TRỌN VẸN**!
+⚖️ **ĐIỂM HÒA VỐN TOÀN QUÁN (THEO TỔNG TIỀN DOANH THU & SỐ LY)**:
+- 🎯 **Doanh thu hòa vốn mỗi ngày**: Cần đạt tối thiểu **~${formatMoney(breakEvenRevenueDay)} / ngày** tổng tiền bán tất cả các món nước trong menu (với biên lãi gộp bình quân ~50%).
+- 🥤 Tương đương bán tối thiểu **${breakEvenDay} ly [${targetDrink.name}] / ngày** để bù đủ toàn bộ tiền mặt bằng (200k), tiền điện 30 ký, nước và chi phí phát sinh.
+- 💰 **Bất kỳ đồng doanh thu nào vượt mốc ${formatMoney(breakEvenRevenueDay)} trong ngày là TIỀN LỜI RÒNG BỎ TÚI TRỌN VẸN!**
 
 *(Anh/Chị có thể bấm vào mục **"🏢 Quản Lý Tiền Vốn & Mặt Bằng"** trong Cài Đặt để điều chỉnh tiền thuê mặt bằng, điện nước hoặc giá cuộn màng ép ly bất kỳ lúc nào ạ!)*`,
     };
