@@ -461,4 +461,28 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Multi-item Batch: '8 cam, 2 rau má, 1 rau má đuậ, 3 trà tắc, 4 mía' -> all 5 items parsed accurately!");
 }
 
+// Test 20: Câu lệnh kép: "sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 3000, voiceUnit: "ly" }],
+    ds: [],
+    defaultOpeningCash: 500000,
+  };
+
+  const res = phanTichTaiChinhNoiBo("sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.action, "set_opening_cash_and_add_transaction");
+  assert.equal(res.openingCash, 43000, "Tiền thối đầu ngày phải cập nhật thành 43k");
+  assert.equal(res.parsed.danhMuc, "Nước mía thường");
+  assert.equal(res.parsed.soLuong, 2);
+  assert.equal(res.parsed.soTien, 16000);
+  assert.equal(res.parsed.tongGiaCost, 6000);
+  assert.ok(res.reply.includes("43.000"), "Phải chứa tiền thối 43k");
+  assert.ok(res.reply.includes("16.000"), "Phải chứa tiền bán 16k");
+  assert.ok(res.reply.includes("59.000"), "Tổng két phải là 43k + 16k = 59.000đ");
+
+  console.log("PASS EV Compound: 'sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k' -> updates float 43k + records 2 ly mía 16k -> 59k in drawer");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

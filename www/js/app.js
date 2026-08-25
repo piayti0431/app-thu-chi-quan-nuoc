@@ -1691,6 +1691,50 @@ function setupAIAssistant() {
           showToast(`Đã ghi nợ: ${result.customerName} (${formatMoney(result.debtAmount)})`);
           return;
         }
+
+        if (result.action === "set_opening_cash") {
+          const today = todayKey();
+          await luuTienThoiDauNgay(today, result.openingCash, result.branch || state.currentBranch || "Quán Nhà (Chính)");
+          state = await docDuLieu();
+          renderAll();
+          triggerAutoSync();
+
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          showToast(`Đã lưu tiền thối: ${formatMoney(result.openingCash)}`);
+          return;
+        }
+
+        if (result.action === "set_opening_cash_and_add_transaction") {
+          const today = todayKey();
+          const branchToUse = result.branch || state.currentBranch || "Quán Nhà (Chính)";
+          await luuTienThoiDauNgay(today, result.openingCash, branchToUse);
+          const parsed = result.parsed;
+          if (parsed && parsed.soTien > 0) {
+            await themGiaoDich({
+              loai: parsed.loai,
+              soTien: parsed.soTien,
+              soLuong: parsed.soLuong || 1,
+              donViTinh: parsed.donViTinh || "ly",
+              phuongThuc: parsed.phuongThuc || "tien_mat",
+              giaCostDonVi: parsed.giaCostDonVi || 0,
+              tongGiaCost: parsed.tongGiaCost || 0,
+              danhMuc: parsed.danhMuc,
+              ghiChu: parsed.ghiChu || q,
+              cauNoiGoc: q,
+              daSuaTay: false,
+              chiNhanh: branchToUse,
+            });
+          }
+          state = await docDuLieu();
+          renderAll();
+          triggerAutoSync();
+
+          loadingDiv.remove();
+          appendBotMessage(result.reply);
+          showToast(`Đã lưu tiền thối ${formatMoney(result.openingCash)} & ghi bán ${parsed.danhMuc}`);
+          return;
+        }
       }
 
       // 2. Lệnh ghi chép giao dịch thực tế của Thư Ký EV

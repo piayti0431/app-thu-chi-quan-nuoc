@@ -158,7 +158,74 @@ export function phanTichTaiChinhNoiBo(query, state) {
     };
   }
 
-  // 2. XỬ LÝ KHÁCH QUEN ĐẶT MÓN ("chú đối diện lấy 2 ly", "anh B lấy như cũ", "chị Lan 1 ly trà tắc")
+  // 2. THIẾT LẬP TIỀN THỐI ĐẦU NGÀY (KÈM HOẶC KHÔNG KÈM GIAO DỊCH BÁN HÀNG)
+  // Ví dụ 1: "sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k"
+  // Ví dụ 2: "tiền thối đầu ngày hôm nay là 100k"
+  const hasOpeningCashPhrase =
+    (norm.includes("tien thoi") || norm.includes("thoi dau ngay") || norm.includes("dau ngay")) &&
+    (/\b(?:la|con|set|chinh|de|co)\s*\d+/i.test(norm) || /\d+\s*(?:k|nghin|ngan|\.000)/i.test(norm));
+
+  if (hasOpeningCashPhrase) {
+    const floatMatch =
+      query.match(/(?:tiền\s+thối|tiền\s+thói|thối|thói|đầu\s+ngày|dau\s+ngay)[^\d]*(\d+(?:[\.,]\d+)?\s*(?:k|nghìn|ngàn|\.000)?)/i) ||
+      query.match(/(\d+(?:[\.,]\d+)?\s*(?:k|nghìn|ngàn|\.000)?)[^\d]*(?:tiền\s+thối|tiền\s+thói|thối|thói)/i);
+
+    let extractedOpeningCash = 0;
+    if (floatMatch) {
+      extractedOpeningCash = extractMoneyFromText(floatMatch[1] || floatMatch[0]);
+    }
+
+    if (extractedOpeningCash > 0) {
+      const cleanTxQuery = query
+        .replace(/(?:tiền\s+thối|tiền\s+thói|thối|thói)\s+(?:đầu\s+ngày\s+)?(?:là\s+|con\s+|được\s+)?\d+\s*(?:k|nghìn|ngàn|\.000)?/gi, "")
+        .replace(/(?:đầu\s+ngày|dau\s+ngay)\s+(?:là\s+)?\d+\s*(?:k|nghìn|ngàn|\.000)?/gi, "")
+        .replace(/[,;]\s*$/g, "")
+        .trim();
+
+      const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+      const parsedTx = cleanTxQuery ? phanTichChiTiet(cleanTxQuery, state.quickItems || []) : null;
+
+      if (parsedTx && (parsedTx.soTien > 0 || (parsedTx.loai === "thu" && parsedTx.slots?.productId))) {
+        const isThu = parsedTx.loai === "thu";
+        const totalCashInDrawer = isThu
+          ? extractedOpeningCash + (parsedTx.phuongThuc === "tien_mat" ? parsedTx.soTien : 0)
+          : Math.max(0, extractedOpeningCash - parsedTx.soTien);
+
+        return {
+          type: "command",
+          action: "set_opening_cash_and_add_transaction",
+          openingCash: extractedOpeningCash,
+          branch: branchToUse,
+          parsed: {
+            ...parsedTx,
+            chiNhanh: branchToUse,
+          },
+          reply: `🏦 **Dạ EV đã cập nhật Tiền Thối Đầu Ngày và Ghi Sổ Bán Hàng**:
+- 💵 **Tiền thối đầu ngày**: **${formatMoney(extractedOpeningCash)}** (Đã cập nhật)
+- ${isThu ? "🥤 **Món vừa bán**" : "🧊 **Khoản vừa chi**"}: **${parsedTx.danhMuc}** (${parsedTx.soLuong} ${parsedTx.donViTinh || "ly"}) ➔ **${isThu ? "+" : "-"}${formatMoney(parsedTx.soTien)}** (${parsedTx.phuongThuc === "chuyen_khoan" ? "Chuyển khoản QR" : "Tiền mặt"})
+- 🧊 **Giá vốn (Cost)**: ${formatMoney(parsedTx.tongGiaCost)}
+--------------------------------------------------
+💰 **TỔNG TIỀN MẶT CẦN CÓ TRONG KÉT**: **${formatMoney(totalCashInDrawer)}**
+*(${formatMoney(extractedOpeningCash)} tiền thối ${isThu ? "+" : "-"} ${formatMoney(parsedTx.soTien)} = ${formatMoney(totalCashInDrawer)})*
+📍 **Điểm bán**: **${branchToUse}**`,
+        };
+      } else {
+        return {
+          type: "action",
+          action: "set_opening_cash",
+          openingCash: extractedOpeningCash,
+          branch: branchToUse,
+          reply: `🏦 **Dạ EV đã cập nhật Tiền Thối Đầu Ngày hôm nay**:
+- 💵 **Số tiền thối đầu ca**: **${formatMoney(extractedOpeningCash)}**
+- 📍 **Áp dụng cho**: **${branchToUse}**
+
+*Két tiền mặt của ${branchToUse} hôm nay sẽ được tính bắt đầu từ ${formatMoney(extractedOpeningCash)}!*`,
+        };
+      }
+    }
+  }
+
+  // 3. XỬ LÝ KHÁCH QUEN ĐẶT MÓN ("chú đối diện lấy 2 ly", "anh B lấy như cũ", "chị Lan 1 ly trà tắc")
   for (const cust of customers) {
     const aliases = cust.aliases || [cust.name.toLowerCase()];
     const matchedAlias = aliases.find((alias) => norm.includes(normalizeQuery(alias)));
@@ -510,8 +577,17 @@ ${expText}
     };
   }
 
-  // 9. KIỂM TRA KÉT TIỀN MẶT / TIỀN THỐI
-  if (norm.includes("ket") || (norm.includes("tien mat") && (norm.includes("con") || norm.includes("kiem tra") || norm.includes("doi soat"))) || norm.includes("thoi") || norm.includes("doi soat")) {
+  // 9. KIỂM TRA / ĐỐI SOÁT KÉT TIỀN MẶT (CHỈ XEM BÁO CÁO)
+  const isDrawerCheck =
+    norm.includes("kiem tra ket") ||
+    norm.includes("doi soat ket") ||
+    norm.includes("tien trong ket") ||
+    norm.includes("ket con bao nhieu") ||
+    norm.includes("ket tien") ||
+    (norm.includes("tien mat") && (norm.includes("con") || norm.includes("kiem tra") || norm.includes("doi soat"))) ||
+    ((norm.includes("thoi") || norm.includes("ket")) && (norm.includes("bao nhieu") || norm.includes("kiem tra") || norm.includes("xem") || norm.includes("doi soat")));
+
+  if (isDrawerCheck) {
     return {
       type: "drawer",
       reply: `🏦 **Dạ EV đối soát tiền mặt trong két hôm nay (${targetBranch || "Quán Nhà"})**:

@@ -39,6 +39,15 @@
     > Anh/Chị cho EV hỏi đơn này là **mấy ly Trà Tắc** (hoặc khách có chuyển kèm món gì khác / tiền boa) để EV ghi sổ và tính giá vốn chính xác nhé? »*
   - Khi người dùng trả lời (VD: *"17 ly"* hoặc *"16 ly khách boa 9k"*), EV ghi sổ đúng số ly và cập nhật giá vốn chính xác!
 
+### C. Trường hợp câu lệnh kép (Vừa đặt tiền thối đầu ngày + Vừa bán hàng):
+- **Ví dụ câu nói**: *"sáng nay vừa bán được 2 ly mía thường, tiền thói đầu ngày là 43k"*
+- **EV tự động phân tách và xử lý cả 2 việc cùng lúc**:
+  1. 💵 Cập nhật **Tiền thối đầu ngày = 43.000đ** (thay cho số mặc định 500k).
+  2. 🥤 Ghi nhận đơn bán: **+ Thu tiền bán 2 ly Nước mía thường (16.000đ)**, Giá vốn: 6.000đ.
+  3. 🏦 Tự động tính chuẩn xác két tiền mặt hiện tại:
+     $$\text{Tổng tiền mặt trong két} = 43.000đ (\text{tiền thối}) + 16.000đ (\text{bán mía}) = \mathbf{59.000đ}$$
+  4. Xác nhận rõ ràng cả 2 nội dung cho chủ quán an tâm.
+
 ---
 
 ## 📦 4. QUY TẮC BÓC TÁCH ĐƠN NHIỀU MÓN TRONG 1 CÂU (MULTI-ITEM BATCH)
