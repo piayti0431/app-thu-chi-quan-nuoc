@@ -431,7 +431,103 @@
                   <button class="primary-action slim" id="saveMenuBtn" type="button">Lưu bảng giá Menu</button>
                 </div>
                 <button class="ghost-button" id="openCostCalcBtn" type="button" style="color: #0284c7; border-color: #bae6fd; background: #f0f9ff; font-weight: 700;">
-                  🧮 Bảng Tính Giá Vốn (Cost) & Mặt Bằng Chi Tiết
+                  🧮 Bảng Tính Giá Vốn (Cost) Món Chi Tiết
+                </button>
+              </div>
+            </div>
+
+            <!-- BỘ QUẢN LÝ ĐỊNH PHÍ MẶT BẰNG, ĐIỆN NƯỚC RÁC & VẬT TƯ BAO BÌ (MÀNG ÉP CUỘN, LY, BỌC, ỐNG HÚT) -->
+            <div class="settings-card full-width" id="costSettingsCard" style="border: 2px solid #0284c7; background: #f8fafc;">
+              <div class="card-head" style="border-bottom: 1px solid #e2e8f0; padding-bottom: 0.6rem; margin-bottom: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+                  <div>
+                    <h2 style="color: #0369a1;">🏢 Quản Lý Tiền Vốn, Mặt Bằng, Điện Nước Rác & Vật Tư Bao Bì</h2>
+                    <p class="subtitle" style="color: #475569;">Cài đặt chi phí cố định (Mặt bằng, Điện, Nước, Rác) và giá mua vật tư (Màng ép ly cuộn, Ly nhựa, Bọc, Ống hút, Đá viên) để tự động tính giá vốn 1 ly nước.</p>
+                  </div>
+                  <button class="ghost-button" id="openCostCalcModalFromSettingsBtn" type="button" style="color: #0284c7; border-color: #bae6fd; background: #ffffff; font-weight: 700; white-space: nowrap;">
+                    🧮 Bảng Tính Món Chi Tiết
+                  </button>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;">
+                <!-- NHÓM 1: ĐỊNH PHÍ VẬN HÀNH HÀNG THÁNG -->
+                <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: var(--radius-md); padding: 0.85rem;">
+                  <h3 style="margin: 0 0 0.5rem; font-size: 0.92rem; font-weight: 800; color: #9a3412; display: flex; align-items: center; gap: 0.35rem;">
+                    <span>🏠 1. Định Phí Vận Hành Hàng Tháng (Cố định)</span>
+                  </h3>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.82rem;">
+                    <label style="margin: 0;">
+                      <span>🏢 Tiền mặt bằng (đ/tháng):</span>
+                      <input id="settingRentMonthly" type="number" inputmode="numeric" placeholder="6000000" style="padding: 0.4rem; font-size: 0.88rem; font-weight: 700;">
+                    </label>
+                    <label style="margin: 0;">
+                      <span>⚡ Tiền điện (đ/tháng):</span>
+                      <input id="settingElectricityMonthly" type="number" inputmode="numeric" placeholder="1000000" style="padding: 0.4rem; font-size: 0.88rem; font-weight: 700;">
+                    </label>
+                    <label style="margin: 0;">
+                      <span>💧 Tiền nước (đ/tháng):</span>
+                      <input id="settingWaterMonthly" type="number" inputmode="numeric" placeholder="300000" style="padding: 0.4rem; font-size: 0.88rem; font-weight: 700;">
+                    </label>
+                    <label style="margin: 0;">
+                      <span>🗑️ Tiền rác & vệ sinh (đ/tháng):</span>
+                      <input id="settingTrashMonthly" type="number" inputmode="numeric" placeholder="50000" style="padding: 0.4rem; font-size: 0.88rem; font-weight: 700;">
+                    </label>
+                    <label style="margin: 0;">
+                      <span>⚙️ Khấu hao máy & khác (đ):</span>
+                      <input id="settingOtherMonthly" type="number" inputmode="numeric" placeholder="450000" style="padding: 0.4rem; font-size: 0.88rem; font-weight: 700;">
+                    </label>
+                    <label style="margin: 0;">
+                      <span>🎯 Sản lượng bán (ly/ngày):</span>
+                      <input id="settingExpectedCupsDay" type="number" inputmode="numeric" placeholder="80" style="padding: 0.4rem; font-size: 0.88rem; font-weight: 800; color: #ea580c;">
+                    </label>
+                  </div>
+                  
+                  <div style="display: flex; justify-content: space-between; align-items: center; background: #fff7ed; border: 1px solid #fed7aa; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); margin-top: 0.75rem;">
+                    <div>
+                      <small style="color: #7c2d12; font-weight: 700;">Tổng định phí: <span id="settingTotalMonthlyOverheadDisplay" style="color: #9a3412; font-weight: 800;">7.800.000 đ</span>/tháng</small>
+                      <br>
+                      <small style="color: #475569;">Điểm hòa vốn: <span id="settingBreakEvenDayDisplay" style="font-weight: 800; color: #0284c7;">40 ly / ngày</span></small>
+                    </div>
+                    <div style="text-align: right;">
+                      <span style="font-size: 0.75rem; color: #9a3412; font-weight: 700;">Mặt bằng & vận hành:</span>
+                      <strong id="settingOverheadPerCupDisplay" style="display: block; font-size: 1.1rem; color: #c2410c;">3.250 đ / ly</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- NHÓM 2: BẢNG GIÁ VẬT TƯ BAO BÌ ĐÓNG GÓI -->
+                <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: var(--radius-md); padding: 0.85rem;">
+                  <h3 style="margin: 0 0 0.5rem; font-size: 0.92rem; font-weight: 800; color: #065f46; display: flex; align-items: center; gap: 0.35rem;">
+                    <span>🥤 2. Giá Vốn Vật Tư & Bao Bì Đóng Gói (Biến phí / 1 ly)</span>
+                  </h3>
+                  
+                  <div class="stats-table-wrap" style="max-height: 230px; overflow-y: auto;">
+                    <table class="stats-table" style="font-size: 0.8rem;">
+                      <thead>
+                        <tr>
+                          <th>Vật tư / Quy cách</th>
+                          <th style="width: 28%;">Giá mua (đ)</th>
+                          <th style="width: 24%;">Số ly làm ra</th>
+                          <th style="width: 24%;" class="text-right">Tiền vốn/ly</th>
+                        </tr>
+                      </thead>
+                      <tbody id="packagingEditorBody">
+                        <!-- Dynamically populated -->
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div style="display: flex; justify-content: space-between; align-items: center; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); margin-top: 0.75rem;">
+                    <span style="font-size: 0.82rem; font-weight: 700; color: #065f46;">Tổng Vốn Bao Bì Cho 1 Ly Nước:</span>
+                    <strong id="settingTotalPackagingCostDisplay" style="font-size: 1.05rem; color: #047857;">1.370 đ / ly</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="button-row" style="margin-top: 0.85rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="primary-action" id="saveOverheadAndPackagingBtn" type="button" style="font-weight: 800; padding: 0.55rem 1.25rem;">
+                  💾 Lưu Cấu Hình Định Phí & Giá Vốn Vật Tư
                 </button>
               </div>
             </div>
@@ -597,20 +693,28 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                   <label style="margin: 0; font-size: 0.8rem;">
-                    <span>Tiền thuê mặt bằng / tháng (đ):</span>
-                    <input id="calcRentMonthly" type="number" value="6000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 600;">
+                    <span>🏢 Tiền thuê mặt bằng (đ/tháng):</span>
+                    <input id="calcRentMonthly" type="number" value="6000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
-                    <span>Tiền điện + nước + gas / tháng (đ):</span>
-                    <input id="calcUtilitiesMonthly" type="number" value="1200000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 600;">
+                    <span>⚡ Tiền điện (đ/tháng):</span>
+                    <input id="calcElectricityMonthly" type="number" value="1000000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
-                    <span>Khấu hao máy + Chi khác / tháng (đ):</span>
-                    <input id="calcOtherMonthly" type="number" value="600000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 600;">
+                    <span>💧 Tiền nước (đ/tháng):</span>
+                    <input id="calcWaterMonthly" type="number" value="300000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
                   </label>
                   <label style="margin: 0; font-size: 0.8rem;">
-                    <span>Sản lượng bán dự kiến (ly / ngày):</span>
-                    <input id="calcExpectedCupsDay" type="number" value="80" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700; color: #ea580c;">
+                    <span>🗑️ Tiền rác & vệ sinh (đ/tháng):</span>
+                    <input id="calcTrashMonthly" type="number" value="50000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
+                  </label>
+                  <label style="margin: 0; font-size: 0.8rem;">
+                    <span>⚙️ Khấu hao máy & khác (đ):</span>
+                    <input id="calcOtherMonthly" type="number" value="450000" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 700;">
+                  </label>
+                  <label style="margin: 0; font-size: 0.8rem;">
+                    <span>🎯 Sản lượng bán (ly / ngày):</span>
+                    <input id="calcExpectedCupsDay" type="number" value="80" style="padding: 0.35rem; font-size: 0.85rem; font-weight: 800; color: #ea580c;">
                   </label>
                 </div>
 

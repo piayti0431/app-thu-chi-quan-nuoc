@@ -183,17 +183,27 @@ export function phanTichTaiChinhNoiBo(query, state) {
     };
   }
 
-  // 3. TÍNH TOÁN CHI PHÍ GIÁ COST 1 LY NƯỚC, TIỀN NGUYÊN LIỆU & TIỀN MẶT BẰNG
+  // 3. TÍNH TOÁN CHI PHÍ GIÁ COST 1 LY NƯỚC, TIỀN NGUYÊN LIỆU, MẶT BẰNG, ĐIỆN NƯỚC RÁC & VẬT TƯ (MÀNG ÉP CUỘN, LY, BỌC, ỐNG HÚT)
   if (
-    (norm.includes("tinh cost") || norm.includes("gia cost") || norm.includes("tinh gia von") || norm.includes("chi phi 1 ly") || norm.includes("chi phi mot ly") || norm.includes("tien mat bang") || norm.includes("tien nguyen lieu") || norm.includes("gia von 1 ly") || norm.includes("cost 1 ly")) &&
-    (norm.includes("ly") || norm.includes("nuoc") || norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") || norm.includes("quan"))
+    (norm.includes("tinh cost") || norm.includes("gia cost") || norm.includes("tinh gia von") || norm.includes("chi phi 1 ly") || norm.includes("chi phi mot ly") || norm.includes("tien mat bang") || norm.includes("tien dien") || norm.includes("tien nuoc") || norm.includes("tien rac") || norm.includes("mang ep") || norm.includes("cuon mang") || norm.includes("tien nguyen lieu") || norm.includes("gia von 1 ly") || norm.includes("cost 1 ly")) &&
+    (norm.includes("ly") || norm.includes("nuoc") || norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") || norm.includes("quan") || norm.includes("thang") || norm.includes("cuon"))
   ) {
     const quickItems = state.quickItems || [];
     const overhead = state.overheadConfig || {
       rentMonthly: 6000000,
-      utilitiesMonthly: 1200000,
-      otherMonthly: 600000,
+      electricityMonthly: 1000000,
+      waterMonthly: 300000,
+      trashMonthly: 50000,
+      depreciationMonthly: 300000,
+      otherMonthly: 150000,
       expectedCupsPerDay: 80,
+    };
+    const packaging = state.packagingConfig || {
+      filmRoll: { name: "Màng ép ly", unit: "cuộn", batchCost: 140000, batchYield: 2000, unitCost: 70 },
+      cups: { name: "Ly nhựa", unit: "cây (50 cái)", batchCost: 35000, batchYield: 50, unitCost: 700 },
+      bags: { name: "Bọc / Túi chữ T", unit: "bọc", batchCost: 25000, batchYield: 250, unitCost: 100 },
+      straws: { name: "Ống hút", unit: "gói", batchCost: 25000, batchYield: 250, unitCost: 100 },
+      ice: { name: "Đá viên sạch", unit: "bao", batchCost: 15000, batchYield: 30, unitCost: 500 },
     };
 
     // Find requested drink or default to "Nước mía thường"
@@ -207,7 +217,13 @@ export function phanTichTaiChinhNoiBo(query, state) {
 
     const sellingPrice = targetDrink.price || 10000;
     const cogs = targetDrink.costPrice || 3500;
-    const totalOverhead = (overhead.rentMonthly || 6000000) + (overhead.utilitiesMonthly || 1200000) + (overhead.otherMonthly || 600000);
+    const rent = overhead.rentMonthly ?? 6000000;
+    const elec = overhead.electricityMonthly ?? 1000000;
+    const water = overhead.waterMonthly ?? 300000;
+    const trash = overhead.trashMonthly ?? 50000;
+    const other = (overhead.depreciationMonthly || 0) + (overhead.otherMonthly || 0) || 450000;
+    const totalOverhead = rent + elec + water + trash + other;
+
     const monthlyCups = (overhead.expectedCupsPerDay || 80) * 30;
     const overheadPerCup = Math.round(totalOverhead / (monthlyCups || 1));
     const totalCost = cogs + overheadPerCup;
@@ -218,33 +234,49 @@ export function phanTichTaiChinhNoiBo(query, state) {
     const overheadPercent = ((overheadPerCup / sellingPrice) * 100).toFixed(1);
     const netPercent = ((netProfit / sellingPrice) * 100).toFixed(1);
 
-    let ingredientDetail = "   - *Bao gồm: Mía/trái cây tươi, đá viên sạch, ly nhựa + nắp, ống hút, túi chữ T...*";
+    const filmCost = packaging.filmRoll?.unitCost || 70;
+    const cupCost = packaging.cups?.unitCost || 700;
+    const bagCost = packaging.bags?.unitCost || 100;
+    const strawCost = packaging.straws?.unitCost || 100;
+    const iceCost = packaging.ice?.unitCost || 500;
+    const totalPackCost = filmCost + cupCost + bagCost + strawCost + iceCost;
+
+    let ingredientDetail = `   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 140000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
+   - 🥤 **Ly nhựa**: 1 cây 50 ly (${formatMoney(packaging.cups?.batchCost || 35000)}) ➔ **${formatMoney(cupCost)} / ly**.
+   - 🛍️ **Bọc / Túi chữ T & Ống hút**: ➔ **${formatMoney(bagCost + strawCost)} / ly**.
+   - 🧊 **Đá viên sạch**: 1 bao (${formatMoney(packaging.ice?.batchCost || 15000)}) ➔ **${formatMoney(iceCost)} / ly**.`;
+
     if (targetDrink.id === "nuoc_mia" || targetDrink.name.toLowerCase().includes("mía")) {
-      ingredientDetail = `   - 🎋 **Mía cây tươi**: 1 bó 10kg (90.000đ) ép được ước chừng ~20 ly ➔ **4.500 đ / ly** (~0.5kg mía/ly).
-   - 🧊 **Đá viên sạch**: 1 bao 15.000đ dùng 30 ly ➔ **500 đ / ly**.
-   - 🥤 **Ly nhựa + Nắp ép**: 1 cây 50 cái giá 35.000đ ➔ **700 đ / ly**.
-   - 🛍️ **Ống hút + Quai xách túi chữ T**: ➔ **100 đ / ly**.
-   - 🍋 **Trái tắc thơm ép kèm**: ➔ **200 đ / ly**.`;
+      ingredientDetail = `   - 🎋 **Mía cây tươi**: 1 bó 10kg (90.000đ) ép ~20 ly ➔ **4.500 đ / ly** (~0.5kg mía/ly).
+   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 140000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
+   - 🥤 **Ly nhựa**: 1 cây 50 ly (${formatMoney(packaging.cups?.batchCost || 35000)}) ➔ **${formatMoney(cupCost)} / ly**.
+   - 🛍️ **Bọc chữ T + Ống hút**: ➔ **${formatMoney(bagCost + strawCost)} / ly**.
+   - 🧊 **Đá viên sạch**: 1 bao (${formatMoney(packaging.ice?.batchCost || 15000)}) ➔ **${formatMoney(iceCost)} / ly**.
+   - 🍋 **Trái tắc thơm kèm**: ➔ **200 đ / ly**.`;
     }
 
     return {
       type: "analysis",
       category: "cost_breakdown",
-      reply: `🧮 **BẢNG PHÂN TÍCH CHI PHÍ GIÁ COST & ĐỊNH PHÍ 1 LY [${targetDrink.name.toUpperCase()}]**:
+      reply: `🧮 **BẢNG PHÂN TÍCH CHI PHÍ GIÁ COST, MẶT BẰNG & VẬT TƯ 1 LY [${targetDrink.name.toUpperCase()}]**:
 
 1. 💵 **Giá Bán Ra**: **${formatMoney(sellingPrice)}** / ly (100%)
-2. 📦 **Tiền Vốn Nguyên Liệu (COGS)**: **${formatMoney(cogs)}** (${cogsPercent}%)
+2. 📦 **Tiền Vốn Nguyên Liệu & Bao Bì (COGS)**: **${formatMoney(cogs)}** (${cogsPercent}%)
 ${ingredientDetail}
-3. 🏢 **Phân Bổ Mặt Bằng & Vận Hành**: **${formatMoney(overheadPerCup)}** (${overheadPercent}%)
-   - *Tính trên tiền thuê mặt bằng (${formatMoney(overhead.rentMonthly || 6000000)}/tháng) + điện nước (${formatMoney(overhead.utilitiesMonthly || 1200000)}/tháng) chia cho ${overhead.expectedCupsPerDay || 80} ly/ngày.*
+   *(Tổng vốn bao bì đóng gói chuẩn: ~${formatMoney(totalPackCost)}/ly)*
+3. 🏢 **Phân Bổ Định Phí Mặt Bằng & Vận Hành**: **${formatMoney(overheadPerCup)}** (${overheadPercent}%)
+   - 🏠 Tiền thuê mặt bằng: **${formatMoney(rent)}** / tháng
+   - ⚡ Tiền điện: **${formatMoney(elec)}** / tháng | 💧 Tiền nước: **${formatMoney(water)}** / tháng
+   - 🗑️ Tiền rác & vệ sinh: **${formatMoney(trash)}** / tháng | ⚙️ Khấu hao & khác: **${formatMoney(other)}** / tháng
+   ➔ *Tổng định phí: **${formatMoney(totalOverhead)}/tháng** chia cho **${overhead.expectedCupsPerDay || 80} ly/ngày**.*
 4. 🎯 **TỔNG CHI PHÍ THỰC TẾ 1 LY**: **${formatMoney(totalCost)}** (${((totalCost / sellingPrice) * 100).toFixed(1)}%)
 5. 💰 **LỢI NHUẬN RÒNG TRÊN 1 LY**: **+${formatMoney(netProfit)}** (Tỷ suất sinh lời: **${netPercent}%**)
 
 ⚖️ **ĐIỂM HÒA VỐN**:
-- Quán cần bán tối thiểu **${breakEvenDay} ly/ngày** để gánh đủ tiền thuê mặt bằng và điện nước.
-- Từ ly thứ **${breakEvenDay + 1}** trở đi trong ngày, toàn bộ tiền thu về là **LỜI RÒNG** đút túi!
+- Quán cần bán tối thiểu **${breakEvenDay} ly/ngày** để bù đủ toàn bộ tiền mặt bằng, điện nước và rác.
+- Bán từ ly thứ **${breakEvenDay + 1}** trở đi trong ngày là **LỜI RÒNG TRỌN VẸN**!
 
-*(Anh/Chị có thể bấm vào nút **"🧮 Bảng Tính Giá Vốn"** trong mục Cài Đặt Menu để tùy chỉnh chi tiết từng gram nguyên liệu hoặc đổi tiền thuê mặt bằng nhé!)*`,
+*(Anh/Chị có thể bấm vào mục **"🏢 Quản Lý Tiền Vốn & Mặt Bằng"** trong Cài Đặt để điều chỉnh tiền thuê mặt bằng, điện nước hoặc giá cuộn màng ép ly bất kỳ lúc nào ạ!)*`,
     };
   }
 

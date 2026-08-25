@@ -163,12 +163,20 @@ export const DEFAULT_DATA = {
     },
   ],
   overheadConfig: {
-    rentMonthly: 6000000,
-    utilitiesMonthly: 1200000,
-    laborMonthly: 0,
-    depreciationMonthly: 300000,
-    otherMonthly: 300000,
-    expectedCupsPerDay: 80,
+    rentMonthly: 6000000,          // Tiền thuê mặt bằng (đ/tháng)
+    electricityMonthly: 1000000,   // Tiền điện (đ/tháng)
+    waterMonthly: 300000,          // Tiền nước (đ/tháng)
+    trashMonthly: 50000,           // Tiền rác & vệ sinh môi trường (đ/tháng)
+    depreciationMonthly: 300000,   // Khấu hao máy ép & máy móc (đ/tháng)
+    otherMonthly: 150000,          // Chi phí khác / internet (đ/tháng)
+    expectedCupsPerDay: 80,        // Sản lượng bán dự kiến (ly/ngày)
+  },
+  packagingConfig: {
+    filmRoll: { name: "Màng ép ly", unit: "cuộn", batchCost: 140000, batchYield: 2000, unitCost: 70 },
+    cups: { name: "Ly nhựa", unit: "cây (50 cái)", batchCost: 35000, batchYield: 50, unitCost: 700 },
+    bags: { name: "Bọc / Túi chữ T", unit: "bọc", batchCost: 25000, batchYield: 250, unitCost: 100 },
+    straws: { name: "Ống hút", unit: "gói", batchCost: 25000, batchYield: 250, unitCost: 100 },
+    ice: { name: "Đá viên sạch", unit: "bao", batchCost: 15000, batchYield: 30, unitCost: 500 },
   },
   costFormulas: {
     nuoc_mia: {
@@ -423,6 +431,7 @@ export function mergeData(data) {
     quickItems: mergedQuickItems,
     quickPrices: legacyPrices || mergedQuickItems.map((item) => item.price),
     overheadConfig: { ...(base.overheadConfig || {}), ...(data?.overheadConfig || {}) },
+    packagingConfig: { ...(base.packagingConfig || {}), ...(data?.packagingConfig || {}) },
     costFormulas: { ...(base.costFormulas || {}), ...(data?.costFormulas || {}) },
     crmCustomers: Array.isArray(data?.crmCustomers) ? data.crmCustomers : (base.crmCustomers || []),
     restartLogs: Array.isArray(data?.restartLogs) ? data.restartLogs : (base.restartLogs || []),
@@ -794,8 +803,39 @@ export async function luuOverheadConfig(overhead) {
     ...(data.overheadConfig || DEFAULT_DATA.overheadConfig),
     ...overhead,
   };
+  data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.overheadConfig;
+}
+
+export async function luuPackagingConfig(packaging) {
+  const data = await docDuLieu();
+  data.packagingConfig = {
+    ...(data.packagingConfig || DEFAULT_DATA.packagingConfig),
+    ...packaging,
+  };
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return data.packagingConfig;
+}
+
+export async function luuOverheadVaPackagingConfig(overhead, packaging) {
+  const data = await docDuLieu();
+  if (overhead) {
+    data.overheadConfig = {
+      ...(data.overheadConfig || DEFAULT_DATA.overheadConfig),
+      ...overhead,
+    };
+  }
+  if (packaging) {
+    data.packagingConfig = {
+      ...(data.packagingConfig || DEFAULT_DATA.packagingConfig),
+      ...packaging,
+    };
+  }
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return { overheadConfig: data.overheadConfig, packagingConfig: data.packagingConfig };
 }
 
 export async function luuCostFormula(drinkId, formula) {

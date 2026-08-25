@@ -199,6 +199,9 @@ export async function dongBo() {
     if (remoteSettings.overheadConfig) {
       data.overheadConfig = remoteSettings.overheadConfig;
     }
+    if (remoteSettings.packagingConfig) {
+      data.packagingConfig = remoteSettings.packagingConfig;
+    }
     if (remoteSettings.costFormulas) {
       data.costFormulas = remoteSettings.costFormulas;
     }
@@ -235,6 +238,7 @@ export async function dongBo() {
             quickItems: data.quickItems || [],
             branches: data.branches || [],
             overheadConfig: data.overheadConfig || {},
+            packagingConfig: data.packagingConfig || {},
             costFormulas: data.costFormulas || {},
             defaultOpeningCash: data.defaultOpeningCash || 500000,
             openingCashByDate: data.openingCashByDate || {},

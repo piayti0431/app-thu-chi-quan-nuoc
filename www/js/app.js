@@ -9,6 +9,8 @@ import {
   luuDanhSachMenu,
   luuDuLieu,
   luuOverheadConfig,
+  luuOverheadVaPackagingConfig,
+  luuPackagingConfig,
   luuTienThoiDauNgay,
   luuKhachQuen,
   nhapDuLieuTuJson,
@@ -983,8 +985,11 @@ function openCostCalculatorModal(drinkId = null) {
   const quickItems = state.quickItems || [];
   const overhead = state.overheadConfig || {
     rentMonthly: 6000000,
-    utilitiesMonthly: 1200000,
-    otherMonthly: 600000,
+    electricityMonthly: 1000000,
+    waterMonthly: 300000,
+    trashMonthly: 50000,
+    depreciationMonthly: 300000,
+    otherMonthly: 150000,
     expectedCupsPerDay: 80,
   };
 
@@ -999,10 +1004,12 @@ function openCostCalculatorModal(drinkId = null) {
   currentCostDrinkId = drinkId || select?.value || quickItems[0]?.id || "nuoc_mia";
 
   // Load overhead inputs
-  $("#calcRentMonthly").value = overhead.rentMonthly || 6000000;
-  $("#calcUtilitiesMonthly").value = overhead.utilitiesMonthly || 1200000;
-  $("#calcOtherMonthly").value = overhead.otherMonthly || 600000;
-  $("#calcExpectedCupsDay").value = overhead.expectedCupsPerDay || 80;
+  if ($("#calcRentMonthly")) $("#calcRentMonthly").value = overhead.rentMonthly ?? 6000000;
+  if ($("#calcElectricityMonthly")) $("#calcElectricityMonthly").value = overhead.electricityMonthly ?? 1000000;
+  if ($("#calcWaterMonthly")) $("#calcWaterMonthly").value = overhead.waterMonthly ?? 300000;
+  if ($("#calcTrashMonthly")) $("#calcTrashMonthly").value = overhead.trashMonthly ?? 50000;
+  if ($("#calcOtherMonthly")) $("#calcOtherMonthly").value = (overhead.depreciationMonthly || 0) + (overhead.otherMonthly || 0) || 450000;
+  if ($("#calcExpectedCupsDay")) $("#calcExpectedCupsDay").value = overhead.expectedCupsPerDay ?? 80;
 
   loadCostDrinkData(currentCostDrinkId);
   dialog.showModal();
@@ -1120,11 +1127,13 @@ function recalculateCostSummary() {
   const cogsDisplay = $("#totalCogsDisplay");
   if (cogsDisplay) cogsDisplay.textContent = formatMoney(totalCogs);
 
-  // 2. Overhead allocation
+  // 2. Overhead allocation (Mặt bằng, Điện, Nước, Rác, Chi khác)
   const rent = Number($("#calcRentMonthly")?.value) || 0;
-  const util = Number($("#calcUtilitiesMonthly")?.value) || 0;
+  const elec = Number($("#calcElectricityMonthly")?.value) || 0;
+  const water = Number($("#calcWaterMonthly")?.value) || 0;
+  const trash = Number($("#calcTrashMonthly")?.value) || 0;
   const other = Number($("#calcOtherMonthly")?.value) || 0;
-  const totalOverheadMonthly = rent + util + other;
+  const totalOverheadMonthly = rent + elec + water + trash + other;
 
   const cupsPerDay = Number($("#calcExpectedCupsDay")?.value) || 1;
   const monthlyCups = cupsPerDay * 30;
@@ -1186,6 +1195,123 @@ function recalculateCostSummary() {
   }
 }
 
+// ----------------------------------------------------
+// OVERHEAD & PACKAGING COST SETTINGS (QUẢN LÝ TIỀN VỐN MẶT BẰNG & VẬT TƯ BAO BÌ)
+// ----------------------------------------------------
+
+function updateOverheadAndPackagingDisplays() {
+  const rent = Number($("#settingRentMonthly")?.value) || 0;
+  const elec = Number($("#settingElectricityMonthly")?.value) || 0;
+  const water = Number($("#settingWaterMonthly")?.value) || 0;
+  const trash = Number($("#settingTrashMonthly")?.value) || 0;
+  const other = Number($("#settingOtherMonthly")?.value) || 0;
+  const cupsPerDay = Number($("#settingExpectedCupsDay")?.value) || 1;
+
+  const totalMonthly = rent + elec + water + trash + other;
+  const totalMonthlyCups = cupsPerDay * 30;
+  const overheadPerCup = Math.round(totalMonthly / (totalMonthlyCups || 1));
+  const avgProfitPerDrink = 4000;
+  const breakEvenCupsDaily = Math.ceil(totalMonthly / (30 * avgProfitPerDrink));
+
+  if ($("#settingTotalMonthlyOverheadDisplay")) $("#settingTotalMonthlyOverheadDisplay").textContent = `${formatMoney(totalMonthly)}/tháng`;
+  if ($("#settingOverheadPerCupDisplay")) $("#settingOverheadPerCupDisplay").textContent = `${formatMoney(overheadPerCup)} / ly`;
+  if ($("#settingBreakEvenDayDisplay")) $("#settingBreakEvenDayDisplay").textContent = `${breakEvenCupsDaily} ly / ngày`;
+
+  // Calculate packaging cost per cup
+  let totalPackUnitCost = 0;
+  $$("#packagingEditorBody tr").forEach((tr) => {
+    const cost = Number(tr.querySelector(".pack-cost-input")?.value) || 0;
+    const yieldVal = Number(tr.querySelector(".pack-yield-input")?.value) || 1;
+    const uCost = Math.round(cost / (yieldVal || 1));
+    totalPackUnitCost += uCost;
+    const uElem = tr.querySelector(".pack-unit-cost");
+    if (uElem) uElem.textContent = formatMoney(uCost);
+  });
+
+  if ($("#settingTotalPackagingCostDisplay")) {
+    $("#settingTotalPackagingCostDisplay").textContent = `${formatMoney(totalPackUnitCost)} / ly`;
+  }
+}
+
+function renderOverheadAndPackagingManager() {
+  const overhead = state.overheadConfig || {
+    rentMonthly: 6000000,
+    electricityMonthly: 1000000,
+    waterMonthly: 300000,
+    trashMonthly: 50000,
+    depreciationMonthly: 300000,
+    otherMonthly: 150000,
+    expectedCupsPerDay: 80,
+  };
+
+  // Populate overhead inputs
+  const rentInput = $("#settingRentMonthly");
+  if (rentInput) rentInput.value = overhead.rentMonthly ?? 6000000;
+  const elecInput = $("#settingElectricityMonthly");
+  if (elecInput) elecInput.value = overhead.electricityMonthly ?? 1000000;
+  const waterInput = $("#settingWaterMonthly");
+  if (waterInput) waterInput.value = overhead.waterMonthly ?? 300000;
+  const trashInput = $("#settingTrashMonthly");
+  if (trashInput) trashInput.value = overhead.trashMonthly ?? 50000;
+  const otherInput = $("#settingOtherMonthly");
+  if (otherInput) otherInput.value = (overhead.depreciationMonthly || 0) + (overhead.otherMonthly || 0) || 450000;
+  const cupsInput = $("#settingExpectedCupsDay");
+  if (cupsInput) cupsInput.value = overhead.expectedCupsPerDay ?? 80;
+
+  // Populate packaging table (Màng ép ly cuộn, Ly nhựa, Bọc, Ống hút, Đá viên)
+  const packaging = state.packagingConfig || {
+    filmRoll: { name: "Màng ép ly", unit: "cuộn", batchCost: 140000, batchYield: 2000, unitCost: 70 },
+    cups: { name: "Ly nhựa", unit: "cây (50 cái)", batchCost: 35000, batchYield: 50, unitCost: 700 },
+    bags: { name: "Bọc / Túi chữ T", unit: "bọc", batchCost: 25000, batchYield: 250, unitCost: 100 },
+    straws: { name: "Ống hút", unit: "gói", batchCost: 25000, batchYield: 250, unitCost: 100 },
+    ice: { name: "Đá viên sạch", unit: "bao", batchCost: 15000, batchYield: 30, unitCost: 500 },
+  };
+
+  const tbody = $("#packagingEditorBody");
+  if (tbody) {
+    const rows = [
+      { key: "filmRoll", ...packaging.filmRoll },
+      { key: "cups", ...packaging.cups },
+      { key: "bags", ...packaging.bags },
+      { key: "straws", ...packaging.straws },
+      { key: "ice", ...packaging.ice },
+    ];
+
+    tbody.innerHTML = rows
+      .map((item) => {
+        const cost = Number(item.batchCost) || 0;
+        const yieldVal = Number(item.batchYield) || 1;
+        const unitCost = Math.round(cost / (yieldVal || 1));
+        return `
+          <tr data-pack-key="${item.key}">
+            <td>
+              <strong style="color: #0f172a;">${item.name}</strong>
+              <br><small style="color: var(--muted);">${item.unit}</small>
+            </td>
+            <td>
+              <input class="pack-cost-input" type="number" value="${cost}" style="width: 100%; padding: 0.25rem; font-size: 0.8rem; font-weight: 700;">
+            </td>
+            <td>
+              <input class="pack-yield-input" type="number" value="${yieldVal}" style="width: 100%; padding: 0.25rem; font-size: 0.8rem;">
+            </td>
+            <td class="text-right" style="font-weight: 700; color: #047857;">
+              <span class="pack-unit-cost">${formatMoney(unitCost)}</span>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    $$("#packagingEditorBody input").forEach((input) => {
+      input.addEventListener("input", () => {
+        updateOverheadAndPackagingDisplays();
+      });
+    });
+  }
+
+  updateOverheadAndPackagingDisplays();
+}
+
 function renderBranchManager() {
   const container = $("#branchListEditor");
   if (!container) return;
@@ -1224,6 +1350,7 @@ function renderAll() {
   renderHistory();
   renderStats();
   renderMenuManager();
+  renderOverheadAndPackagingManager();
   renderBranchManager();
 
   const defaultCashInput = $("#defaultOpeningCashInput");
@@ -1615,10 +1742,59 @@ function initEventListeners() {
     recalculateCostSummary();
   });
 
-  ["#calcRentMonthly", "#calcUtilitiesMonthly", "#calcOtherMonthly", "#calcExpectedCupsDay"].forEach((sel) => {
+  ["#calcRentMonthly", "#calcElectricityMonthly", "#calcWaterMonthly", "#calcTrashMonthly", "#calcOtherMonthly", "#calcExpectedCupsDay"].forEach((sel) => {
     $(sel)?.addEventListener("input", () => {
       recalculateCostSummary();
     });
+  });
+
+  ["#settingRentMonthly", "#settingElectricityMonthly", "#settingWaterMonthly", "#settingTrashMonthly", "#settingOtherMonthly", "#settingExpectedCupsDay"].forEach((sel) => {
+    $(sel)?.addEventListener("input", () => {
+      updateOverheadAndPackagingDisplays();
+    });
+  });
+
+  $("#openCostCalcModalFromSettingsBtn")?.addEventListener("click", () => {
+    openCostCalculatorModal();
+  });
+
+  $("#saveOverheadAndPackagingBtn")?.addEventListener("click", async () => {
+    const rentMonthly = Number($("#settingRentMonthly")?.value) || 0;
+    const electricityMonthly = Number($("#settingElectricityMonthly")?.value) || 0;
+    const waterMonthly = Number($("#settingWaterMonthly")?.value) || 0;
+    const trashMonthly = Number($("#settingTrashMonthly")?.value) || 0;
+    const otherMonthly = Number($("#settingOtherMonthly")?.value) || 0;
+    const expectedCupsPerDay = Number($("#settingExpectedCupsDay")?.value) || 80;
+
+    const newOverhead = {
+      rentMonthly,
+      electricityMonthly,
+      waterMonthly,
+      trashMonthly,
+      otherMonthly,
+      expectedCupsPerDay,
+    };
+
+    const newPackaging = {};
+    $$("#packagingEditorBody tr").forEach((tr) => {
+      const key = tr.getAttribute("data-pack-key");
+      const cost = Number(tr.querySelector(".pack-cost-input")?.value) || 0;
+      const yieldVal = Number(tr.querySelector(".pack-yield-input")?.value) || 1;
+      const unitCost = Math.round(cost / (yieldVal || 1));
+      const existing = (state.packagingConfig || {})[key] || {};
+      newPackaging[key] = {
+        ...existing,
+        batchCost: cost,
+        batchYield: yieldVal,
+        unitCost,
+      };
+    });
+
+    await luuOverheadVaPackagingConfig(newOverhead, newPackaging);
+    state = await docDuLieu();
+    renderAll();
+    showToast("Đã lưu định phí mặt bằng, điện nước và giá vốn bao bì!");
+    triggerAutoSync();
   });
 
   $("#applyCostToMenuBtn")?.addEventListener("click", async () => {
@@ -1640,8 +1816,10 @@ function initEventListeners() {
     // Save overhead
     await luuOverheadConfig({
       rentMonthly: Number($("#calcRentMonthly")?.value) || 6000000,
-      utilitiesMonthly: Number($("#calcUtilitiesMonthly")?.value) || 1200000,
-      otherMonthly: Number($("#calcOtherMonthly")?.value) || 600000,
+      electricityMonthly: Number($("#calcElectricityMonthly")?.value) || 1000000,
+      waterMonthly: Number($("#calcWaterMonthly")?.value) || 300000,
+      trashMonthly: Number($("#calcTrashMonthly")?.value) || 50000,
+      otherMonthly: Number($("#calcOtherMonthly")?.value) || 450000,
       expectedCupsPerDay: Number($("#calcExpectedCupsDay")?.value) || 80,
     });
 
@@ -1659,8 +1837,10 @@ function initEventListeners() {
   $("#saveOverheadOnlyBtn")?.addEventListener("click", async () => {
     await luuOverheadConfig({
       rentMonthly: Number($("#calcRentMonthly")?.value) || 6000000,
-      utilitiesMonthly: Number($("#calcUtilitiesMonthly")?.value) || 1200000,
-      otherMonthly: Number($("#calcOtherMonthly")?.value) || 600000,
+      electricityMonthly: Number($("#calcElectricityMonthly")?.value) || 1000000,
+      waterMonthly: Number($("#calcWaterMonthly")?.value) || 300000,
+      trashMonthly: Number($("#calcTrashMonthly")?.value) || 50000,
+      otherMonthly: Number($("#calcOtherMonthly")?.value) || 450000,
       expectedCupsPerDay: Number($("#calcExpectedCupsDay")?.value) || 80,
     });
     state = await docDuLieu();

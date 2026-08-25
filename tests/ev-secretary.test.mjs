@@ -514,7 +514,9 @@ console.log("Starting ev-secretary.test.mjs...");
     ],
     overheadConfig: {
       rentMonthly: 6000000,
-      utilitiesMonthly: 1200000,
+      electricityMonthly: 1200000,
+      waterMonthly: 300000,
+      trashMonthly: 50000,
       otherMonthly: 600000,
       expectedCupsPerDay: 80,
     },
@@ -532,6 +534,43 @@ console.log("Starting ev-secretary.test.mjs...");
   assert.ok(res.reply.includes("ĐIỂM HÒA VỐN"));
 
   console.log("PASS EV Drink Cost & Overhead Calculator: 'tính toán chi phí giá cost cho 1 ly nước mía tiền nguyên liệu tiền mặt bằng' -> complete 5-layer financial breakdown");
+}
+
+// Test 23: Quản lý định phí mặt bằng, điện nước rác và màng ép ly (cuộn)
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 10000, costPrice: 6000 }],
+    overheadConfig: {
+      rentMonthly: 5000000,
+      electricityMonthly: 1200000,
+      waterMonthly: 250000,
+      trashMonthly: 50000,
+      depreciationMonthly: 300000,
+      otherMonthly: 200000,
+      expectedCupsPerDay: 100,
+    },
+    packagingConfig: {
+      filmRoll: { name: "Màng ép ly", unit: "cuộn", batchCost: 140000, batchYield: 2000, unitCost: 70 },
+      cups: { name: "Ly nhựa", unit: "cây (50 cái)", batchCost: 35000, batchYield: 50, unitCost: 700 },
+      bags: { name: "Bọc / Túi chữ T", unit: "bọc", batchCost: 25000, batchYield: 250, unitCost: 100 },
+      straws: { name: "Ống hút", unit: "gói", batchCost: 25000, batchYield: 250, unitCost: 100 },
+      ice: { name: "Đá viên sạch", unit: "bao", batchCost: 15000, batchYield: 30, unitCost: 500 },
+    },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("tiền mặt bằng tiền điện nước rác và màng ép ly cuộn hết bao nhiêu", mockState);
+  assert.equal(res.type, "analysis");
+  assert.ok(res.reply.includes("5.000.000"));
+  assert.ok(res.reply.includes("1.200.000"));
+  assert.ok(res.reply.includes("250.000"));
+  assert.ok(res.reply.includes("50.000"));
+  assert.ok(res.reply.includes("Màng ép ly"));
+  assert.ok(res.reply.includes("140.000"));
+  assert.ok(res.reply.includes("2.000 ly"));
+
+  console.log("PASS EV Cost & Overhead Config: 'tiền mặt bằng tiền điện nước rác và màng ép ly cuộn hết bao nhiêu' -> verified detailed breakdown");
 }
 
 console.log("ALL EV Secretary tests passed successfully!");
