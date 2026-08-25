@@ -219,10 +219,19 @@ export async function dongBo() {
   }
 
   const localSettingsVersion = Number(data.settingsVersion) || 0;
+  const localItems = Array.isArray(data.quickItems) ? data.quickItems : [];
+  const remoteItems = Array.isArray(finalRemoteSettings?.quickItems) ? finalRemoteSettings.quickItems : [];
+  
+  const localHasUniqueItems = localItems.some(
+    (loc) => !remoteItems.some((rem) => rem.name?.toLowerCase().trim() === loc.name?.toLowerCase().trim())
+  );
+  const remoteHasUniqueItems = remoteItems.some(
+    (rem) => !localItems.some((loc) => loc.name?.toLowerCase().trim() === rem.name?.toLowerCase().trim())
+  );
 
-  if (finalRemoteSettings && (remoteVersion > localSettingsVersion || localSettingsVersion === 0)) {
-    // Remote has newer settings OR this is a fresh login on this device -> pull all from remote
-    if (Array.isArray(finalRemoteSettings.quickItems) && finalRemoteSettings.quickItems.length > 0) {
+  if (finalRemoteSettings && (remoteVersion > localSettingsVersion || (localSettingsVersion === 0 && remoteItems.length > 0) || (remoteHasUniqueItems && remoteVersion >= localSettingsVersion))) {
+    // Remote has newer settings OR remote has unique items and equal version -> pull all from remote
+    if (remoteItems.length > 0) {
       data.quickItems = finalRemoteSettings.quickItems;
     }
     if (Array.isArray(finalRemoteSettings.branches) && finalRemoteSettings.branches.length > 0) {
@@ -261,9 +270,9 @@ export async function dongBo() {
     if (finalRemoteSettings.danhMuc) {
       data.danhMuc = finalRemoteSettings.danhMuc;
     }
-    data.settingsVersion = remoteVersion;
-  } else if (!finalRemoteSettings || localSettingsVersion > remoteVersion) {
-    // Local has newer settings -> push to BOTH Supabase Database (giao_dich table) AND User Metadata
+    data.settingsVersion = remoteVersion || Date.now();
+  } else if (!finalRemoteSettings || localSettingsVersion > remoteVersion || localHasUniqueItems) {
+    // Local has newer settings OR local has unique menu items not yet in remote -> push to BOTH Supabase Database (giao_dich table) AND User Metadata
     const newVersion = Date.now();
     const settingsPayload = {
       version: newVersion,

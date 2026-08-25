@@ -2367,11 +2367,11 @@ function setupAIAssistant() {
             state.danhMuc.thu.push(result.item.name);
           }
 
-          await luuDuLieu(state);
+          await luuDanhSachMenu(state.quickItems);
           showToast(`Đã thêm món ${result.item.name}`);
         } else if (result.action === "delete_menu_item") {
           state.quickItems = (state.quickItems || []).filter((i) => i.id !== result.itemId);
-          await luuDuLieu(state);
+          await luuDanhSachMenu(state.quickItems);
           showToast(`Đã xóa món ${result.itemName}`);
         } else if (result.action === "switch_branch") {
           await capNhatCurrentBranch(result.branch);
