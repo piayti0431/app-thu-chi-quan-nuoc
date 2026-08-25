@@ -205,7 +205,7 @@ export const DEFAULT_DATA = {
     nuoc_mia: {
       drinkId: "nuoc_mia",
       drinkName: "Nước mía thường",
-      sellingPrice: 10000,
+      sellingPrice: 8000,
       ingredients: [
         { name: "Mía cây (1 bó 12 cây 90k = 15kg ~ 45 ly)", unit: "ly (0.33kg)", batchCost: 90000, batchYield: 45, unitCost: 2000 },
         { name: "Trái tắc thơm kèm", unit: "trái", batchCost: 20000, batchYield: 20, unitCost: 1000 },
@@ -286,7 +286,7 @@ export const DEFAULT_DATA = {
     ],
     rules: [
       "Định mức Mía: 1 bó mía 12 cây dài chưa bào (90.000đ) bào ra được 15kg mía cây (~6.000đ - 7.000đ/kg). 1kg mía ép được 3 ly mía thường.",
-      "Giá cost 1 ly mía thường: 4.000đ (tiền mía ~2.000đ + tắc 1.000đ + bao bì/màng ép/ống hút/đá 1.000đ).",
+      "Giá bán & Giá cost Nước mía thường: Giá bán chuẩn 8.000đ/ly (lãi gộp 4.000đ/ly, chỉ khi khách yêu cầu ly lớn mới bán 10.000đ). Giá cost: 4.000đ (tiền mía ~2.000đ + tắc 1.000đ + bao bì/màng ép/ống hút/đá 1.000đ).",
       "Giá cost 1 lít nước mía: 10.000đ (tiền mía ~9.000đ + bao bì/màng ép/ống hút không đá 1.000đ).",
       "Giá cost Mía tắc: 5.000đ | Mía thơm: 7.000đ | Mía cam: 10.000đ (cam tự hiệu chỉnh theo giá thị trường).",
       "Định mức Bao bì & Đá viên: Tiền bao bì, màng ép miệng ly, ống hút và đá viên được tính gộp chung cố định 1.000đ/phần (riêng mía 1 lít không dùng đá nhưng có bao bì/màng ép/ống hút nên vẫn tính chung 1.000đ).",
@@ -294,7 +294,7 @@ export const DEFAULT_DATA = {
       "Định mức Trà tắc: Hộp trà túi lọc 80.000đ nấu được 9 lít trà (45 ly). Sốt tắc: 1kg đường (33k) + 1.5kg tắc (45k) = 1.8L sốt tắc pha được 6 lít trà. Giá cost 1 ly trà tắc: 7.000đ.",
       "Tỷ lệ giá vốn COGS mục tiêu: 28% - 40% doanh thu",
       "Định phí vận hành thực tế: Mặt bằng 200k/ngày (6.000.000đ/tháng), Điện 25-30 ký/ngày chạy 8h-22h (~2.400.000đ/tháng), Nước rửa máy (~150.000đ/tháng), Phát sinh (~500.000đ/tháng).",
-      "Điểm hòa vốn thực tế: Bán tối thiểu 52 - 53 ly mía/ngày (với lãi gộp 6.000đ/ly) là bù đủ toàn bộ tiền mặt bằng, điện 30 ký, nước và chi phí phát sinh.",
+      "Điểm hòa vốn thực tế: Với giá bán chuẩn 8.000đ/ly (lãi gộp 4.000đ/ly), quán cần bán khoảng 78 - 79 ly mía/ngày để bù đủ toàn bộ tiền mặt bằng (200k/ngày), điện 30 ký, nước và chi phí phát sinh.",
       "Khách quen có thể dùng từ 'như cũ' để order món quen",
       "Tiền nợ không tính vào tiền mặt trong két cho tới khi khách trả nợ",
     ],
