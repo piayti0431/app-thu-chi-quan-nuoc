@@ -185,12 +185,12 @@ export const DEFAULT_DATA = {
     },
   ],
   overheadConfig: {
-    rentMonthly: 6000000,          // Tiền thuê mặt bằng (đ/tháng)
-    electricityMonthly: 1000000,   // Tiền điện (đ/tháng)
-    waterMonthly: 300000,          // Tiền nước (đ/tháng)
+    rentMonthly: 6000000,          // Tiền thuê mặt bằng (200.000 đ/ngày = 6.000.000 đ/tháng)
+    electricityMonthly: 2400000,   // Tiền điện (25-30 ký/ngày chạy 8h-22h = ~2.400.000 đ/tháng)
+    waterMonthly: 150000,          // Tiền nước (dùng ít, chủ yếu rửa máy dọn dẹp = ~150.000 đ/tháng)
     trashMonthly: 50000,           // Tiền rác & vệ sinh môi trường (đ/tháng)
-    depreciationMonthly: 300000,   // Khấu hao máy ép & máy móc (đ/tháng)
-    otherMonthly: 150000,          // Chi phí khác / internet (đ/tháng)
+    depreciationMonthly: 300000,   // Khấu hao máy ép mía & bảo trì (đ/tháng)
+    otherMonthly: 500000,          // Chi phí phát sinh khác (~500.000 đ/tháng)
     expectedCupsPerDay: 80,        // Sản lượng bán dự kiến (ly/ngày)
   },
   packagingConfig: {
@@ -303,9 +303,10 @@ export const DEFAULT_DATA = {
       "Định mức Trà tắc: Hộp trà túi lọc 80.000đ nấu được 9 lít trà (45 ly). Sốt tắc: 1kg đường (33k) + 1.5kg tắc (45k) = 1.8L sốt tắc pha được 6 lít trà. Giá cost 1 ly trà tắc: 7.000đ.",
       "Vật tư bao bì chuẩn: 2.000 ly nhựa = 1.000.000đ (500đ/ly); Ống hút 1 bao 10 bịch = 270.000đ (27k/bịch); Cuộn màng ép miệng ly 45.000đ ép được 2.000 ly (~23đ/ly).",
       "Tỷ lệ giá vốn COGS mục tiêu: 28% - 40% doanh thu",
+      "Định phí vận hành thực tế: Mặt bằng 200k/ngày (6.000.000đ/tháng), Điện 25-30 ký/ngày chạy 8h-22h (~2.400.000đ/tháng), Nước rửa máy (~150.000đ/tháng), Phát sinh (~500.000đ/tháng).",
+      "Điểm hòa vốn thực tế: Bán tối thiểu 52 - 53 ly mía/ngày (với lãi gộp 6.000đ/ly) là bù đủ toàn bộ tiền mặt bằng, điện 30 ký, nước và chi phí phát sinh.",
       "Khách quen có thể dùng từ 'như cũ' để order món quen",
       "Tiền nợ không tính vào tiền mặt trong két cho tới khi khách trả nợ",
-      "Điểm hòa vốn ước tính toàn hệ thống: 120 ly / ngày",
     ],
   },
   sync: {
