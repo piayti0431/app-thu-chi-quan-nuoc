@@ -405,19 +405,63 @@ export function mergeData(data) {
   const base = cloneDefault();
   const legacyPrices = Array.isArray(data?.quickPrices) ? data.quickPrices : null;
 
+  const NOTEBOOK_VERSION = "20260825_notebook_v2";
+  const needsNotebookUpgrade = data?.costDataVersion !== NOTEBOOK_VERSION;
+
   // Quick items: use custom list if provided; otherwise fallback to default base list
   let mergedQuickItems;
   if (Array.isArray(data?.quickItems) && data.quickItems.length > 0) {
-    mergedQuickItems = data.quickItems.map((item, idx) => ({
-      ...item,
-      id: item.id || `item_${idx}_${Date.now()}`,
-      name: item.name || "Món nước",
-      shortName: item.shortName || item.name || "Món nước",
-      category: item.category || item.name || "Món nước",
-      price: Number(item.price) > 0 ? Number(item.price) : 10000,
-      costPrice: Number(item.costPrice) >= 0 ? Number(item.costPrice) : 0,
-      icon: item.icon || "cane",
-    }));
+    mergedQuickItems = data.quickItems.map((item, idx) => {
+      let costPrice = Number(item.costPrice) >= 0 ? Number(item.costPrice) : 0;
+      let price = Number(item.price) > 0 ? Number(item.price) : 10000;
+      const key = (item.id || item.name || "").toLowerCase();
+
+      // Seamlessly upgrade old default cost prices to notebook standards
+      if (needsNotebookUpgrade) {
+        if (key.includes("nuoc_mia_1l") || key.includes("1 lít") || key.includes("1l") || key.includes("1 lit")) {
+          costPrice = 10000;
+          if (price === 15000) price = 16000;
+        } else if (key.includes("mia_cam") || key.includes("mía cam")) {
+          costPrice = 10000;
+        } else if (key.includes("tra_tac") || key.includes("trà tắc")) {
+          costPrice = 7000;
+        } else if (key.includes("mia_thom") || key.includes("mía thơm")) {
+          costPrice = 7000;
+        } else if (key.includes("mia_tac") || key.includes("mía tắc")) {
+          costPrice = 5000;
+        } else if (key.includes("nuoc_mia") || key.includes("mía thường") || key.includes("mía ly")) {
+          costPrice = 4000;
+        }
+      }
+
+      return {
+        ...item,
+        id: item.id || `item_${idx}_${Date.now()}`,
+        name: item.name || "Món nước",
+        shortName: item.shortName || item.name || "Món nước",
+        category: item.category || item.name || "Món nước",
+        price,
+        costPrice,
+        icon: item.icon || "cane",
+      };
+    });
+
+    if (needsNotebookUpgrade) {
+      const hasMiaTac = mergedQuickItems.some((i) => i.id === "mia_tac" || i.name?.toLowerCase().includes("mía tắc"));
+      if (!hasMiaTac) {
+        mergedQuickItems.splice(2, 0, {
+          id: "mia_tac",
+          name: "Mía tắc",
+          shortName: "Mía tắc",
+          price: 10000,
+          costPrice: 5000,
+          category: "Mía tắc",
+          note: "Bán mía tắc",
+          icon: "citrus",
+          voiceUnit: "ly",
+        });
+      }
+    }
   } else {
     mergedQuickItems = base.quickItems;
   }
@@ -493,6 +537,7 @@ export function mergeData(data) {
     restartLogs: Array.isArray(data?.restartLogs) ? data.restartLogs : (base.restartLogs || []),
     dailyClosings: Array.isArray(data?.dailyClosings) ? data.dailyClosings : (base.dailyClosings || []),
     knowledgeBase: { ...(base.knowledgeBase || {}), ...(data?.knowledgeBase || {}) },
+    costDataVersion: NOTEBOOK_VERSION,
     settingsVersion: Number(data?.settingsVersion) || 0,
     sync: ensureSyncIdentity({
       ...base.sync,
@@ -770,6 +815,19 @@ export async function capNhatLaiGiaCostToanBoGiaoDich(targetDate = null) {
     await luuDuLieu(data);
   }
   return { updatedCount };
+}
+
+export async function datLaiGiaCostChuanSoTay() {
+  const data = await docDuLieu();
+  const base = cloneDefault();
+  data.quickItems = base.quickItems;
+  data.packagingConfig = base.packagingConfig;
+  data.costFormulas = base.costFormulas;
+  data.costDataVersion = "20260825_notebook_v2";
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  await capNhatLaiGiaCostToanBoGiaoDich();
+  return data;
 }
 
 export async function xoaTatCaDuLieu() {

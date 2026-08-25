@@ -4,6 +4,7 @@ import {
   capNhatCurrentBranch,
   capNhatGiaNhanh,
   capNhatLaiGiaCostToanBoGiaoDich,
+  datLaiGiaCostChuanSoTay,
   docDuLieu,
   luuCostFormula,
   luuDanhSachChiNhanh,
@@ -1713,6 +1714,20 @@ function initEventListeners() {
     renderAll();
     showToast("Đã lưu bảng giá Menu và Giá Vốn thành công!");
     triggerAutoSync();
+  });
+
+  $("#resetDefaultCostBtn")?.addEventListener("click", async () => {
+    if (!confirm("Bạn có chắc chắn muốn đặt lại giá vốn tất cả các món theo định lượng sổ tay chuẩn không?")) return;
+    showToast("Đang cập nhật lại giá vốn sổ tay chuẩn...");
+    try {
+      await datLaiGiaCostChuanSoTay();
+      state = await docDuLieu();
+      renderAll();
+      showToast(`⚡ Đã đặt lại giá vốn chuẩn thành công (${(state.quickItems || []).length} món)!`);
+      triggerAutoSync();
+    } catch (err) {
+      showToast(`Lỗi đặt lại giá vốn: ${err?.message || err}`, true);
+    }
   });
 
   $("#forceSyncMenuBtn")?.addEventListener("click", async () => {
