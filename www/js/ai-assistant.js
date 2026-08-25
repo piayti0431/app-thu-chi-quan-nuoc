@@ -235,25 +235,25 @@ export function phanTichTaiChinhNoiBo(query, state) {
     const netPercent = sellingPrice > 0 ? ((netProfit / sellingPrice) * 100).toFixed(1) : "0.0";
     const totalCostPercent = sellingPrice > 0 ? ((totalCost / sellingPrice) * 100).toFixed(1) : "0.0";
 
-    const filmCost = packaging.filmRoll?.unitCost || 70;
-    const cupCost = packaging.cups?.unitCost || 700;
+    const filmCost = packaging.filmRoll?.unitCost || 23;
+    const cupCost = packaging.cups?.unitCost || 500;
     const bagCost = packaging.bags?.unitCost || 100;
-    const strawCost = packaging.straws?.unitCost || 100;
+    const strawCost = packaging.straws?.unitCost || 135;
     const iceCost = packaging.ice?.unitCost || 500;
     const totalPackCost = filmCost + cupCost + bagCost + strawCost + iceCost;
 
-    let ingredientDetail = `   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 140000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
-   - 🥤 **Ly nhựa**: 1 cây 50 ly (${formatMoney(packaging.cups?.batchCost || 35000)}) ➔ **${formatMoney(cupCost)} / ly**.
+    let ingredientDetail = `   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 45000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
+   - 🥤 **Ly nhựa**: Thùng 2.000 ly (${formatMoney(packaging.cups?.batchCost || 1000000)}) ➔ **${formatMoney(cupCost)} / ly**.
    - 🛍️ **Bọc / Túi chữ T & Ống hút**: ➔ **${formatMoney(bagCost + strawCost)} / ly**.
    - 🧊 **Đá viên sạch**: 1 bao (${formatMoney(packaging.ice?.batchCost || 15000)}) ➔ **${formatMoney(iceCost)} / ly**.`;
 
     if (targetDrink.id === "nuoc_mia" || targetDrink.name.toLowerCase().includes("mía")) {
-      ingredientDetail = `   - 🎋 **Mía cây tươi**: 1 bó 10kg (90.000đ) ép ~20 ly ➔ **4.500 đ / ly** (~0.5kg mía/ly).
-   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 140000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
-   - 🥤 **Ly nhựa**: 1 cây 50 ly (${formatMoney(packaging.cups?.batchCost || 35000)}) ➔ **${formatMoney(cupCost)} / ly**.
+      ingredientDetail = `   - 🎋 **Mía cây tươi**: 1 bó 12 cây 90k = 15kg ép ~45 ly ➔ **2.000 đ / ly** (~0.33kg mía/ly).
+   - 📜 **Màng ép ly**: 1 cuộn (${formatMoney(packaging.filmRoll?.batchCost || 45000)}) ép ~2.000 ly ➔ **${formatMoney(filmCost)} / ly**.
+   - 🥤 **Ly nhựa**: Thùng 2.000 ly (${formatMoney(packaging.cups?.batchCost || 1000000)}) ➔ **${formatMoney(cupCost)} / ly**.
    - 🛍️ **Bọc chữ T + Ống hút**: ➔ **${formatMoney(bagCost + strawCost)} / ly**.
    - 🧊 **Đá viên sạch**: 1 bao (${formatMoney(packaging.ice?.batchCost || 15000)}) ➔ **${formatMoney(iceCost)} / ly**.
-   - 🍋 **Trái tắc thơm kèm**: ➔ **200 đ / ly**.`;
+   - 🍋 **Trái tắc thơm kèm**: ➔ **742 đ / ly**.`;
     }
 
     return {

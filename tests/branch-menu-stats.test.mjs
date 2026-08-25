@@ -12,19 +12,23 @@ assert.equal(DEFAULT_DATA.currentBranch, "Quán Nhà (Chính)");
 
 const menuMap = new Map(DEFAULT_DATA.quickItems.map((item) => [item.id, item]));
 assert.equal(menuMap.get("nuoc_mia")?.price, 8000);
-assert.equal(menuMap.get("nuoc_mia")?.costPrice, 3000);
-assert.equal(menuMap.get("nuoc_mia_1l")?.price, 15000);
-assert.equal(menuMap.get("nuoc_mia_1l")?.costPrice, 6000);
-assert.equal(menuMap.get("mia_cam")?.price, 15000);
-assert.equal(menuMap.get("mia_cam")?.costPrice, 6000);
+assert.equal(menuMap.get("nuoc_mia")?.costPrice, 4000);
+assert.equal(menuMap.get("nuoc_mia_1l")?.price, 16000);
+assert.equal(menuMap.get("nuoc_mia_1l")?.costPrice, 10000);
+assert.equal(menuMap.get("mia_tac")?.price, 10000);
+assert.equal(menuMap.get("mia_tac")?.costPrice, 5000);
+assert.equal(menuMap.get("mia_thom")?.price, 12000);
+assert.equal(menuMap.get("mia_thom")?.costPrice, 7000);
+assert.equal(menuMap.get("mia_cam")?.price, 17000);
+assert.equal(menuMap.get("mia_cam")?.costPrice, 10000);
 assert.equal(menuMap.get("rau_ma")?.price, 10000);
 assert.equal(menuMap.get("rau_ma")?.costPrice, 4000);
 assert.equal(menuMap.get("rau_ma_sua")?.price, 15000);
 assert.equal(menuMap.get("rau_ma_sua")?.costPrice, 6000);
 assert.equal(menuMap.get("rau_ma_dau_xanh")?.price, 15000);
 assert.equal(menuMap.get("rau_ma_dau_xanh")?.costPrice, 6000);
-assert.equal(menuMap.get("tra_tac")?.price, 15000);
-assert.equal(menuMap.get("tra_tac")?.costPrice, 4000);
+assert.equal(menuMap.get("tra_tac")?.price, 12000);
+assert.equal(menuMap.get("tra_tac")?.costPrice, 7000);
 assert.equal(menuMap.get("nuoc_cam")?.price, 15000);
 assert.equal(menuMap.get("nuoc_cam")?.costPrice, 7000);
 
@@ -39,9 +43,9 @@ console.log("PASS DEFAULT_DATA branch, menu pricing & cost prices");
 
 // Test 2: Voice parsing with default menu and cost prices
 assert.equal(phanTich("1 ly nước mía").soTien, 8000);
-assert.equal(phanTich("1 ly nước mía").giaCostDonVi, 3000);
+assert.equal(phanTich("1 ly nước mía").giaCostDonVi, 4000);
 assert.equal(phanTich("2 ly nước mía").soTien, 16000);
-assert.equal(phanTich("2 ly nước mía").tongGiaCost, 6000);
+assert.equal(phanTich("2 ly nước mía").tongGiaCost, 8000);
 assert.equal(phanTich("3 mía").soTien, 24000);
 assert.equal(phanTich("1 mía lít").soTien, 15000);
 assert.equal(phanTich("2 mía lít").soTien, 30000);
@@ -66,7 +70,7 @@ assert.equal(batch1.items.length, 2);
 assert.equal(batch1.total, 45000); // 15k + 30k
 assert.equal(batch1.items[0].soTien, 15000);
 assert.equal(batch1.items[1].soTien, 30000);
-assert.equal(batch1.tongGiaCost, 14000); // 6k + 2*4k = 14k
+assert.equal(batch1.tongGiaCost, 24000); // 10k + 2*7k = 24k
 
 const batch2 = phanTichNhieu("2 mía thường, 1 má đậu xanh và 1 trà tắc");
 assert.equal(batch2.isBatch, true);

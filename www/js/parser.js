@@ -2,13 +2,15 @@ const THU_CATEGORY = "Nước mía thường";
 const DEFAULT_NOTE = "";
 
 export const DEFAULT_QUICK_ITEMS = [
-  { id: "nuoc_mia", name: "Nước mía thường", category: "Nước mía thường", price: 8000, costPrice: 3000, voiceName: "nước mía", voiceUnit: "ly" },
-  { id: "nuoc_mia_1l", name: "Nước mía 1 lít", category: "Nước mía 1 lít", price: 15000, costPrice: 6000, voiceName: "nước mía 1 lít", voiceUnit: "chai" },
-  { id: "mia_cam", name: "Mía cam", category: "Mía cam", price: 15000, costPrice: 6000, voiceName: "mía cam", voiceUnit: "ly" },
+  { id: "nuoc_mia", name: "Nước mía thường", category: "Nước mía thường", price: 8000, costPrice: 4000, voiceName: "nước mía", voiceUnit: "ly" },
+  { id: "nuoc_mia_1l", name: "Nước mía 1 lít", category: "Nước mía 1 lít", price: 15000, costPrice: 10000, voiceName: "nước mía 1 lít", voiceUnit: "chai" },
+  { id: "mia_tac", name: "Mía tắc", category: "Mía tắc", price: 10000, costPrice: 5000, voiceName: "mía tắc", voiceUnit: "ly" },
+  { id: "mia_thom", name: "Mía thơm", category: "Mía thơm", price: 12000, costPrice: 7000, voiceName: "mía thơm", voiceUnit: "ly" },
+  { id: "mia_cam", name: "Mía cam", category: "Mía cam", price: 15000, costPrice: 10000, voiceName: "mía cam", voiceUnit: "ly" },
   { id: "rau_ma", name: "Rau má tươi", category: "Rau má tươi", price: 10000, costPrice: 4000, voiceName: "rau má", voiceUnit: "ly" },
   { id: "rau_ma_sua", name: "Rau má sữa", category: "Rau má sữa", price: 15000, costPrice: 6000, voiceName: "rau má sữa", voiceUnit: "ly" },
   { id: "rau_ma_dau_xanh", name: "Rau má đậu xanh", category: "Rau má đậu xanh", price: 15000, costPrice: 6000, voiceName: "rau má đậu xanh", voiceUnit: "ly" },
-  { id: "tra_tac", name: "Trà tắc", category: "Trà tắc", price: 15000, costPrice: 4000, voiceName: "trà tắc", voiceUnit: "ly" },
+  { id: "tra_tac", name: "Trà tắc", category: "Trà tắc", price: 15000, costPrice: 7000, voiceName: "trà tắc", voiceUnit: "ly" },
   { id: "nuoc_cam", name: "Nước cam", category: "Nước cam", price: 15000, costPrice: 7000, voiceName: "nước cam", voiceUnit: "ly" },
 ];
 
@@ -272,7 +274,7 @@ function detectType(normalized) {
 }
 
 function findQuickItem(quickItems, id, fallbackIndex) {
-  const fallback = DEFAULT_QUICK_ITEMS[fallbackIndex] || DEFAULT_QUICK_ITEMS[0];
+  const fallback = DEFAULT_QUICK_ITEMS.find((item) => item.id === id) || DEFAULT_QUICK_ITEMS[fallbackIndex] || DEFAULT_QUICK_ITEMS[0];
   const found = quickItems.find((item) => item.id === id);
   return {
     ...fallback,
@@ -358,12 +360,14 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
   const hasOneLiter = hasLiterHint(normalized, tokens);
 
   const productList = [
-    findQuickItem(quickItems, "rau_ma_dau_xanh", 5),
-    findQuickItem(quickItems, "rau_ma_sua", 4),
-    findQuickItem(quickItems, "rau_ma", 3),
-    findQuickItem(quickItems, "tra_tac", 6),
-    findQuickItem(quickItems, "mia_cam", 2),
-    findQuickItem(quickItems, "nuoc_cam", 7),
+    findQuickItem(quickItems, "rau_ma_dau_xanh", 7),
+    findQuickItem(quickItems, "rau_ma_sua", 6),
+    findQuickItem(quickItems, "rau_ma", 5),
+    findQuickItem(quickItems, "tra_tac", 8),
+    findQuickItem(quickItems, "mia_cam", 4),
+    findQuickItem(quickItems, "mia_thom", 3),
+    findQuickItem(quickItems, "mia_tac", 2),
+    findQuickItem(quickItems, "nuoc_cam", 9),
     findQuickItem(quickItems, "nuoc_mia_1l", 1),
     findQuickItem(quickItems, "nuoc_mia", 0),
   ];
