@@ -1,5 +1,5 @@
 import { docDuLieu, luuDuLieu } from "./db.js";
-import { mergeTransactions, pendingTransactions, toRemoteTransaction } from "./sync-model.js";
+import { isSettingsRow, mergeTransactions, pendingTransactions, toRemoteTransaction } from "./sync-model.js";
 
 let client = null;
 let realtimeChannel = null;
@@ -173,7 +173,26 @@ export async function dongBo() {
   const merged = mergeTransactions(data.ds, remoteRows || []);
   data.ds = merged.items;
 
-  // 3. FETCH FRESH USER METADATA FROM SUPABASE SERVER
+  // 3. PARSE REMOTE DATABASE SETTINGS RECORD (IF ANY)
+  const settingsRows = (remoteRows || []).filter((r) => isSettingsRow(r));
+  let remoteDbSettings = null;
+  if (settingsRows.length > 0) {
+    try {
+      const rawGhiChu = settingsRows[0].ghi_chu || "";
+      if (rawGhiChu.startsWith("{") && rawGhiChu.endsWith("}")) {
+        remoteDbSettings = JSON.parse(rawGhiChu);
+      } else {
+        const match = rawGhiChu.match(/\[EXT:(.*?)\]/);
+        if (match) {
+          remoteDbSettings = JSON.parse(match[1]);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not parse remote DB settings:", e);
+    }
+  }
+
+  // 4. FETCH FRESH USER METADATA FROM SUPABASE SERVER
   let freshUser = session.user;
   try {
     const userRes = await activeClient.auth.getUser();
@@ -184,80 +203,125 @@ export async function dongBo() {
     console.warn("Could not fetch fresh user object, falling back to session user:", userErr);
   }
 
-  // 4. SYNC SETTINGS & CONFIG ACROSS DEVICES (MENU, BRANCHES, COST, OPENING CASH, CRM)
-  const remoteSettings = freshUser?.user_metadata?.app_settings;
+  // 5. DETERMINE LATEST SETTINGS & SYNC ACROSS DEVICES (MENU, BRANCHES, COST, OPENING CASH, CRM)
+  const remoteMetaSettings = freshUser?.user_metadata?.app_settings;
+  const dbVer = Number(remoteDbSettings?.version) || 0;
+  const metaVer = Number(remoteMetaSettings?.version) || 0;
+  
+  let finalRemoteSettings = null;
+  let remoteVersion = 0;
+  if (dbVer >= metaVer && dbVer > 0) {
+    finalRemoteSettings = remoteDbSettings;
+    remoteVersion = dbVer;
+  } else if (metaVer > 0) {
+    finalRemoteSettings = remoteMetaSettings;
+    remoteVersion = metaVer;
+  }
+
   const localSettingsVersion = Number(data.settingsVersion) || 0;
 
-  if (remoteSettings && (Number(remoteSettings.version) > localSettingsVersion || localSettingsVersion === 0)) {
+  if (finalRemoteSettings && (remoteVersion > localSettingsVersion || localSettingsVersion === 0)) {
     // Remote has newer settings OR this is a fresh login on this device -> pull all from remote
-    if (Array.isArray(remoteSettings.quickItems) && remoteSettings.quickItems.length > 0) {
-      data.quickItems = remoteSettings.quickItems;
+    if (Array.isArray(finalRemoteSettings.quickItems) && finalRemoteSettings.quickItems.length > 0) {
+      data.quickItems = finalRemoteSettings.quickItems;
     }
-    if (Array.isArray(remoteSettings.branches) && remoteSettings.branches.length > 0) {
-      data.branches = remoteSettings.branches;
+    if (Array.isArray(finalRemoteSettings.branches) && finalRemoteSettings.branches.length > 0) {
+      data.branches = finalRemoteSettings.branches;
     }
-    if (remoteSettings.overheadConfig) {
-      data.overheadConfig = remoteSettings.overheadConfig;
+    if (finalRemoteSettings.overheadConfig) {
+      data.overheadConfig = finalRemoteSettings.overheadConfig;
     }
-    if (remoteSettings.packagingConfig) {
-      data.packagingConfig = remoteSettings.packagingConfig;
+    if (finalRemoteSettings.packagingConfig) {
+      data.packagingConfig = finalRemoteSettings.packagingConfig;
     }
-    if (remoteSettings.costFormulas) {
-      data.costFormulas = remoteSettings.costFormulas;
+    if (finalRemoteSettings.costFormulas) {
+      data.costFormulas = finalRemoteSettings.costFormulas;
     }
-    if (remoteSettings.defaultOpeningCash) {
-      data.defaultOpeningCash = remoteSettings.defaultOpeningCash;
+    if (finalRemoteSettings.defaultOpeningCash) {
+      data.defaultOpeningCash = finalRemoteSettings.defaultOpeningCash;
     }
-    if (remoteSettings.openingCashByDate) {
-      data.openingCashByDate = { ...(data.openingCashByDate || {}), ...remoteSettings.openingCashByDate };
+    if (finalRemoteSettings.openingCashByDate) {
+      data.openingCashByDate = { ...(data.openingCashByDate || {}), ...finalRemoteSettings.openingCashByDate };
     }
-    if (Array.isArray(remoteSettings.crmCustomers)) {
-      data.crmCustomers = remoteSettings.crmCustomers;
+    if (Array.isArray(finalRemoteSettings.crmCustomers)) {
+      data.crmCustomers = finalRemoteSettings.crmCustomers;
     }
-    if (Array.isArray(remoteSettings.aiChatHistory)) {
-      data.aiChatHistory = remoteSettings.aiChatHistory;
+    if (Array.isArray(finalRemoteSettings.aiChatHistory)) {
+      data.aiChatHistory = finalRemoteSettings.aiChatHistory;
     }
-    if (Array.isArray(remoteSettings.restartLogs)) {
-      data.restartLogs = remoteSettings.restartLogs;
+    if (Array.isArray(finalRemoteSettings.restartLogs)) {
+      data.restartLogs = finalRemoteSettings.restartLogs;
     }
-    if (Array.isArray(remoteSettings.dailyClosings)) {
-      data.dailyClosings = remoteSettings.dailyClosings;
+    if (Array.isArray(finalRemoteSettings.dailyClosings)) {
+      data.dailyClosings = finalRemoteSettings.dailyClosings;
     }
-    if (remoteSettings.knowledgeBase) {
-      data.knowledgeBase = remoteSettings.knowledgeBase;
+    if (finalRemoteSettings.knowledgeBase) {
+      data.knowledgeBase = finalRemoteSettings.knowledgeBase;
     }
-    if (remoteSettings.danhMuc) {
-      data.danhMuc = remoteSettings.danhMuc;
+    if (finalRemoteSettings.danhMuc) {
+      data.danhMuc = finalRemoteSettings.danhMuc;
     }
-    data.settingsVersion = remoteSettings.version;
-  } else if (!remoteSettings || localSettingsVersion > (Number(remoteSettings?.version) || 0)) {
-    // Local has newer settings -> push to user metadata on Supabase
+    data.settingsVersion = remoteVersion;
+  } else if (!finalRemoteSettings || localSettingsVersion > remoteVersion) {
+    // Local has newer settings -> push to BOTH Supabase Database (giao_dich table) AND User Metadata
     const newVersion = Date.now();
+    const settingsPayload = {
+      version: newVersion,
+      quickItems: data.quickItems || [],
+      branches: data.branches || [],
+      overheadConfig: data.overheadConfig || {},
+      packagingConfig: data.packagingConfig || {},
+      costFormulas: data.costFormulas || {},
+      defaultOpeningCash: data.defaultOpeningCash || 500000,
+      openingCashByDate: data.openingCashByDate || {},
+      crmCustomers: data.crmCustomers || [],
+      aiChatHistory: (data.aiChatHistory || []).slice(-50),
+      restartLogs: data.restartLogs || [],
+      dailyClosings: data.dailyClosings || [],
+      knowledgeBase: data.knowledgeBase || {},
+      danhMuc: data.danhMuc || {},
+    };
+
+    // 1. Push settings record to PostgreSQL `giao_dich` table
+    try {
+      const dbSettingsRecord = {
+        id: 9000000000000000,
+        device_id: currentDeviceId,
+        user_id: userId,
+        ngay: "2099-12-31",
+        gio: "23:59:59",
+        loai: "sys_settings",
+        so_tien: 0,
+        danh_muc: "APP_SETTINGS",
+        ghi_chu: JSON.stringify(settingsPayload),
+        cau_noi_goc: "Cấu hình menu & chi nhánh quán",
+        da_sua_tay: false,
+        chi_nhanh: "Quán Nhà (Chính)",
+        so_luong: 1,
+        don_vi_tinh: "ly",
+        phuong_thuc: "tien_mat",
+        gia_cost_don_vi: 0,
+        tong_gia_cost: 0,
+        deleted: false,
+        updated_at: new Date(newVersion).toISOString(),
+      };
+      await activeClient.from("giao_dich").upsert([dbSettingsRecord], { onConflict: "id" });
+    } catch (dbSettingsErr) {
+      console.warn("Push settings to giao_dich table warning:", dbSettingsErr);
+    }
+
+    // 2. Backup push to user metadata
     try {
       await activeClient.auth.updateUser({
         data: {
-          app_settings: {
-            version: newVersion,
-            quickItems: data.quickItems || [],
-            branches: data.branches || [],
-            overheadConfig: data.overheadConfig || {},
-            packagingConfig: data.packagingConfig || {},
-            costFormulas: data.costFormulas || {},
-            defaultOpeningCash: data.defaultOpeningCash || 500000,
-            openingCashByDate: data.openingCashByDate || {},
-            crmCustomers: data.crmCustomers || [],
-            aiChatHistory: (data.aiChatHistory || []).slice(-100),
-            restartLogs: data.restartLogs || [],
-            dailyClosings: data.dailyClosings || [],
-            knowledgeBase: data.knowledgeBase || {},
-            danhMuc: data.danhMuc || {},
-          },
+          app_settings: settingsPayload,
         },
       });
-      data.settingsVersion = newVersion;
     } catch (metaErr) {
       console.warn("Sync settings to user metadata warning:", metaErr);
     }
+
+    data.settingsVersion = newVersion;
   }
 
   data.sync = { ...(data.sync || {}), lastPulledAt: new Date().toISOString(), accountEmail: session.user?.email || "" };

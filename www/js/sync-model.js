@@ -109,6 +109,13 @@ function isRemoteNewer(localItem, remoteItem) {
   return timeValue(remoteItem.updatedAt) > timeValue(localItem.updatedAt);
 }
 
+export function isSettingsRow(rowOrItem) {
+  if (!rowOrItem) return false;
+  const id = Number(rowOrItem.id);
+  const loai = rowOrItem.loai || rowOrItem.loai_giao_dich;
+  return id === 9000000000000000 || loai === "sys_settings";
+}
+
 export function mergeTransactions(localItems = [], remoteRows = []) {
   const byId = new Map();
   let pulled = 0;
@@ -116,10 +123,13 @@ export function mergeTransactions(localItems = [], remoteRows = []) {
   let conflictsKeptLocal = 0;
 
   for (const item of localItems) {
-    byId.set(Number(item.id), { ...item });
+    if (!isSettingsRow(item)) {
+      byId.set(Number(item.id), { ...item });
+    }
   }
 
   for (const row of remoteRows) {
+    if (isSettingsRow(row)) continue;
     const remote = fromRemoteTransaction(row);
     const local = byId.get(remote.id);
 
@@ -150,7 +160,7 @@ export function mergeTransactions(localItems = [], remoteRows = []) {
 
   return {
     items: [...byId.values()]
-      .filter((item) => !item.deleted)
+      .filter((item) => !item.deleted && !isSettingsRow(item))
       .sort((a, b) => {
         const dateCompare = String(b.ngay || "").localeCompare(String(a.ngay || ""));
         if (dateCompare) return dateCompare;
@@ -161,5 +171,5 @@ export function mergeTransactions(localItems = [], remoteRows = []) {
 }
 
 export function pendingTransactions(items = []) {
-  return items.filter((item) => !item.daSync || item.deleted);
+  return items.filter((item) => !isSettingsRow(item) && (!item.daSync || item.deleted));
 }
