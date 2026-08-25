@@ -1,4 +1,35 @@
-export function toRemoteTransaction(item, deviceId = "local") {
+export function toBaseRemoteTransaction(item, deviceId = "local") {
+  const extMeta = {
+    cn: item.chiNhanh,
+    sl: item.soLuong,
+    dvt: item.donViTinh,
+    pt: item.phuongThuc,
+    gc: item.giaCostDonVi,
+    tgc: item.tongGiaCost,
+  };
+  const cleanGhiChu = String(item.ghiChu || "").replace(/\s*\[EXT:.*?\]\s*/g, "").trim();
+  const packedGhiChu = cleanGhiChu
+    ? `${cleanGhiChu} [EXT:${JSON.stringify(extMeta)}]`
+    : `[EXT:${JSON.stringify(extMeta)}]`;
+
+  return {
+    id: item.id,
+    device_id: item.deviceId || deviceId,
+    ngay: item.ngay,
+    gio: item.gio,
+    loai: item.loai,
+    so_tien: Number(item.soTien) || 0,
+    danh_muc: item.danhMuc || "",
+    ghi_chu: packedGhiChu,
+    cau_noi_goc: item.cauNoiGoc || "",
+    da_sua_tay: Boolean(item.daSuaTay),
+    deleted: Boolean(item.deleted),
+    updated_at: item.updatedAt || new Date().toISOString(),
+  };
+}
+
+export function toRemoteTransaction(item, deviceId = "local", useExtended = true) {
+  if (!useExtended) return toBaseRemoteTransaction(item, deviceId);
   return {
     id: item.id,
     device_id: item.deviceId || deviceId,
@@ -22,6 +53,26 @@ export function toRemoteTransaction(item, deviceId = "local") {
 }
 
 export function fromRemoteTransaction(row) {
+  let ghiChu = row.ghi_chu || "";
+  let extMeta = {};
+
+  if (typeof ghiChu === "string" && ghiChu.includes("[EXT:")) {
+    const match = ghiChu.match(/\[EXT:(.*?)\]/);
+    if (match) {
+      try {
+        extMeta = JSON.parse(match[1]) || {};
+        ghiChu = ghiChu.replace(/\s*\[EXT:.*?\]\s*/g, "").trim();
+      } catch {}
+    }
+  }
+
+  const chiNhanh = row.chi_nhanh || extMeta.cn || "Quán Nhà (Chính)";
+  const soLuong = Number(row.so_luong) || Number(extMeta.sl) || 1;
+  const donViTinh = String(row.don_vi_tinh || extMeta.dvt || (row.loai === "thu" ? "ly" : "kg"));
+  const phuongThuc = String(row.phuong_thuc || extMeta.pt || "tien_mat");
+  const giaCostDonVi = Number(row.gia_cost_don_vi) || Number(extMeta.gc) || 0;
+  const tongGiaCost = Number(row.tong_gia_cost) || Number(extMeta.tgc) || 0;
+
   return {
     id: Number(row.id),
     ngay: String(row.ngay || ""),
@@ -29,15 +80,15 @@ export function fromRemoteTransaction(row) {
     loai: row.loai,
     soTien: Number(row.so_tien) || 0,
     danhMuc: row.danh_muc || "",
-    ghiChu: row.ghi_chu || "",
+    ghiChu,
     cauNoiGoc: row.cau_noi_goc || "",
     daSuaTay: Boolean(row.da_sua_tay),
-    chiNhanh: row.chi_nhanh || "Quán Nhà (Chính)",
-    soLuong: Number(row.so_luong) || 1,
-    donViTinh: String(row.don_vi_tinh || (row.loai === "thu" ? "ly" : "kg")),
-    phuongThuc: String(row.phuong_thuc || "tien_mat"),
-    giaCostDonVi: Number(row.gia_cost_don_vi) || 0,
-    tongGiaCost: Number(row.tong_gia_cost) || 0,
+    chiNhanh,
+    soLuong,
+    donViTinh,
+    phuongThuc,
+    giaCostDonVi,
+    tongGiaCost,
     daSync: true,
     deleted: Boolean(row.deleted),
     updatedAt: row.updated_at || new Date().toISOString(),

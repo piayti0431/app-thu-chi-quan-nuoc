@@ -124,15 +124,36 @@ export async function dongBo() {
   const currentDeviceId = data.sync?.deviceId || "local_device";
   const pending = pendingTransactions(data.ds);
 
-  // 1. PUSH PENDING TRANSACTIONS TO SUPABASE
+  // 1. PUSH PENDING TRANSACTIONS TO SUPABASE (RESILIENT ADAPTIVE SCHEMA)
   if (pending.length) {
-    const { error } = await activeClient
-      .from("giao_dich")
-      .upsert(
-        pending.map((item) => toRemoteTransaction(item, currentDeviceId)),
-        { onConflict: "id" }
-      );
-    if (error) throw error;
+    let pushError = null;
+    try {
+      const { error } = await activeClient
+        .from("giao_dich")
+        .upsert(
+          pending.map((item) => toRemoteTransaction(item, currentDeviceId, true)),
+          { onConflict: "id" }
+        );
+      if (error) pushError = error;
+    } catch (e) {
+      pushError = e;
+    }
+
+    if (pushError) {
+      const errMsg = String(pushError?.message || pushError || "");
+      if (errMsg.includes("column") || errMsg.includes("schema cache") || errMsg.includes("42703") || errMsg.includes("chi_nhanh")) {
+        console.warn("Supabase lacks extended columns, automatically falling back to packed metadata in ghi_chu:", errMsg);
+        const { error: fallbackError } = await activeClient
+          .from("giao_dich")
+          .upsert(
+            pending.map((item) => toRemoteTransaction(item, currentDeviceId, false)),
+            { onConflict: "id" }
+          );
+        if (fallbackError) throw fallbackError;
+      } else {
+        throw pushError;
+      }
+    }
 
     data.ds = data.ds.map((item) =>
       pending.some((queued) => queued.id === item.id) ? { ...item, daSync: true } : item,
