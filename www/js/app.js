@@ -290,7 +290,9 @@ function renderToday() {
     .map(
       (item) => {
         const isTransfer = item.loai === "thu" && item.phuongThuc === "chuyen_khoan";
-        const methodBadge = isTransfer ? `<span style="background: rgba(14, 165, 233, 0.15); color: #0284c7; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.72rem; font-weight: 800;">📱 CK</span>` : "";
+        const methodBadge = item.loai === "thu"
+          ? `<button class="method-toggle-btn" data-id="${item.id}" type="button" title="Bấm để đổi Tiền mặt / Chuyển khoản" style="border: 1px solid ${isTransfer ? '#bae6fd' : '#bbf7d0'}; cursor: pointer; background: ${isTransfer ? 'rgba(14, 165, 233, 0.15)' : 'rgba(16, 185, 129, 0.15)'}; color: ${isTransfer ? '#0284c7' : '#059669'}; padding: 0.12rem 0.4rem; border-radius: 0.3rem; font-size: 0.72rem; font-weight: 800;">${isTransfer ? '📱 CK' : '💵 TM'}</button>`
+          : "";
         return `
       <div class="transaction-item ${item.loai}">
         <div class="tx-main">
@@ -327,6 +329,24 @@ function renderToday() {
       triggerAutoSync();
     };
   });
+
+  $$("#todayList .method-toggle-btn").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const id = Number(btn.getAttribute("data-id"));
+      const tx = (state.ds || []).find((t) => t.id === id);
+      if (!tx) return;
+      const newMethod = tx.phuongThuc === "chuyen_khoan" ? "tien_mat" : "chuyen_khoan";
+      tx.phuongThuc = newMethod;
+      tx.daSync = false;
+      tx.updatedAt = new Date().toISOString();
+      await luuDuLieu(state);
+      state = await docDuLieu();
+      renderAll();
+      showToast(`Đã chuyển đơn ${formatMoney(tx.soTien)} sang ${newMethod === "chuyen_khoan" ? "Chuyển khoản (QR)" : "Tiền mặt"}`);
+      triggerAutoSync();
+    };
+  });
 }
 
 function renderHistory() {
@@ -347,7 +367,9 @@ function renderHistory() {
     .map(
       (item) => {
         const isTransfer = item.loai === "thu" && item.phuongThuc === "chuyen_khoan";
-        const methodBadge = isTransfer ? `<span style="background: rgba(14, 165, 233, 0.15); color: #0284c7; padding: 0.1rem 0.35rem; border-radius: 0.25rem; font-size: 0.72rem; font-weight: 800;">📱 CK</span>` : "";
+        const methodBadge = item.loai === "thu"
+          ? `<button class="method-toggle-btn" data-id="${item.id}" type="button" title="Bấm để đổi Tiền mặt / Chuyển khoản" style="border: 1px solid ${isTransfer ? '#bae6fd' : '#bbf7d0'}; cursor: pointer; background: ${isTransfer ? 'rgba(14, 165, 233, 0.15)' : 'rgba(16, 185, 129, 0.15)'}; color: ${isTransfer ? '#0284c7' : '#059669'}; padding: 0.12rem 0.4rem; border-radius: 0.3rem; font-size: 0.72rem; font-weight: 800;">${isTransfer ? '📱 CK' : '💵 TM'}</button>`
+          : "";
         return `
       <div class="transaction-item ${item.loai}">
         <div class="tx-main">
@@ -380,6 +402,24 @@ function renderHistory() {
       state = await docDuLieu();
       renderAll();
       showToast("Đã xóa giao dịch");
+      triggerAutoSync();
+    };
+  });
+
+  $$("#historyList .method-toggle-btn").forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const id = Number(btn.getAttribute("data-id"));
+      const tx = (state.ds || []).find((t) => t.id === id);
+      if (!tx) return;
+      const newMethod = tx.phuongThuc === "chuyen_khoan" ? "tien_mat" : "chuyen_khoan";
+      tx.phuongThuc = newMethod;
+      tx.daSync = false;
+      tx.updatedAt = new Date().toISOString();
+      await luuDuLieu(state);
+      state = await docDuLieu();
+      renderAll();
+      showToast(`Đã chuyển đơn ${formatMoney(tx.soTien)} sang ${newMethod === "chuyen_khoan" ? "Chuyển khoản (QR)" : "Tiền mặt"}`);
       triggerAutoSync();
     };
   });
@@ -1885,6 +1925,11 @@ function openVoiceConfirmDialog(parsed, rawText) {
   // Set inputs
   const confirmTypeRadio = $(`#confirmForm input[name='confirmType'][value='${parsed.loai}']`);
   if (confirmTypeRadio) confirmTypeRadio.checked = true;
+  
+  const paymentMethod = parsed.phuongThuc === "chuyen_khoan" ? "chuyen_khoan" : "tien_mat";
+  const confirmMethodRadio = $(`#confirmForm input[name='confirmMethod'][value='${paymentMethod}']`);
+  if (confirmMethodRadio) confirmMethodRadio.checked = true;
+
   $("#confirmAmount").value = parsed.soTien;
   $("#confirmQuantity").value = parsed.soLuong || 1;
   $("#confirmNote").value = rawText;
@@ -1904,6 +1949,7 @@ function openVoiceConfirmDialog(parsed, rawText) {
   $("#confirmForm").onsubmit = async (e) => {
     if (e.submitter?.value === "save") {
       const type = $("#confirmForm input[name='confirmType']:checked")?.value || "thu";
+      const phuongThuc = $("#confirmForm input[name='confirmMethod']:checked")?.value || parsed.phuongThuc || "tien_mat";
       const amount = Number($("#confirmAmount")?.value) || parsed.soTien;
       const qty = Number($("#confirmQuantity")?.value) || parsed.soLuong || 1;
       const cat = $("#confirmCategory")?.value || parsed.danhMuc;
@@ -1915,6 +1961,8 @@ function openVoiceConfirmDialog(parsed, rawText) {
         loai: type,
         soTien: amount,
         soLuong: qty,
+        donViTinh: parsed.donViTinh || (type === "thu" ? "ly" : "kg"),
+        phuongThuc,
         giaCostDonVi: unitCost,
         tongGiaCost: qty * unitCost,
         danhMuc: cat,
@@ -1926,7 +1974,7 @@ function openVoiceConfirmDialog(parsed, rawText) {
 
       state = await docDuLieu();
       renderAll();
-      showToast(`Đã lưu ${type === "thu" ? "+ Thu" : "- Chi"} ${formatMoney(amount)}`);
+      showToast(`Đã lưu ${type === "thu" ? "+ Thu" : "- Chi"} ${formatMoney(amount)} (${phuongThuc === "chuyen_khoan" ? "CK" : "TM"})`);
       triggerAutoSync();
     }
   };

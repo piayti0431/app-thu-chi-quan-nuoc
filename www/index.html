@@ -893,6 +893,10 @@
           <label><input type="radio" name="confirmType" value="thu"> <span>+ Thu (Bán nước)</span></label>
           <label><input type="radio" name="confirmType" value="chi"> <span>- Chi (Mua hàng)</span></label>
         </div>
+        <div class="segmented" role="group" aria-label="Hình thức thanh toán xác nhận" id="confirmPaymentMethodGroup">
+          <label><input type="radio" name="confirmMethod" value="tien_mat" checked> <span>💵 Tiền mặt</span></label>
+          <label><input type="radio" name="confirmMethod" value="chuyen_khoan"> <span>📱 Chuyển khoản (QR)</span></label>
+        </div>
         <div class="two-col">
           <label>Số tiền (đ)<input id="confirmAmount" inputmode="numeric"></label>
           <label>Số lượng<input id="confirmQuantity" inputmode="numeric" value="1"></label>

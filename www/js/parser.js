@@ -777,13 +777,28 @@ function batchSummary(items) {
 }
 
 export function phanTichNhieu(text, quickItems = DEFAULT_QUICK_ITEMS) {
-  const segments = splitBatchSegments(text);
+  const { cleanText, branch } = stripWakeWordAndBranch(text);
+  const normalized = normalizeText(cleanText || text);
+  const globalMethod = detectPaymentMethod(normalized);
+  const segments = splitBatchSegments(cleanText || text);
   const items = segments
-    .map((segment) => phanTichChiTiet(segment, quickItems))
+    .map((segment) => {
+      const item = phanTichChiTiet(segment, quickItems);
+      if (globalMethod === "chuyen_khoan" && item.phuongThuc === "tien_mat") {
+        item.phuongThuc = "chuyen_khoan";
+      }
+      if (branch && !item.chiNhanh) {
+        item.chiNhanh = branch;
+      }
+      return item;
+    })
     .filter((item) => item.soTien > 0 || item.confidence !== "low");
 
   if (items.length <= 1) {
     const single = items[0] || phanTichChiTiet(text, quickItems);
+    if (globalMethod === "chuyen_khoan" && single.phuongThuc === "tien_mat") {
+      single.phuongThuc = "chuyen_khoan";
+    }
     return {
       isBatch: false,
       items: [single],
@@ -791,9 +806,12 @@ export function phanTichNhieu(text, quickItems = DEFAULT_QUICK_ITEMS) {
       loai: single.loai,
       soTien: single.soTien,
       soLuong: single.soLuong || 1,
+      donViTinh: single.donViTinh || (single.loai === "thu" ? "ly" : "kg"),
+      phuongThuc: single.phuongThuc || globalMethod || "tien_mat",
       giaCostDonVi: single.giaCostDonVi || 0,
       tongGiaCost: single.tongGiaCost || 0,
       danhMuc: single.danhMuc,
+      chiNhanh: single.chiNhanh || branch || null,
       moTaXacNhan: single.moTaXacNhan,
       ghiChu: single.ghiChu,
       cauNoiGoc: single.cauNoiGoc,
@@ -815,14 +833,16 @@ export function phanTichNhieu(text, quickItems = DEFAULT_QUICK_ITEMS) {
     loai: type,
     soTien: total,
     soLuong: items.reduce((sum, item) => sum + Number(item.soLuong || 1), 0),
+    phuongThuc: globalMethod || "tien_mat",
     giaCostDonVi: 0,
     tongGiaCost: totalCost,
     danhMuc: type === "thu" ? "Tổng nhiều món" : "Chi khác",
+    chiNhanh: branch || null,
     moTaXacNhan: batchSummary(items),
     ghiChu: text?.trim() || DEFAULT_NOTE,
     cauNoiGoc: text?.trim() || "",
     confidence: items.every((item) => item.confidence === "high") ? "high" : "medium",
-    tokens: tokenize(normalizeText(text)),
+    tokens: tokenize(normalized),
     slots: {
       type,
       count: items.length,
