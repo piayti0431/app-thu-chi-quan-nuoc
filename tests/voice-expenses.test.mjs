@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { phanTich } from "../www/js/parser.js";
 
 const cases = [
+  ["đá 51k", 51000, "Mua đá", "mua đá"],
+  ["đá 51 nghìn", 51000, "Mua đá", "mua đá"],
+  ["51k đá", 51000, "Mua đá", "mua đá"],
+  ["tắc 30k", 30000, "Tắc tươi (Quất)", "mua tắc"],
+  ["đường 50k", 50000, "Đường cát", "mua đường"],
   ["mua mía 200k", 200000, "Mua mía", "mua mía"],
+  ["mía 200k", 200000, "Mua mía", "mua mía"],
   ["mua mía hai trăm nghìn", 200000, "Mua mía", "mua mía"],
   ["mua 5 bó mía 150 nghìn", 150000, "Mua mía", "mua mía"],
   ["trả tiền đá 30 nghìn", 30000, "Mua đá", "mua đá"],
