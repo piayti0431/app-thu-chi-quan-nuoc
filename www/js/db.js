@@ -14,6 +14,8 @@ export const DEFAULT_DATA = {
     thu: [
       "Nước mía thường",
       "Nước mía 1 lít",
+      "Mía tắc",
+      "Mía thơm",
       "Mía cam",
       "Rau má tươi",
       "Rau má sữa",
@@ -406,7 +408,7 @@ export function mergeData(data) {
   const base = cloneDefault();
   const legacyPrices = Array.isArray(data?.quickPrices) ? data.quickPrices : null;
 
-  const NOTEBOOK_VERSION = "20260825_notebook_v2";
+  const NOTEBOOK_VERSION = "20260827_visual_v1";
   const needsNotebookUpgrade = data?.costDataVersion !== NOTEBOOK_VERSION;
 
   // Quick items: use custom list if provided; otherwise fallback to default base list
@@ -415,7 +417,7 @@ export function mergeData(data) {
     mergedQuickItems = data.quickItems.map((item, idx) => {
       let costPrice = Number(item.costPrice) >= 0 ? Number(item.costPrice) : 0;
       let price = Number(item.price) > 0 ? Number(item.price) : 10000;
-      const key = (item.id || item.name || "").toLowerCase();
+      const key = `${item.id || ""} ${item.name || ""} ${item.shortName || ""}`.toLowerCase();
 
       // Seamlessly upgrade old default cost prices to notebook standards
       if (needsNotebookUpgrade) {
@@ -426,13 +428,28 @@ export function mergeData(data) {
           costPrice = 10000;
         } else if (key.includes("tra_tac") || key.includes("trà tắc")) {
           costPrice = 7000;
-        } else if (key.includes("mia_thom") || key.includes("mía thơm")) {
+        } else if (key.includes("mia_thom") || key.includes("mía thơm") || key.includes("dứa")) {
           costPrice = 7000;
         } else if (key.includes("mia_tac") || key.includes("mía tắc")) {
           costPrice = 5000;
         } else if (key.includes("nuoc_mia") || key.includes("mía thường") || key.includes("mía ly")) {
           costPrice = 4000;
         }
+      }
+
+      let img = item.image;
+      if (!img || img.includes("undefined")) {
+        if (key.includes("thơm") || key.includes("dứa") || key.includes("mia_thom")) img = "./assets/menu/mia_thom.jpg";
+        else if (key.includes("mía tắc") || key.includes("mia_tac")) img = "./assets/menu/mia_tac.jpg";
+        else if (key.includes("1 lít") || key.includes("1l") || key.includes("nuoc_mia_1l")) img = "./assets/menu/nuoc_mia_1l.jpg";
+        else if (key.includes("mía cam") || key.includes("mia_cam")) img = "./assets/menu/mia_cam.jpg";
+        else if (key.includes("nước cam") || key.includes("cam tươi") || key.includes("nuoc_cam")) img = "./assets/menu/nuoc_cam.jpg";
+        else if (key.includes("trà tắc") || key.includes("tra_tac")) img = "./assets/menu/tra_tac.jpg";
+        else if (key.includes("đậu xanh") || key.includes("rau_ma_dau_xanh")) img = "./assets/menu/rau_ma_dau_xanh.jpg";
+        else if (key.includes("sữa") || key.includes("rau_ma_sua")) img = "./assets/menu/rau_ma_sua.jpg";
+        else if (key.includes("rau má") || key.includes("rau_ma")) img = "./assets/menu/rau_ma.jpg";
+        else if (key.includes("mía") || key.includes("nuoc_mia")) img = "./assets/menu/nuoc_mia.jpg";
+        else if (item.id) img = `./assets/menu/${item.id}.jpg`;
       }
 
       return {
@@ -444,7 +461,7 @@ export function mergeData(data) {
         price,
         costPrice,
         icon: item.icon || "cane",
-        image: item.image || (item.id ? `./assets/menu/${item.id}.jpg` : ""),
+        image: img || (item.id ? `./assets/menu/${item.id}.jpg` : ""),
       };
     });
 
@@ -460,6 +477,25 @@ export function mergeData(data) {
           category: "Mía tắc",
           note: "Bán mía tắc",
           icon: "citrus",
+          image: "./assets/menu/mia_tac.jpg",
+          voiceUnit: "ly",
+        });
+      }
+
+      const hasMiaThom = mergedQuickItems.some((i) => i.id === "mia_thom" || i.name?.toLowerCase().includes("mía thơm") || i.name?.toLowerCase().includes("mía dứa"));
+      if (!hasMiaThom) {
+        const tacIdx = mergedQuickItems.findIndex((i) => i.id === "mia_tac" || i.name?.toLowerCase().includes("mía tắc"));
+        const insertIdx = tacIdx >= 0 ? tacIdx + 1 : 3;
+        mergedQuickItems.splice(insertIdx, 0, {
+          id: "mia_thom",
+          name: "Mía thơm",
+          shortName: "Mía thơm",
+          price: 12000,
+          costPrice: 7000,
+          category: "Mía thơm",
+          note: "Bán mía thơm",
+          icon: "cane",
+          image: "./assets/menu/mia_thom.jpg",
           voiceUnit: "ly",
         });
       }
