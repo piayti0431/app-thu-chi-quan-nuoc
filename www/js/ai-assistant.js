@@ -718,6 +718,10 @@ ${ingredientDetail}
       const unitCost = matchedItem ? Number(matchedItem.costPrice || 0) : 3000;
       const totalAmount = unitPrice * requestedQty;
       const totalCost = unitCost * requestedQty;
+      let finalAmount = totalAmount;
+      if (discountAmount > 0 && finalAmount > discountAmount) {
+        finalAmount = finalAmount - discountAmount;
+      }
       const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
 
       // Xử lý ghi nợ nếu có từ khóa "nợ" hoặc "thiếu"
@@ -727,11 +731,11 @@ ${ingredientDetail}
           type: "action",
           action: "customer_debt",
           customerName: cust.name,
-          debtAmount: totalAmount,
+          debtAmount: finalAmount,
           reply: `📒 **Dạ EV đã ghi vào Sổ Nợ Khách Quen**:
 - 👤 **Khách hàng**: **${cust.name}**
 - 🥤 **Món**: **${matchedItem.name}** (${requestedQty} ly)
-- 💸 **Số tiền ghi nợ**: **${formatMoney(totalAmount)}** (Khách hẹn trả sau)
+- 💸 **Số tiền ghi nợ**: **${formatMoney(finalAmount)}** (Khách hẹn trả sau)
 
 *Khoản nợ này chưa cộng vào két tiền mặt và sẽ được theo dõi trong sổ nợ ạ!*`,
         };
@@ -742,7 +746,7 @@ ${ingredientDetail}
 
       const parsedTransaction = {
         loai: "thu",
-        soTien: totalAmount,
+        soTien: finalAmount,
         soLuong: requestedQty,
         donViTinh: matchedItem.voiceUnit || "ly",
         phuongThuc: paymentMethod,
@@ -750,7 +754,7 @@ ${ingredientDetail}
         tongGiaCost: totalCost,
         danhMuc: matchedItem.name,
         chiNhanh: branchToUse,
-        ghiChu: `${cust.name} lấy ${requestedQty} ly ${matchedItem.name} - ${query}`,
+        ghiChu: `${cust.name} lấy ${requestedQty} ly ${matchedItem.name}${discountAmount > 0 ? ` (Đã bớt -${formatMoney(discountAmount)})` : ""} - ${query}`,
         cauNoiGoc: query,
       };
 
@@ -765,8 +769,8 @@ ${ingredientDetail}
 - **Loại**: + Thu tiền bán
 - **Khách hàng**: **${cust.name}** (Khách quen)
 - **Món**: **${matchedItem.name}** (${requestedQty} ly)
-- **Số tiền**: **${formatMoney(totalAmount)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})
-- **Giá vốn (Cost)**: ${formatMoney(totalCost)} | **Lãi ròng**: +${formatMoney(totalAmount - totalCost)}
+- **Số tiền**: **${formatMoney(finalAmount)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})${discountAmount > 0 ? ` (Đã bớt -${formatMoney(discountAmount)})` : ""}
+- **Giá vốn (Cost)**: ${formatMoney(totalCost)} | **Lãi ròng**: +${formatMoney(finalAmount - totalCost)}
 - **Điểm bán**: **${branchToUse}**
 
 *Dữ liệu đã được lưu vào sổ và cộng vào doanh thu hôm nay!*`,
