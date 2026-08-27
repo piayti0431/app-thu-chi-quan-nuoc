@@ -1837,11 +1837,12 @@ ${breakdownLines}
     return (n && norm.includes(n)) || (sn && norm.includes(sn)) || (vn && norm.includes(vn));
   }) || norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") || norm.includes("thom") || norm.includes("khom") || norm.includes("dua") || norm.includes("da vien") || norm.includes("nuoc da");
 
+  const isRawMaterialOrExpense = /\b(?:da|mia|tac|duong|ong hut|tui|ly|mang ep|xang|dien|nuoc|rac)\b/i.test(norm);
   const isCustomerBuying = norm.includes("khach mua") || norm.includes("khach lay") || norm.includes("khach uong") || norm.includes("khach goi") || norm.includes("ban ");
-  const isExpenseIntent = !isCustomerBuying && (norm.includes("mua ") || norm.includes("nhap ") || norm.includes("chi ") || norm.includes("tra tien") || norm.includes("xang") || norm.includes("tien dien") || norm.includes("tien nuoc"));
+  const isExpenseIntent = !isCustomerBuying && (isRawMaterialOrExpense || norm.includes("mua") || norm.includes("nhap") || norm.includes("chi") || norm.includes("tra tien") || norm.includes("xang") || norm.includes("tien dien") || norm.includes("tien nuoc"));
   const extractedMoneyOnly = extractMoneyFromText(effectiveQuery);
 
-  if (!hasDrinkName && !isExpenseIntent && extractedMoneyOnly >= 1000 && !norm.includes("bot ") && !norm.includes("giam ")) {
+  if (!hasDrinkName && !isExpenseIntent && !isRawMaterialOrExpense && extractedMoneyOnly >= 1000 && !norm.includes("bot ") && !norm.includes("giam ")) {
     const isCK = norm.includes("chuyen") || norm.includes("ck") || norm.includes("qr") || norm.includes("bank");
     const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
     const isExplicitThu = norm.includes("thu") || norm.includes("ban") || norm.includes("khach") || norm.includes("tra tien mua");
