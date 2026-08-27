@@ -23,6 +23,7 @@ import {
   xoaLichSuAIChat,
   xoaTatCaDuLieu,
   xuatDuLieuJson,
+  getValidMenuImage,
 } from "./db.js";
 import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
 import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney } from "./report.js";
@@ -216,22 +217,7 @@ function renderQuickButtons() {
   const quickItems = state.quickItems || [];
   container.innerHTML = quickItems
     .map((item) => {
-      let imgSrc = item.image;
-      if (!imgSrc || imgSrc.includes("undefined")) {
-        const key = `${item.id || ""} ${item.name || ""} ${item.shortName || ""}`.toLowerCase();
-        if (key.includes("thơm") || key.includes("dứa") || key.includes("mia_thom")) imgSrc = "./assets/menu/mia_thom.jpg";
-        else if (key.includes("mía tắc") || key.includes("mia_tac")) imgSrc = "./assets/menu/mia_tac.jpg";
-        else if (key.includes("1 lít") || key.includes("1l") || key.includes("nuoc_mia_1l")) imgSrc = "./assets/menu/nuoc_mia_1l.jpg";
-        else if (key.includes("mía cam") || key.includes("mia_cam")) imgSrc = "./assets/menu/mia_cam.jpg";
-        else if (key.includes("nước cam") || key.includes("cam tươi") || key.includes("nuoc_cam")) imgSrc = "./assets/menu/nuoc_cam.jpg";
-        else if (key.includes("trà tắc") || key.includes("tra_tac")) imgSrc = "./assets/menu/tra_tac.jpg";
-        else if (key.includes("đậu xanh") || key.includes("rau_ma_dau_xanh")) imgSrc = "./assets/menu/rau_ma_dau_xanh.jpg";
-        else if (key.includes("sữa") || key.includes("rau_ma_sua")) imgSrc = "./assets/menu/rau_ma_sua.jpg";
-        else if (key.includes("rau má") || key.includes("rau_ma")) imgSrc = "./assets/menu/rau_ma.jpg";
-        else if (key.includes("mía") || key.includes("nuoc_mia")) imgSrc = "./assets/menu/nuoc_mia.jpg";
-        else if (item.id) imgSrc = `./assets/menu/${item.id}.jpg`;
-      }
-
+      const imgSrc = getValidMenuImage(item);
       const shortPrice = Number(item.price) >= 1000
         ? `${Math.round(item.price / 1000)}k`
         : formatMoney(item.price);

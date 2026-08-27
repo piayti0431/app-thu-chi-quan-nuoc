@@ -404,11 +404,69 @@ function mergeList(baseList, customList) {
   return result;
 }
 
+export function getValidMenuImage(item) {
+  if (!item) return "";
+  const VALID_IMAGES = new Set([
+    "./assets/menu/nuoc_mia.jpg",
+    "./assets/menu/nuoc_mia_1l.jpg",
+    "./assets/menu/mia_tac.jpg",
+    "./assets/menu/mia_thom.jpg",
+    "./assets/menu/mia_cam.jpg",
+    "./assets/menu/nuoc_cam.jpg",
+    "./assets/menu/tra_tac.jpg",
+    "./assets/menu/rau_ma.jpg",
+    "./assets/menu/rau_ma_dau_xanh.jpg",
+    "./assets/menu/rau_ma_sua.jpg",
+  ]);
+
+  if (item.image && VALID_IMAGES.has(item.image)) {
+    return item.image;
+  }
+
+  const str = `${item.id || ""} ${item.name || ""} ${item.shortName || ""} ${item.category || ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (str.includes("thom") || str.includes("dua") || str.includes("khom") || (item.id && item.id.includes("thom"))) {
+    return "./assets/menu/mia_thom.jpg";
+  }
+  if (str.includes("tac") && (str.includes("mia") || str.includes("nuoc mia"))) {
+    return "./assets/menu/mia_tac.jpg";
+  }
+  if (str.includes("tra tac") || (str.includes("tac") && !str.includes("mia"))) {
+    return "./assets/menu/tra_tac.jpg";
+  }
+  if (str.includes("1 lit") || str.includes("1l") || str.includes("mot lit") || str.includes("nuoc_mia_1l")) {
+    return "./assets/menu/nuoc_mia_1l.jpg";
+  }
+  if (str.includes("mia cam")) {
+    return "./assets/menu/mia_cam.jpg";
+  }
+  if (str.includes("nuoc cam") || str.includes("cam tuoi") || (str.includes("cam") && !str.includes("mia"))) {
+    return "./assets/menu/nuoc_cam.jpg";
+  }
+  if (str.includes("dau xanh") || str.includes("ma dau")) {
+    return "./assets/menu/rau_ma_dau_xanh.jpg";
+  }
+  if (str.includes("sua") || str.includes("ma sua")) {
+    return "./assets/menu/rau_ma_sua.jpg";
+  }
+  if (str.includes("rau ma")) {
+    return "./assets/menu/rau_ma.jpg";
+  }
+  if (str.includes("mia")) {
+    return "./assets/menu/nuoc_mia.jpg";
+  }
+
+  return item.image || "";
+}
+
 export function mergeData(data) {
   const base = cloneDefault();
   const legacyPrices = Array.isArray(data?.quickPrices) ? data.quickPrices : null;
 
-  const NOTEBOOK_VERSION = "20260827_pricing_v2";
+  const NOTEBOOK_VERSION = "20260827_pricing_v3";
   const needsNotebookUpgrade = data?.costDataVersion !== NOTEBOOK_VERSION;
 
   // Quick items: use custom list if provided; otherwise fallback to default base list
@@ -442,21 +500,6 @@ export function mergeData(data) {
         }
       }
 
-      let img = item.image;
-      if (!img || img.includes("undefined")) {
-        if (key.includes("thơm") || key.includes("dứa") || key.includes("mia_thom")) img = "./assets/menu/mia_thom.jpg";
-        else if (key.includes("mía tắc") || key.includes("mia_tac")) img = "./assets/menu/mia_tac.jpg";
-        else if (key.includes("1 lít") || key.includes("1l") || key.includes("nuoc_mia_1l")) img = "./assets/menu/nuoc_mia_1l.jpg";
-        else if (key.includes("mía cam") || key.includes("mia_cam")) img = "./assets/menu/mia_cam.jpg";
-        else if (key.includes("nước cam") || key.includes("cam tươi") || key.includes("nuoc_cam")) img = "./assets/menu/nuoc_cam.jpg";
-        else if (key.includes("trà tắc") || key.includes("tra_tac")) img = "./assets/menu/tra_tac.jpg";
-        else if (key.includes("đậu xanh") || key.includes("rau_ma_dau_xanh")) img = "./assets/menu/rau_ma_dau_xanh.jpg";
-        else if (key.includes("sữa") || key.includes("rau_ma_sua")) img = "./assets/menu/rau_ma_sua.jpg";
-        else if (key.includes("rau má") || key.includes("rau_ma")) img = "./assets/menu/rau_ma.jpg";
-        else if (key.includes("mía") || key.includes("nuoc_mia")) img = "./assets/menu/nuoc_mia.jpg";
-        else if (item.id) img = `./assets/menu/${item.id}.jpg`;
-      }
-
       return {
         ...item,
         id: item.id || `item_${idx}_${Date.now()}`,
@@ -466,7 +509,7 @@ export function mergeData(data) {
         price,
         costPrice,
         icon: item.icon || "cane",
-        image: img || (item.id ? `./assets/menu/${item.id}.jpg` : ""),
+        image: getValidMenuImage(item),
       };
     });
 
