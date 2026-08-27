@@ -1077,4 +1077,78 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Pragmatic & Empathy: all conversational scenarios responded naturally!");
 }
 
+// Test 50: Historical Date Discovery - "2 ngày có doanh thu là ngày mấy?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [
+      { id: "1", loai: "thu", soTien: 450000, soLuong: 35, danhMuc: "Nước mía thường", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-27" },
+      { id: "2", loai: "thu", soTien: 580000, soLuong: 48, danhMuc: "Trà tắc", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-26" },
+      { id: "3", loai: "chi", soTien: 50000, danhMuc: "Mua đá", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-27" },
+    ],
+  };
+
+  const res = phanTichTaiChinhNoiBo("2 ngày có doanh thu là ngày mấy?", mockState);
+  assert.equal(res.type, "financial_history");
+  assert.ok(res.reply.includes("27/08/2026") || res.reply.includes("27/08"));
+  assert.ok(res.reply.includes("26/08/2026") || res.reply.includes("26/08"));
+  assert.ok(res.reply.includes("450.000") || res.reply.includes("580.000"));
+
+  console.log("PASS EV Date Discovery: '2 ngày có doanh thu là ngày mấy?' -> accurately identified 26/08 and 27/08");
+}
+
+// Test 51: Multi-day Summary - "tổng kết doanh thu 2 ngày qua"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [
+      { id: "1", loai: "thu", soTien: 450000, soLuong: 35, danhMuc: "Nước mía thường", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-27" },
+      { id: "2", loai: "thu", soTien: 580000, soLuong: 48, danhMuc: "Trà tắc", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-26" },
+      { id: "3", loai: "chi", soTien: 50000, danhMuc: "Mua đá", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-27" },
+    ],
+  };
+
+  const res = phanTichTaiChinhNoiBo("tổng kết doanh thu 2 ngày qua", mockState);
+  assert.equal(res.type, "financial_history");
+  assert.ok(res.reply.includes("tổng kết doanh thu 2 ngày"));
+  assert.ok(res.reply.includes("1.030.000") || res.reply.includes("450.000"));
+
+  console.log("PASS EV Multi-day Summary: 'tổng kết doanh thu 2 ngày qua' -> multi-day aggregated report");
+}
+
+// Test 52: Yesterday Report - "doanh thu hôm qua"
+{
+  const yesterday = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate() - 1).padStart(2, "0")}`;
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [
+      { id: "1", loai: "thu", soTien: 300000, soLuong: 25, danhMuc: "Nước mía thường", chiNhanh: "Quán Nhà (Chính)", ngay: yesterday },
+    ],
+  };
+
+  const res = phanTichTaiChinhNoiBo("doanh thu hôm qua là bao nhiêu?", mockState);
+  assert.equal(res.type, "financial_history");
+  assert.ok(res.reply.includes("300.000") || res.reply.includes("HÔM QUA"));
+
+  console.log("PASS EV Yesterday Report: 'doanh thu hôm qua' -> accurately extracts yesterday's date");
+}
+
+// Test 53: Best Day in History - "ngày nào bán chạy nhất?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [
+      { id: "1", loai: "thu", soTien: 450000, soLuong: 35, danhMuc: "Nước mía thường", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-27" },
+      { id: "2", loai: "thu", soTien: 890000, soLuong: 70, danhMuc: "Trà tắc", chiNhanh: "Quán Nhà (Chính)", ngay: "2026-08-26" },
+    ],
+  };
+
+  const res = phanTichTaiChinhNoiBo("ngày nào bán chạy nhất vậy EV?", mockState);
+  assert.equal(res.type, "financial_history");
+  assert.ok(res.reply.includes("26/08/2026") || res.reply.includes("26/08"));
+  assert.ok(res.reply.includes("890.000"));
+
+  console.log("PASS EV Best Day: 'ngày nào bán chạy nhất' -> finds 26/08 with 890k");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

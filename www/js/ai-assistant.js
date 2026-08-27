@@ -20,6 +20,74 @@ function todayKey() {
   return `${y}-${m}-${d}`;
 }
 
+function shiftDateKey(dateKeyStr, days) {
+  const [y, m, d] = (dateKeyStr || todayKey()).split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() + days);
+  const ry = dt.getFullYear();
+  const rm = String(dt.getMonth() + 1).padStart(2, "0");
+  const rd = String(dt.getDate()).padStart(2, "0");
+  return `${ry}-${rm}-${rd}`;
+}
+
+function formatDateDisplay(dateKeyStr) {
+  if (!dateKeyStr) return "";
+  const parts = String(dateKeyStr).split("-");
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateKeyStr;
+}
+
+function groupTransactionsByDate(transactions, targetBranch = null) {
+  const isAll = !targetBranch || targetBranch === "all" || targetBranch === "Tất cả điểm bán";
+  const dateMap = new Map();
+
+  for (const tx of transactions) {
+    if (!tx.ngay || tx.deleted) continue;
+    if (!isAll && tx.chiNhanh && tx.chiNhanh !== targetBranch) continue;
+
+    const current = dateMap.get(tx.ngay) || {
+      date: tx.ngay,
+      income: 0,
+      cashIncome: 0,
+      transferIncome: 0,
+      expense: 0,
+      cost: 0,
+      drinks: 0,
+      count: 0,
+      items: [],
+    };
+
+    if (tx.loai === "thu") {
+      const money = Number(tx.soTien) || 0;
+      const qty = Number(tx.soLuong) || 1;
+      const c = Number(tx.tongGiaCost) || (qty * (Number(tx.giaCostDonVi) || 0));
+      current.income += money;
+      if (tx.phuongThuc === "chuyen_khoan") current.transferIncome += money;
+      else current.cashIncome += money;
+      current.drinks += qty;
+      current.cost += c;
+      current.count += 1;
+      current.items.push(tx);
+    } else if (tx.loai === "chi") {
+      current.expense += Number(tx.soTien) || 0;
+      current.items.push(tx);
+    }
+
+    dateMap.set(tx.ngay, current);
+  }
+
+  return [...dateMap.values()]
+    .map((d) => ({
+      ...d,
+      balance: d.income - d.expense,
+      grossProfit: d.income - d.cost,
+      margin: d.income > 0 ? Math.round(((d.income - d.cost) / d.income) * 100) : 0,
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
 function normalizeQuery(text) {
   const { cleanText } = stripWakeWordAndBranch(text);
   return String(cleanText || text || "")
@@ -1098,14 +1166,14 @@ ${currentIncome >= targetRevenue ? `🎉 **CHÚC MỪNG QUÁN ĐÃ VƯỢT ĐI�
   }
 
   // 7. BẢNG XẾP HẠNG MÓN BÁN CHẠY (MENU RANKING)
-  if (
-    norm.includes("mon nao ban chay") ||
-    norm.includes("ban chay nhat") ||
+  const isMenuRanking =
+    norm.includes("mon nao") ||
     norm.includes("top mon") ||
-    norm.includes("mon ban chay") ||
-    norm.includes("mon nao dat khach") ||
-    norm.includes("xep hang mon")
-  ) {
+    norm.includes("xep hang mon") ||
+    (norm.includes("mon") && (norm.includes("ban chay") || norm.includes("dat khach"))) ||
+    ((norm.includes("ban chay nhat") || norm.includes("ban chay")) && !norm.includes("ngay nao") && !norm.includes("hom nao") && !norm.includes("ngay"));
+
+  if (isMenuRanking) {
     const drinksMap = new Map();
     todayReport.items
       .filter((it) => it.loai === "thu")
@@ -1500,7 +1568,195 @@ ${expText}
     };
   }
 
-  // 14. BÁO CÁO DOANH THU & TIỀN LỜI HÔM NAY
+  // 14. TRUY VẤN LỊCH SỬ THỜI GIAN & KHÁM PHÁ NGÀY THÁNG (HISTORICAL & TEMPORAL INTELLIGENCE)
+  const historyByDate = groupTransactionsByDate(transactions, targetBranch);
+  const daysWithRevenue = historyByDate.filter((d) => d.income > 0);
+
+  // 14.1 HỎI DANH SÁCH CÁC NGÀY CÓ DOANH THU ("2 ngày có doanh thu là ngày mấy?", "những ngày nào có doanh thu?")
+  const isDateDiscovery =
+    (norm.includes("la ngay may") ||
+      norm.includes("ngay nao") ||
+      norm.includes("ngay may") ||
+      norm.includes("nhung ngay nao") ||
+      norm.includes("cac ngay nao") ||
+      norm.includes("ngay co doanh thu") ||
+      norm.includes("co doanh thu la ngay") ||
+      norm.includes("danh sach ngay") ||
+      norm.includes("cac ngay ban duoc")) &&
+    (norm.includes("doanh thu") ||
+      norm.includes("ban hang") ||
+      norm.includes("co tien") ||
+      norm.includes("ban duoc") ||
+      norm.includes("ngay qua") ||
+      norm.includes("2 ngay") ||
+      norm.includes("3 ngay"));
+
+  if (isDateDiscovery) {
+    if (daysWithRevenue.length === 0) {
+      return {
+        type: "financial_history",
+        reply: `📅 **Dạ EV đã kiểm tra toàn bộ lịch sử bán hàng (${targetBranch || "Toàn bộ chi nhánh"})**:
+Hiện tại hệ thống chưa ghi nhận ngày nào phát sinh doanh thu thu vào ạ. Khi quán bắt đầu bán nước và ghi sổ, EV sẽ tự động theo dõi và báo cáo từng ngày ngay nhé! ✨`,
+      };
+    }
+
+    const totalRev = daysWithRevenue.reduce((s, d) => s + d.income, 0);
+    const totalDrinks = daysWithRevenue.reduce((s, d) => s + d.drinks, 0);
+    const totalProfit = daysWithRevenue.reduce((s, d) => s + d.balance, 0);
+
+    const lines = daysWithRevenue
+      .map((d, idx) => {
+        return `${idx + 1}. 📅 **Ngày ${formatDateDisplay(d.date)}**:
+   - 💰 Doanh thu: **${formatMoney(d.income)}** (${d.drinks} ly nước)
+   - 🧊 Tiền chi: ${formatMoney(d.expense)} | Giá vốn: ${formatMoney(d.cost)}
+   - 🌟 Tiền lời thực tế: **+${formatMoney(d.balance)}** (Lãi gộp: ${d.margin}%)`;
+      })
+      .join("\n\n");
+
+    return {
+      type: "financial_history",
+      reply: `📅 **Dạ EV đã rà soát toàn bộ lịch sử: Quán có ${daysWithRevenue.length} ngày phát sinh doanh thu (${targetBranch || "Toàn quán"})**:
+
+${lines}
+
+--------------------------------------------------
+🏆 **TỔNG KẾT TẤT CẢ CÁC NGÀY ĐÃ BÁN**:
+- 🥤 **Tổng số ly đã bán**: **${totalDrinks} ly**
+- 💰 **Tổng doanh thu tích lũy**: **${formatMoney(totalRev)}**
+- 💵 **Tổng tiền lời thực nhận**: **+${formatMoney(totalProfit)}**
+
+*Anh/Chị cần xem chi tiết món bán chạy của ngày nào thì cứ bảo EV nhé!*`,
+    };
+  }
+
+  // 14.2 HỎI NGÀY BÁN CHẠY NHẤT / CAO NHẤT HOẶC Ế NHẤT ("ngày nào bán chạy nhất?", "ngày nào doanh thu cao nhất?")
+  const isBestDayQuery =
+    norm.includes("ban chay nhat") ||
+    norm.includes("doanh thu cao nhat") ||
+    norm.includes("nhieu tien nhat") ||
+    norm.includes("dat khach nhat");
+
+  if (isBestDayQuery && (norm.includes("ngay nao") || norm.includes("ngay gi") || norm.includes("hom nao"))) {
+    if (daysWithRevenue.length === 0) {
+      return {
+        type: "financial_history",
+        reply: `📊 Dạ hiện tại quán chưa có ngày nào có doanh thu để lập bảng xếp hạng ngày bán chạy nhất ạ.`,
+      };
+    }
+
+    const sortedByIncome = [...daysWithRevenue].sort((a, b) => b.income - a.income);
+    const best = sortedByIncome[0];
+
+    return {
+      type: "financial_history",
+      reply: `🌟 **Dạ ngày bán chạy nhất lịch sử của quán là Ngày ${formatDateDisplay(best.date)}**:
+- 💰 **Kỷ lục doanh thu**: **${formatMoney(best.income)}**
+- 🥤 **Số ly đã bán**: **${best.drinks} ly**
+- 🌟 **Lợi nhuận ròng**: **+${formatMoney(best.balance)}**
+- 💳 Tiền mặt: ${formatMoney(best.cashIncome)} | Chuyển khoản QR: ${formatMoney(best.transferIncome)}
+
+*(Đây là ngày quán có lượng khách đông đảo và doanh số cao nhất toàn hệ thống!)* 🚀✨`,
+    };
+  }
+
+  // 14.3 HỎI TỔNG KẾT DOANH THU NHIỀU NGÀY ("tổng kết doanh thu 2 ngày qua", "báo cáo 3 ngày gần nhất", "7 ngày qua")
+  const multiDayMatch = norm.match(/(\d+)\s*ngay\s*(?:qua|gan\s*day|gan\s*nhat|vua\s*roi|truoc)?/i);
+  const isMultiDayQuery = multiDayMatch && (norm.includes("doanh thu") || norm.includes("tong ket") || norm.includes("bao cao") || norm.includes("loi nhuan") || norm.includes("ban duoc"));
+
+  if (isMultiDayQuery) {
+    const numDays = Math.min(30, Math.max(1, Number(multiDayMatch[1])));
+
+    const targetDates = [];
+    for (let i = 0; i < numDays; i++) {
+      targetDates.push(shiftDateKey(today, -i));
+    }
+
+    const matchedDays = targetDates.map((dk) => {
+      const found = historyByDate.find((h) => h.date === dk);
+      return (
+        found || {
+          date: dk,
+          income: 0,
+          expense: 0,
+          cost: 0,
+          drinks: 0,
+          cashIncome: 0,
+          transferIncome: 0,
+          balance: 0,
+          margin: 0,
+        }
+      );
+    });
+
+    // Nếu các ngày lùi từ hôm nay đều 0đ nhưng trong lịch sử có dữ liệu
+    let effectiveList = matchedDays;
+    const hasAnyIncomeInTarget = matchedDays.some((d) => d.income > 0);
+    if (!hasAnyIncomeInTarget && daysWithRevenue.length > 0) {
+      effectiveList = daysWithRevenue.slice(0, numDays);
+    }
+
+    const totalIncome = effectiveList.reduce((s, d) => s + d.income, 0);
+    const totalDrinks = effectiveList.reduce((s, d) => s + d.drinks, 0);
+    const totalExpense = effectiveList.reduce((s, d) => s + d.expense, 0);
+    const totalCost = effectiveList.reduce((s, d) => s + d.cost, 0);
+    const totalBalance = effectiveList.reduce((s, d) => s + d.balance, 0);
+
+    const fromDateText = formatDateDisplay(effectiveList[effectiveList.length - 1].date);
+    const toDateText = formatDateDisplay(effectiveList[0].date);
+
+    const breakdownLines = effectiveList
+      .map((d) => {
+        const isToday = d.date === today;
+        const tag = isToday ? " (Hôm nay)" : "";
+        if (d.income === 0 && d.expense === 0) {
+          return `• 📅 **Ngày ${formatDateDisplay(d.date)}${tag}**: Chưa phát sinh doanh thu (0đ)`;
+        }
+        return `• 📅 **Ngày ${formatDateDisplay(d.date)}${tag}**: **${formatMoney(d.income)}** (${d.drinks} ly) | Chi ${formatMoney(d.expense)} ➔ Lãi **+${formatMoney(d.balance)}**`;
+      })
+      .join("\n");
+
+    return {
+      type: "financial_history",
+      reply: `📊 **Dạ EV xin tổng kết doanh thu ${numDays} ngày (${fromDateText} - ${toDateText} - ${targetBranch || "Toàn quán"})**:
+- 🥤 **Tổng số ly nước đã bán**: **${totalDrinks} ly**
+- 💰 **TỔNG DOANH THU**: **${formatMoney(totalIncome)}**
+- 🧊 **Tổng chi phí**: -${formatMoney(totalExpense)} | **Giá vốn**: ${formatMoney(totalCost)}
+- 🌟 **TỔNG LỢI NHUẬN RÒNG**: **+${formatMoney(totalBalance)}**
+
+**Chi tiết từng ngày**:
+${breakdownLines}
+
+*Anh/Chị cần EV lọc riêng cho từng chi nhánh hay phân tích thêm chi phí mục nào không ạ?*`,
+    };
+  }
+
+  // 14.4 HỎI BÁO CÁO HÔM QUA ("doanh thu hôm qua", "hôm qua bán được bao nhiêu", "hôm qua lời bao nhiêu")
+  const isYesterday = norm.includes("hom qua") || norm.includes("ngay hom qua") || norm.includes("hom truoc");
+  if (isYesterday && (norm.includes("doanh thu") || norm.includes("ban") || norm.includes("loi") || norm.includes("tong ket") || norm.includes("bao cao") || norm.includes("thu chi"))) {
+    const yesterdayDateKey = shiftDateKey(today, -1);
+    const yReport = dailyReport(transactions, yesterdayDateKey, targetBranch, state.defaultOpeningCash || 500000);
+
+    if (yReport.income === 0 && yReport.expense === 0) {
+      return {
+        type: "financial_history",
+        reply: `🥤 **Dạ EV kiểm tra ngày hôm qua (${yReport.dateText} - ${targetBranch || "Toàn bộ chi nhánh"})**:
+Hệ thống chưa ghi nhận đơn bán hoặc khoản chi nào phát sinh trong ngày hôm qua ạ.`,
+      };
+    }
+
+    return {
+      type: "financial_history",
+      reply: `🥤 **Dạ EV xin báo cáo doanh thu ngày HÔM QUA (${yReport.dateText} - ${targetBranch || "Toàn bộ chi nhánh"})**:
+- **Tổng doanh thu**: **${formatMoney(yReport.income)}**
+- **Số ly đã bán**: **${yReport.totalDrinks} ly**
+- **Tiền mặt thu vào**: ${formatMoney(yReport.cashIncome)}
+- **Chuyển khoản QR**: ${formatMoney(yReport.transferIncome)}
+- **Tiền chi**: ${formatMoney(yReport.expense)} | **Giá vốn**: ${formatMoney(yReport.cost)}
+- 💰 **Lợi nhuận thực nhận (Lãi ròng)**: **+${formatMoney(yReport.balance)}**`,
+    };
+  }
+
+  // 14.5 BÁO CÁO DOANH THU & TIỀN LỜI HÔM NAY
   const isFinancialReportQuery =
     norm.includes("doanh thu") ||
     norm.includes("loi bao nhieu") ||
