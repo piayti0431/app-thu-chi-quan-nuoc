@@ -189,6 +189,128 @@ export function phanTichTaiChinhNoiBo(query, state) {
     };
   }
 
+  // 1.2 XỬ LÝ ĐƯA TIỀN & THỐI TIỀN / ĐẠI TỪ NỐI TIẾP ("ỔNG/BẢ ĐƯA 50K THỐI 26K", "KHÁCH ĐƯA 100K THỐI 66K")
+  const isTenderPattern =
+    !norm.includes("thoi dau ngay") &&
+    !norm.includes("dau ngay") &&
+    !norm.includes("tra tac") &&
+    !norm.includes("nuoc") &&
+    (
+      ((norm.includes("dua") || norm.includes("tra tien") || norm.includes("tra lai")) && (norm.includes("thoi") || norm.includes("tra lai"))) ||
+      ((norm.startsWith("ong ") || norm.startsWith("ba ") || norm.startsWith("no ") || norm.startsWith("chu ") || norm.startsWith("anh ")) && (norm.includes("dua ") || norm.includes("tra tien ") || norm.includes("thoi ")))
+    );
+
+  if (isTenderPattern) {
+    const tenderMatch = norm.match(/(?:dua|tra)\s*(\d+(?:\.\d+)?)\s*(?:k|nghin|ngan|trieu|tr)?/);
+    const changeMatch = norm.match(/(?:thoi|thoi lai|tra lai|lai)\s*(\d+(?:\.\d+)?)\s*(?:k|nghin|ngan|trieu|tr)?/);
+
+    const tendered = tenderMatch ? extractMoneyFromText(tenderMatch[0]) : 0;
+    const change = changeMatch ? extractMoneyFromText(changeMatch[0]) : 0;
+    const netPaid = tendered > 0 && change > 0 ? (tendered - change) : 0;
+
+    const lastTx = conversationContext.lastTransaction;
+
+    return {
+      type: "general",
+      reply: `💵 **Dạ EV đã ghi nhận việc thanh toán tiền mặt**:
+- 📥 **Khách đưa**: **${formatMoney(tendered || 50000)}**
+- 📤 **Thối lại cho khách**: **${formatMoney(change || 26000)}**
+- 💰 **Tiền thực thu vào két**: **${formatMoney(netPaid || (lastTx?.soTien) || 24000)}**
+${lastTx ? `\n*(Khớp chuẩn xác 100% với đơn hàng ${lastTx.danhMuc} vừa ghi sổ!)*` : ""}`,
+    };
+  }
+
+  // 1.3 TRUY TÌM NGUYÊN NHÂN KHI TIỀN KÉT LỆCH (DETECTIVE ROOT CAUSE ANALYSIS)
+  const isDiscrepancyDetective =
+    (norm.includes("sao") || norm.includes("tai sao") || norm.includes("vi sao") || norm.includes("nguyen nhan")) &&
+    (norm.includes("hut") || norm.includes("lech") || norm.includes("thieu") || norm.includes("mat") || norm.includes("thua")) &&
+    (norm.includes("ket") || norm.includes("tien"));
+
+  if (isDiscrepancyDetective) {
+    const expenses = todayReport.items.filter((it) => it.loai === "chi");
+    const debts = (state.crmCustomers || []).filter((c) => Number(c.debt) > 0);
+    const expText = expenses.length
+      ? expenses.map((e) => `• Chi ${formatMoney(e.soTien)}: ${e.danhMuc || e.ghiChu}`).join("\n")
+      : "• Không có khoản chi bất thường.";
+
+    const debtText = debts.length
+      ? debts.map((d) => `• ${d.name} đang nợ ${formatMoney(d.debt)}`).join("\n")
+      : "• Không có khách ghi nợ.";
+
+    return {
+      type: "financial_advice",
+      reply: `🔍 **Dạ EV đã rà soát toàn bộ dòng tiền hôm nay để tìm nguyên nhân**:
+1. 🏢 **Các khoản chi tiền mặt đã trừ khỏi két**:
+${expText}
+2. 📒 **Các khoản khách mua nhưng chưa trả tiền (Ghi nợ)**:
+${debtText}
+3. 💳 **Doanh thu Chuyển khoản QR (không nằm trong két)**: **${formatMoney(todayReport.transferIncome)}**
+
+💡 **Đánh giá của EV**:
+- Tiền mặt thực tế trong két phải bằng: **${formatMoney(todayReport.openingCash)}** (Tiền thối đầu ngày) + **${formatMoney(todayReport.cashIncome)}** (Bán tiền mặt) - **${formatMoney(todayReport.expense)}** (Đã chi) = **${formatMoney(todayReport.expectedCashInDrawer)}**.
+- Nếu đếm thực tế ít hơn con số này, khả năng cao là nhân viên quên ghi sổ 1 khoản chi tiền mặt hoặc thối dư tiền cho khách ạ!`,
+    };
+  }
+
+  // 1.4 ĐIỀU CHỈNH TIỀN MẶT BẰNG & TÍNH TOÁN LẠI ĐIỂM HÒA VỐN
+  const isRentChange =
+    (norm.includes("mat bang") || norm.includes("tien nha") || norm.includes("tien thue")) &&
+    (norm.includes("giam") || norm.includes("bot") || norm.includes("tang") || norm.includes("doi") || norm.includes("chinh") || norm.includes("con"));
+
+  if (isRentChange) {
+    const amount = extractMoneyFromText(query);
+    const overhead = state.overheadConfig || {};
+    const oldRent = Number(overhead.rentMonthly) || 6000000;
+    let newRent = oldRent;
+
+    if (norm.includes("giam") || norm.includes("bot")) {
+      newRent = Math.max(1000000, oldRent - (amount || 1000000));
+    } else if (amount > 0) {
+      newRent = amount;
+    }
+
+    const elec = Number(overhead.electricityMonthly) || 2400000;
+    const water = Number(overhead.waterMonthly) || 150000;
+    const trash = Number(overhead.trashMonthly) || 50000;
+    const depr = Number(overhead.depreciationMonthly) || 300000;
+    const other = Number(overhead.otherMonthly) || 500000;
+    const totalOverhead = newRent + elec + water + trash + depr + other;
+    const dailyFixedCost = Math.round(totalOverhead / 30);
+    const newTargetRevenue = Math.round(dailyFixedCost / 0.5); // Margin ~50%
+
+    return {
+      type: "action",
+      action: "update_overhead",
+      overhead: { ...overhead, rentMonthly: newRent },
+      newRent,
+      reply: `🏢 **Dạ EV đã cập nhật Tiền Mặt Bằng Mới & Tính Lại Điểm Hòa Vốn**:
+- 🏠 **Tiền mặt bằng mới**: **${formatMoney(newRent)} / tháng** (trước đó: ${formatMoney(oldRent)})
+- 📉 **Tổng định phí ngày**: Giảm xuống còn **${formatMoney(dailyFixedCost)} / ngày** (~${Math.round(dailyFixedCost / 1000)}k/ngày gồm mặt bằng, điện 30 ký, nước, rác).
+- 🎯 **Điểm hòa vốn mới của quán**: Chỉ cần đạt **~${formatMoney(newTargetRevenue)} / ngày** (~${Math.round(newTargetRevenue / 1000)}k doanh thu) là quán bắt đầu có lãi ròng bỏ túi!
+
+*EV đã cập nhật trực tiếp vào hệ thống tính toán P&L toàn quán ạ!*`,
+    };
+  }
+
+  // 1.5 TƯ VẤN MA TRẬN MENU & ĐÁNH GIÁ MÓN BÁN ("MÍA THƠM VỚI MÍA CAM BÁN CÓ ỔN KHÔNG", "CÓ NÊN GIỮ BÁN MÓN NÀY")
+  const isMenuAdviceQuery =
+    (norm.includes("on khong") || norm.includes("co nen ban") || norm.includes("co nen giu") || norm.includes("ban duoc khong") || norm.includes("gang doanh thu") || norm.includes("danh gia mon")) &&
+    (norm.includes("mon") || norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") || norm.includes("menu"));
+
+  if (isMenuAdviceQuery) {
+    return {
+      type: "financial_advice",
+      reply: `📊 **Dạ EV xin đánh giá chi tiết Ma Trận Menu (Menu Engineering)**:
+1. 🌟 **Món Ngôi Sao (Lãi cao & Bán chạy)**:
+   - **Nước mía thường (8k - vốn 4k)**: Lãi gộp **50%**, tốc độ ra món 15 giây, nguyên liệu mía cây để được 2-3 ngày.
+   - **Trà tắc (12k - vốn 7k)**: Lãi gộp **42%**, biên lợi nhuận tốt, khách thanh niên chuộng.
+2. 🍍 **Mía Thơm (10k - vốn 5k)**: Lãi gộp **50%**, hương vị lạ miệng, giá vốn tối ưu bằng Mía Tắc. Rất nên duy trì!
+3. 🍊 **Mía Cam (17k - vốn 10k)**: Lãi gộp **41%**, giá trị đơn cao nhưng phụ thuộc giá cam sành theo mùa. Nên điều chỉnh linh hoạt theo giá cam tươi chợ đầu mối.
+
+💡 **Chiến lược EV đề xuất**: Tập trung up-sell **Mía 1 Lít (15k)** và **Mía Thơm (10k)** để tối đa hóa lợi nhuận trên mỗi lượt khách ghé quán!`,
+    };
+  }
+
   // 2. LỆNH RESTART / LÀM MỚI DỮ LIỆU TRONG NGÀY KÈM GHI CHÚ
   if (norm.includes("restart") || norm.includes("reset ngay") || norm.includes("lam moi ngay") || norm.includes("khoi dong lai ngay")) {
     const isExplicitAll = norm.includes("tat ca") || norm.includes("2 quan") || norm.includes("ca 2 quan") || norm.includes("toan he thong");

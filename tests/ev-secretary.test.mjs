@@ -862,4 +862,75 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Expense Clarification: '80k' -> asks clarification -> 'tiền mua tắc và đường' -> records - Chi 80k Mua tắc và đường");
 }
 
+// Test 38: 4D Semantic Context - "Ổng đưa 50k thối 26k"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [{ id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000 }],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Ổng đưa 50k thối 26k nha", mockState);
+  assert.equal(res.type, "general");
+  assert.ok(res.reply.includes("50.000"));
+  assert.ok(res.reply.includes("26.000"));
+  assert.ok(res.reply.includes("24.000"));
+
+  console.log("PASS EV 4D Context: 'Ổng đưa 50k thối 26k' -> resolves cash tender 24k");
+}
+
+// Test 39: 4D Detective - "sao tiền két bị hụt 50k vậy EV?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [
+      { id: "1", loai: "chi", soTien: 50000, danhMuc: "Đổ xăng", ghiChu: "Đổ xăng xe giao hàng", ngay: new Date().toISOString().split("T")[0] },
+    ],
+    crmCustomers: [{ id: "c1", name: "Anh Tuấn", debt: 34000 }],
+  };
+
+  const res = phanTichTaiChinhNoiBo("sao tiền két bị hụt 50k vậy EV?", mockState);
+  assert.equal(res.type, "financial_advice");
+  assert.ok(res.reply.includes("Đổ xăng") || res.reply.includes("50.000"));
+  assert.ok(res.reply.includes("Anh Tuấn") || res.reply.includes("nợ"));
+
+  console.log("PASS EV 4D Detective: 'sao tiền két bị hụt 50k' -> finds expenses and debts");
+}
+
+// Test 40: 4D State Adjustment - "mặt bằng tháng này chủ nhà giảm cho 1 triệu"
+{
+  const mockState = {
+    overheadConfig: { rentMonthly: 6000000, electricityMonthly: 2400000 },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("mặt bằng tháng này chủ nhà giảm cho 1 triệu", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "update_overhead");
+  assert.equal(res.newRent, 5000000);
+  assert.ok(res.reply.includes("5.000.000"));
+  assert.ok(res.reply.includes("Điểm hòa vốn"));
+
+  console.log("PASS EV 4D Adjustment: 'mặt bằng giảm 1 triệu' -> updates rent to 5tr and recalculates break-even");
+}
+
+// Test 41: 4D Menu Advice - "mía thơm với mía cam bán có ổn không EV?"
+{
+  const mockState = {
+    quickItems: [
+      { id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000 },
+      { id: "mia_thom", name: "Mía thơm", price: 10000, costPrice: 5000 },
+      { id: "mia_cam", name: "Mía cam", price: 17000, costPrice: 10000 },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("mía thơm với mía cam bán có ổn không EV?", mockState);
+  assert.equal(res.type, "financial_advice");
+  assert.ok(res.reply.includes("Mía Thơm") || res.reply.includes("Mía Cam"));
+  assert.ok(res.reply.includes("Lãi gộp") || res.reply.includes("50%"));
+
+  console.log("PASS EV 4D Menu Advice: 'mía thơm với mía cam bán có ổn không' -> menu engineering matrix");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");
