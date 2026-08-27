@@ -881,10 +881,11 @@ console.log("Starting ev-secretary.test.mjs...");
 
 // Test 39: 4D Detective - "sao tiền két bị hụt 50k vậy EV?"
 {
+  const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
   const mockState = {
     currentBranch: "Quán Nhà (Chính)",
     ds: [
-      { id: "1", loai: "chi", soTien: 50000, danhMuc: "Đổ xăng", ghiChu: "Đổ xăng xe giao hàng", ngay: new Date().toISOString().split("T")[0] },
+      { id: "1", loai: "chi", soTien: 50000, danhMuc: "Đổ xăng", ghiChu: "Đổ xăng xe giao hàng", chiNhanh: "Quán Nhà (Chính)", ngay: today },
     ],
     crmCustomers: [{ id: "c1", name: "Anh Tuấn", debt: 34000 }],
   };
@@ -931,6 +932,149 @@ console.log("Starting ev-secretary.test.mjs...");
   assert.ok(res.reply.includes("Lãi gộp") || res.reply.includes("50%"));
 
   console.log("PASS EV 4D Menu Advice: 'mía thơm với mía cam bán có ổn không' -> menu engineering matrix");
+}
+
+// Test 42: Negation - "Hôm nay bên vựa nghỉ nên không có mua mía nha"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Hôm nay bên vựa nghỉ nên không có mua mía nha EV", mockState);
+  assert.equal(res.type, "general");
+  assert.ok(res.reply.includes("không phát sinh") || res.reply.includes("không ghi"));
+
+  console.log("PASS EV Negation: 'hôm nay không có mua mía' -> does not record expense");
+}
+
+// Test 43: Mid-Sentence Self-Correction - "Lấy cho khách 4 ly mía cam... à nhầm 3 ly thôi"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [
+      { id: "mia_cam", name: "Mía cam", price: 17000, costPrice: 10000, voiceUnit: "ly" },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Lấy cho khách 4 ly mía cam... à nhầm 3 ly thôi", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.soLuong, 3, "Phải lấy số lượng sau khi đính chính (3 ly)");
+  assert.equal(res.parsed.soTien, 51000, "3 ly x 17k = 51.000đ");
+  assert.equal(res.parsed.danhMuc, "Mía cam");
+
+  console.log("PASS EV Self-Correction: '4 ly mía cam à nhầm 3 ly thôi' -> records 3 ly 51k");
+}
+
+// Test 44: Discount / Net Adjustment Math - "Bán 5 ly mía thường nhưng bớt cho chú Ba 5k"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [
+      { id: "nuoc_mia", name: "Nước mía thường", price: 8000, costPrice: 4000, voiceUnit: "ly" },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Bán 5 ly mía thường nhưng bớt cho chú Ba 5k", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.soLuong, 5);
+  assert.equal(res.parsed.soTien, 35000, "5 ly x 8k = 40k - 5k = 35.000đ");
+  assert.ok(res.parsed.ghiChu.includes("bớt"));
+
+  console.log("PASS EV Discount: '5 ly mía bớt cho chú Ba 5k' -> 40k - 5k = 35k");
+}
+
+// Test 45: Product Price Inquiry & Topic Memory - "Mía thơm bán giá nhiêu vậy EV?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [
+      { id: "mia_thom", name: "Mía thơm", price: 10000, costPrice: 5000, voiceUnit: "ly" },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Mía thơm bán giá nhiêu vậy EV?", mockState);
+  assert.equal(res.type, "general");
+  assert.ok(res.reply.includes("10.000"));
+  assert.ok(res.reply.includes("5.000"));
+
+  console.log("PASS EV Price Inquiry: 'Mía thơm bán giá nhiêu' -> 10k/5k and sets topic memory");
+}
+
+// Test 46: Topic Reference Order - "Khách lấy 2 ly món đó"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [
+      { id: "mia_thom", name: "Mía thơm", price: 10000, costPrice: 5000, voiceUnit: "ly" },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Khách lấy 2 ly món đó", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.danhMuc, "Mía thơm");
+  assert.equal(res.parsed.soLuong, 2);
+  assert.equal(res.parsed.soTien, 20000);
+
+  console.log("PASS EV Topic Reference: 'Khách lấy 2 ly món đó' -> records 2 ly Mía thơm 20k");
+}
+
+// Test 47: Add-on to last order - "Thêm 1 ly nữa nha"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    quickItems: [
+      { id: "mia_thom", name: "Mía thơm", price: 10000, costPrice: 5000, voiceUnit: "ly" },
+    ],
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Thêm 1 ly nữa nha", mockState);
+  assert.equal(res.type, "general");
+  assert.ok(res.reply.includes("3 ly"));
+  assert.ok(res.reply.includes("30.000"));
+
+  console.log("PASS EV Add-on: 'Thêm 1 ly nữa nha' -> updates to 3 ly 30k");
+}
+
+// Test 48: Payment Method Query - "Ủa nãy ghi tiền mặt hay chuyển khoản vậy?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Ủa nãy ghi tiền mặt hay chuyển khoản vậy EV?", mockState);
+  assert.equal(res.type, "general");
+  assert.ok(res.reply.includes("Tiền mặt") || res.reply.includes("Chuyển khoản"));
+
+  console.log("PASS EV Payment Method Query: 'Ủa nãy ghi tiền mặt hay chuyển khoản vậy?' -> answered accurately");
+}
+
+// Test 49: Pragmatic Inquiries - "Nay bán sao rồi em?", "Khách chê ngọt quá", "Nắng nôi vầy mệt quá"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    ds: [],
+  };
+
+  const r1 = phanTichTaiChinhNoiBo("Nay bán sao rồi em?", mockState);
+  assert.equal(r1.type, "general");
+  assert.ok(r1.reply.includes("tổng quan tình hình kinh doanh"));
+
+  const r2 = phanTichTaiChinhNoiBo("Khách chê ngọt quá em ơi", mockState);
+  assert.equal(r2.type, "general");
+  assert.ok(r2.reply.includes("ngọt") || r2.reply.includes("công thức"));
+
+  const r3 = phanTichTaiChinhNoiBo("Nắng nôi vầy mệt quá em ơi", mockState);
+  assert.equal(r3.type, "general");
+  assert.ok(r3.reply.includes("nắng") || r3.reply.includes("vất vả"));
+
+  console.log("PASS EV Pragmatic & Empathy: all conversational scenarios responded naturally!");
 }
 
 console.log("ALL EV Secretary tests passed successfully!");

@@ -100,6 +100,8 @@ export function compressStateWithRTK(state, todayReport, b1Report, b2Report) {
 // BỘ NHỚ NGỮ CẢNH HỘI THOẠI CỦA THƯ KÝ EV
 export const conversationContext = {
   lastTransaction: null,
+  lastCustomer: null,
+  lastTopicProduct: null,
   pendingQuestion: null,
   pendingDiscrepancy: null,
   pendingMissingItems: null,
@@ -119,6 +121,199 @@ export function phanTichTaiChinhNoiBo(query, state) {
   const todayReport = dailyReport(transactions, today, targetBranch, state.defaultOpeningCash || 500000);
   const b1Report = dailyReport(transactions, today, "Quán Nhà (Chính)", state.defaultOpeningCash || 500000);
   const b2Report = dailyReport(transactions, today, "Chi nhánh 2", state.defaultOpeningCash || 500000);
+
+  // 0.0 TỰ SỬA SAI GIỮA CÂU & CHIẾT KHẤU / BỚT TIỀN CHO KHÁCH
+  let effectiveQuery = query;
+  const correctionIndex = norm.search(/\b(?:a\s+nham|nham\s+roi|nham|lon\s+roi|lon|a\s+quen|quen|sua\s+lai|doi\s+lai|thoi\s+lay)\b/i);
+  if (correctionIndex >= 0) {
+    const trailingNorm = norm.substring(correctionIndex).replace(/^(?:a\s+nham|nham\s+roi|nham|lon\s+roi|lon|a\s+quen|quen|sua\s+lai|doi\s+lai|thoi\s+lay)\s*/i, "").trim();
+    const leadingNorm = norm.substring(0, correctionIndex).trim();
+
+    const hasDrinkInTrailing = (state.quickItems || []).some((q) => trailingNorm.includes(normalizeQuery(q.name)) || (q.shortName && trailingNorm.includes(normalizeQuery(q.shortName))));
+    if (hasDrinkInTrailing) {
+      effectiveQuery = trailingNorm;
+    } else {
+      const leadingDrink = (state.quickItems || []).find((q) => leadingNorm.includes(normalizeQuery(q.name)) || (q.shortName && leadingNorm.includes(normalizeQuery(q.shortName))));
+      if (leadingDrink) {
+        effectiveQuery = `${trailingNorm} ${leadingDrink.name}`;
+      } else {
+        effectiveQuery = trailingNorm;
+      }
+    }
+  }
+
+  let discountAmount = 0;
+  const discWordIndex = norm.search(/\b(?:bot\s+cho|bot|giam\s+cho|giam|tru\s+cho|tru|chiet\s+khau)\b/i);
+  if (discWordIndex >= 0) {
+    const trailingDisc = norm.substring(discWordIndex);
+    discountAmount = extractMoneyFromText(trailingDisc);
+  }
+
+  // 0.1 XỬ LÝ CÂU PHỦ ĐỊNH HOÀN TOÀN (NEGATION - "HÔM NAY KHÔNG MUA MÍA", "CHƯA MUA ĐÁ", "ĐỪNG GHI", "KHÔNG BÁN")
+  const isNegation =
+    (norm.includes("khong co mua") || norm.includes("khong mua") || norm.includes("chua mua") || norm.includes("dung ghi") || norm.includes("nghi khong mua") || norm.includes("khong co ban") || norm.includes("khong ban")) &&
+    !norm.includes("phai khong") && !norm.includes("khong phai") && !norm.includes("khong sao");
+
+  if (isNegation) {
+    return {
+      type: "general",
+      reply: `👌 **Dạ EV đã ghi nhận**: Hôm nay quán không phát sinh khoản này ạ! EV không ghi sổ hay trừ két nhé anh/chị! ✨`,
+    };
+  }
+
+  // 0.2 HỎI THĂM TỔNG QUAN TÌNH HÌNH BÁN ("NAY BÁN SAO RỒI EM?", "TÌNH HÌNH BÁN BUÔN SAO RỒI?")
+  if (norm.includes("nay ban sao") || norm.includes("ban buon sao") || norm.includes("tinh hinh sao") || norm.includes("ban duoc khong em") || norm.includes("tinh hinh ban")) {
+    return {
+      type: "general",
+      reply: `📊 **Dạ tổng quan tình hình kinh doanh hôm nay (${targetBranch || "Toàn quán"})**:
+- 🥤 **Tổng số ly nước đã bán**: **${todayReport.totalDrinks || 0} ly**
+- 💰 **Tổng doanh thu**: **${formatMoney(todayReport.income)}**
+- 🧊 **Chi phí nguyên liệu**: **${formatMoney(todayReport.expense)}**
+- 💵 **Tiền mặt hiện có trong két**: **${formatMoney(todayReport.expectedCashInDrawer)}**
+- 🌟 **Lợi nhuận ròng tạm tính**: **+${formatMoney(todayReport.balance)}**
+
+*Quán đang vận hành rất trơn tru và hiệu quả anh/chị nha! Chúc quán tiếp tục nổ đơn liên tục ạ!* 🚀✨`,
+    };
+  }
+
+  // 0.3 PHẢN HỒI Ý KIẾN KHÁCH HÀNG & KHẨU VỊ ("KHÁCH CHÊ NGỌT QUÁ", "KHÁCH KÊU NHẠT")
+  if (norm.includes("che ngot") || norm.includes("kheu ngot") || norm.includes("ngot qua") || norm.includes("che nhat") || norm.includes("nhat qua")) {
+    const isSweet = norm.includes("ngot");
+    return {
+      type: "general",
+      reply: `💡 **Dạ EV đã ghi nhận phản hồi khẩu vị của khách**:
+- 📌 **Ý kiến**: Khách cảm thấy nước hơi **${isSweet ? "ngọt" : "nhạt"}**.
+- 🛠️ **Gợi ý điều chỉnh công thức**:
+  ${isSweet ? "• Giảm 5ml nước đường hoặc vắt thêm 1/2 trái tắc tươi để cân bằng vị thanh mát." : "• Tăng thêm 5ml nước cốt đường hoặc dằm kỹ mía hơn để đậm vị tự nhiên."}
+
+*EV đã lưu lưu ý này vào nhật ký ca để nhân viên pha chế chú ý hơn ạ!*`,
+    };
+  }
+
+  // 0.4 ĐỒNG CẢM & ĐỘNG VIÊN ĐỜI THƯỜNG ("NẮNG NÔI VẦY MỆT QUÁ", "MỆT QUÁ EM ƠI")
+  if (norm.includes("met qua") || norm.includes("nang noi") || norm.includes("duoi qua") || norm.includes("vat va")) {
+    return {
+      type: "general",
+      reply: `☀️ **Dạ hôm nay thời tiết nắng nóng đứng quầy vất vả cho anh/chị và các bạn nhiều lắm ạ!**
+🥰 Anh/Chị nhớ uống thêm ly nước mát và nghỉ ngơi giữ sức nhé! Bù lại trời nóng thế này khách giải khát mua nước rất đông, chúc quán chiều nay gom trọn doanh thu rực rỡ để xua tan mọi mệt mỏi nha! 💪🍹✨`,
+    };
+  }
+
+  // 0.5 HỎI GIÁ MÓN NƯỚC / MENU ("MÍA THƠM BÁN GIÁ NHIÊU VẬY EV?", "GIÁ TRÀ TẮC LÀ BAO NHIÊU?")
+  const isProductPriceQuery =
+    (norm.includes("gia nhieu") || norm.includes("bao nhieu tien") || norm.includes("gia sao") || norm.includes("ban bao nhieu") || norm.includes("gia cost")) &&
+    (state.quickItems || []).some((q) => norm.includes(normalizeQuery(q.name)) || (q.shortName && norm.includes(normalizeQuery(q.shortName))));
+
+  if (isProductPriceQuery) {
+    const matchedItem = (state.quickItems || []).find((q) => norm.includes(normalizeQuery(q.name)) || (q.shortName && norm.includes(normalizeQuery(q.shortName)))) || (state.quickItems || [])[0];
+    conversationContext.lastTopicProduct = matchedItem.name;
+
+    return {
+      type: "general",
+      reply: `🥤 **Thông tin món ${matchedItem.name}**:
+- 💵 **Giá bán niêm yết**: **${formatMoney(matchedItem.price)} / ${matchedItem.voiceUnit || "ly"}**
+- 🧊 **Giá vốn nguyên liệu (Cost)**: **${formatMoney(matchedItem.costPrice || 0)}**
+- 📈 **Biên lợi nhuận gộp**: **${Math.round(((matchedItem.price - (matchedItem.costPrice || 0)) / matchedItem.price) * 100)}%** (Lời +${formatMoney(matchedItem.price - (matchedItem.costPrice || 0))}/ly)
+
+*Nếu có khách gọi, anh/chị chỉ cần bảo "Khách lấy 2 ly món đó", EV sẽ tự động ghi sổ nhé!*`,
+    };
+  }
+
+  // 0.6 BÁN MÓN VỪA HỎI THEO CHỦ ĐỀ ("KHÁCH LẤY 2 LY MÓN ĐÓ", "CHO 1 LY MÓN NÀY")
+  const isReferencedOrder =
+    (norm.includes("mon do") || norm.includes("mon nay") || norm.includes("nhu vua noi") || norm.includes("nhu tren")) &&
+    conversationContext.lastTopicProduct;
+
+  if (isReferencedOrder) {
+    const matchedItem = (state.quickItems || []).find((q) => q.name.toLowerCase() === conversationContext.lastTopicProduct.toLowerCase()) || (state.quickItems || [])[0];
+    const qtyMatch = norm.match(/(\d+)\s*(?:ly|chai|cốc|bịch)?/);
+    const requestedQty = qtyMatch ? Number(qtyMatch[1]) : 1;
+    const totalAmount = (matchedItem.price || 10000) * requestedQty;
+    const totalCost = (matchedItem.costPrice || 4000) * requestedQty;
+    const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+
+    const isCK = norm.includes("chuyen khoan") || norm.includes("ck") || norm.includes("qr");
+    const paymentMethod = isCK ? "chuyen_khoan" : "tien_mat";
+
+    const parsedTransaction = {
+      loai: "thu",
+      soTien: totalAmount,
+      soLuong: requestedQty,
+      donViTinh: matchedItem.voiceUnit || "ly",
+      phuongThuc: paymentMethod,
+      giaCostDonVi: matchedItem.costPrice || 4000,
+      tongGiaCost: totalCost,
+      danhMuc: matchedItem.name,
+      chiNhanh: branchToUse,
+      ghiChu: `Khách lấy ${requestedQty} ly ${matchedItem.name} (Tham chiếu món vừa hỏi)`,
+      cauNoiGoc: query,
+    };
+
+    conversationContext.lastTransaction = parsedTransaction;
+
+    return {
+      type: "command",
+      action: "add_transaction",
+      branch: branchToUse,
+      parsed: parsedTransaction,
+      reply: `✅ **Dạ EV đã ghi nhận đơn hàng (${matchedItem.name})**:
+- **Loại**: + Thu tiền bán
+- **Món**: **${matchedItem.name}** (${requestedQty} ly)
+- **Số tiền**: **${formatMoney(totalAmount)}** (${isCK ? "Chuyển khoản QR" : "Tiền mặt"})
+- **Giá vốn (Cost)**: ${formatMoney(totalCost)} | **Lãi ròng**: +${formatMoney(totalAmount - totalCost)}
+- **Điểm bán**: **${branchToUse}**
+
+*Dữ liệu đã được lưu vào sổ và cộng vào doanh thu hôm nay!*`,
+    };
+  }
+
+  // 0.7 CỘNG DỒN THÊM VÀO ĐƠN HÀNG VỪA GHI ("THÊM 1 LY NỮA NHA", "CHO THÊM 2 LY NỮA")
+  const isAddonPattern =
+    (norm.startsWith("them ") || norm.startsWith("cho them ") || norm.includes("them 1 ly") || norm.includes("them 2 ly") || norm.includes("1 ly nua") || norm.includes("2 ly nua")) &&
+    norm.includes("nua") &&
+    conversationContext.lastTransaction &&
+    conversationContext.lastTransaction.loai === "thu";
+
+  if (isAddonPattern) {
+    const lastTx = conversationContext.lastTransaction;
+    const addonQtyMatch = norm.match(/(\d+)\s*(?:ly|chai|cốc|bịch)?/);
+    const addonQty = addonQtyMatch ? Number(addonQtyMatch[1]) : 1;
+    const newQty = (lastTx.soLuong || 1) + addonQty;
+    const unitPrice = lastTx.soTien / (lastTx.soLuong || 1);
+    const newTotal = unitPrice * newQty;
+    const unitCost = lastTx.giaCostDonVi || 4000;
+    const newTotalCost = unitCost * newQty;
+
+    lastTx.soLuong = newQty;
+    lastTx.soTien = newTotal;
+    lastTx.tongGiaCost = newTotalCost;
+
+    return {
+      type: "general",
+      reply: `➕ **Dạ EV đã cộng dồn thêm ${addonQty} ly vào đơn hàng vừa rồi**:
+- 🥤 **Món**: **${lastTx.danhMuc}** (Tổng cộng: **${newQty} ly**)
+- 💰 **Tổng tiền mới**: **${formatMoney(newTotal)}** (${lastTx.phuongThuc === "chuyen_khoan" ? "Chuyển khoản QR" : "Tiền mặt"})
+- 🧊 **Tổng giá vốn**: ${formatMoney(newTotalCost)} | **Lãi ròng**: +${formatMoney(newTotal - newTotalCost)}
+
+*(Đơn hàng đã được cập nhật lại chính xác 100%!)*`,
+    };
+  }
+
+  // 0.8 HỎI LẠI PHƯƠNG THỨC THANH TOÁN VỪA GHI ("ỦA NÃY GHI TIỀN MẶT HAY CHUYỂN KHOẢN VẬY?")
+  const isPaymentMethodInquiry =
+    (norm.includes("tien mat hay") || norm.includes("hay chuyen khoan") || norm.includes("hay ck") || norm.includes("ghi tien mat hay") || norm.includes("don nay la tien mat")) &&
+    conversationContext.lastTransaction;
+
+  if (isPaymentMethodInquiry) {
+    const lastTx = conversationContext.lastTransaction;
+    const isCK = lastTx.phuongThuc === "chuyen_khoan";
+    return {
+      type: "general",
+      reply: `💳 **Dạ EV kiểm tra đơn hàng ${lastTx.danhMuc} (${lastTx.soLuong} ly - ${formatMoney(lastTx.soTien)}) vừa ghi**:
+- Phương thức thanh toán là: **${isCK ? "Chuyển khoản QR ngân hàng" : "Tiền mặt vào két"}** ạ!
+- Nếu khách đổi ý muốn chuyển sang hình thức khác, anh/chị chỉ cần bảo "Đổi sang ${isCK ? "tiền mặt" : "chuyển khoản"}" nhé!`,
+    };
+  }
 
   // 1. TỰ HỌC THÔNG TIN KHÁCH QUEN QUA CHAT (IN-CHAT CRM LEARNING)
   const isLearnCustomer =
@@ -794,13 +989,20 @@ ${breakdownLines}
 
   // 5. NGƯỜI DÙNG ĐÍNH CHÍNH / BẮT LỖI TÍNH TOÁN ("100k thì phải là 10 ly chứ", "sao lại ghi 1 ly", "nhầm rồi")
   const isCorrection =
-    norm.includes("phai la") ||
-    norm.includes("sao lai") ||
-    norm.includes("nham roi") ||
-    norm.includes("sai roi") ||
-    norm.includes("tinh lai") ||
-    norm.includes("khong phai") ||
-    (/\b(chu|chứ)\b/.test(norm) && (norm.includes("ly") || norm.includes("100k") || norm.includes("tien") || /\b\d+\s*ly\b/.test(norm)));
+    !norm.includes("bot cho") &&
+    !norm.includes("giam cho") &&
+    !norm.includes("ban cho") &&
+    !norm.includes("lay cho") &&
+    (
+      norm.includes("phai la") ||
+      norm.includes("sao lai") ||
+      norm.includes("nham roi") ||
+      norm.includes("sai roi") ||
+      norm.includes("tinh lai") ||
+      norm.includes("khong phai") ||
+      (/(?:\d+\s*ly|100k|tien)\s+chu\b/.test(norm)) ||
+      (/\bchu\s*[?!.]*$/.test(norm) && (norm.includes("ly") || norm.includes("100k") || norm.includes("tien") || /\b\d+\s*ly\b/.test(norm)))
+    );
 
   if (isCorrection) {
     const qtyMatch = norm.match(/(\d+)\s*(?:ly|chai|cốc|bao|bó|kg|lon)/i);
@@ -1335,7 +1537,7 @@ ${expText}
 
   // 15. PHÂN TÍCH NHIỀU MÓN TRONG 1 CÂU (MULTI-ITEM BATCH ORDER)
   // Ví dụ: "khách mua 8 ly cam, 2 ly rau má, 1 rau má đuậ, 3 trà tắc, 4 ly mía"
-  const multiResult = phanTichNhieu(query, state.quickItems || []);
+  const multiResult = phanTichNhieu(effectiveQuery, state.quickItems || []);
   if (multiResult.isBatch && multiResult.items.length > 1) {
     const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
     const paymentMethod = multiResult.items[0]?.phuongThuc || (norm.includes("chuyen") || norm.includes("ck") || norm.includes("qr") ? "chuyen_khoan" : "tien_mat");
@@ -1377,9 +1579,9 @@ ${breakdownLines}
 
   const isCustomerBuying = norm.includes("khach mua") || norm.includes("khach lay") || norm.includes("khach uong") || norm.includes("khach goi") || norm.includes("ban ");
   const isExpenseIntent = !isCustomerBuying && (norm.includes("mua ") || norm.includes("nhap ") || norm.includes("chi ") || norm.includes("tra tien") || norm.includes("xang") || norm.includes("tien dien") || norm.includes("tien nuoc"));
-  const extractedMoneyOnly = extractMoneyFromText(query);
+  const extractedMoneyOnly = extractMoneyFromText(effectiveQuery);
 
-  if (!hasDrinkName && !isExpenseIntent && extractedMoneyOnly >= 1000) {
+  if (!hasDrinkName && !isExpenseIntent && extractedMoneyOnly >= 1000 && !norm.includes("bot ") && !norm.includes("giam ")) {
     const isCK = norm.includes("chuyen") || norm.includes("ck") || norm.includes("qr") || norm.includes("bank");
     const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
     const isExplicitThu = norm.includes("thu") || norm.includes("ban") || norm.includes("khach") || norm.includes("tra tien mua");
@@ -1415,7 +1617,17 @@ ${breakdownLines}
   }
 
   // 16. PHÂN TÍCH GIAO DỊCH ĐƠN LẺ (BÁN NƯỚC / CHI TIỀN / MUA NGUYÊN LIỆU)
-  const parsed = phanTichChiTiet(query, state.quickItems || []);
+  let cleanQueryForSingle = effectiveQuery;
+  const discIndex = norm.search(/\b(?:nhung\s+)?(?:bot\s+cho|bot|giam\s+cho|giam|tru\s+cho|tru|chiet\s+khau)\b/i);
+  if (discIndex >= 0) {
+    cleanQueryForSingle = effectiveQuery.substring(0, discIndex).trim();
+  }
+
+  const parsed = phanTichChiTiet(cleanQueryForSingle, state.quickItems || []);
+  if (parsed && discountAmount > 0 && parsed.soTien > discountAmount) {
+    parsed.soTien = parsed.soTien - discountAmount;
+    parsed.ghiChu = `${parsed.ghiChu || parsed.danhMuc} (Đã bớt -${formatMoney(discountAmount)})`;
+  }
 
   // Nếu số tiền không chia hết cho đơn giá Menu -> EV hỏi lại người dùng để làm rõ
   if (parsed && parsed.slots?.priceMode === "discrepancy") {
