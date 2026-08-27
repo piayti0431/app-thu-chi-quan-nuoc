@@ -47,6 +47,7 @@ export const DEFAULT_DATA = {
       category: "Nước mía thường",
       note: "Bán nước mía thường",
       icon: "cane",
+      image: "./assets/menu/nuoc_mia.jpg",
       voiceUnit: "ly",
     },
     {
@@ -58,6 +59,7 @@ export const DEFAULT_DATA = {
       category: "Nước mía 1 lít",
       note: "Bán nước mía 1 lít",
       icon: "cup_1l",
+      image: "./assets/menu/nuoc_mia_1l.jpg",
       voiceUnit: "ly",
     },
     {
@@ -69,6 +71,7 @@ export const DEFAULT_DATA = {
       category: "Mía tắc",
       note: "Bán mía tắc",
       icon: "citrus",
+      image: "./assets/menu/mia_tac.jpg",
       voiceUnit: "ly",
     },
     {
@@ -80,6 +83,7 @@ export const DEFAULT_DATA = {
       category: "Mía thơm",
       note: "Bán mía thơm",
       icon: "cane",
+      image: "./assets/menu/mia_thom.jpg",
       voiceUnit: "ly",
     },
     {
@@ -91,6 +95,7 @@ export const DEFAULT_DATA = {
       category: "Mía cam",
       note: "Bán mía cam",
       icon: "citrus",
+      image: "./assets/menu/mia_cam.jpg",
       voiceUnit: "ly",
     },
     {
@@ -102,6 +107,7 @@ export const DEFAULT_DATA = {
       category: "Rau má tươi",
       note: "Bán rau má tươi",
       icon: "leaf",
+      image: "./assets/menu/rau_ma.jpg",
       voiceUnit: "ly",
     },
     {
@@ -113,6 +119,7 @@ export const DEFAULT_DATA = {
       category: "Rau má sữa",
       note: "Bán rau má sữa",
       icon: "milk",
+      image: "./assets/menu/rau_ma_sua.jpg",
       voiceUnit: "ly",
     },
     {
@@ -124,6 +131,7 @@ export const DEFAULT_DATA = {
       category: "Rau má đậu xanh",
       note: "Bán rau má đậu xanh",
       icon: "bean",
+      image: "./assets/menu/rau_ma_dau_xanh.jpg",
       voiceUnit: "ly",
     },
     {
@@ -135,6 +143,7 @@ export const DEFAULT_DATA = {
       category: "Trà tắc",
       note: "Bán trà tắc",
       icon: "tea",
+      image: "./assets/menu/tra_tac.jpg",
       voiceUnit: "ly",
     },
     {
@@ -146,6 +155,7 @@ export const DEFAULT_DATA = {
       category: "Nước cam",
       note: "Bán nước cam",
       icon: "orange",
+      image: "./assets/menu/nuoc_cam.jpg",
       voiceUnit: "ly",
     },
   ],
@@ -434,6 +444,7 @@ export function mergeData(data) {
         price,
         costPrice,
         icon: item.icon || "cane",
+        image: item.image || (item.id ? `./assets/menu/${item.id}.jpg` : ""),
       };
     });
 

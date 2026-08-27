@@ -158,6 +158,8 @@ function setMicState(listening) {
 
 function getDrinkIconSvg(iconName) {
   switch (iconName) {
+    case "cup_1l":
+      return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12l-1.5 17a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2L6 3z"/><path d="M4 3h16M14 1l-2 5"/></svg>`;
     case "bottle":
       return `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4v3h-4zM9 5h6v3a4 4 0 0 1 1 3v9a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-9a4 4 0 0 1 1-3V5z"/><path d="M8 14h8"/></svg>`;
     case "citrus":
@@ -213,15 +215,23 @@ function renderQuickButtons() {
 
   const quickItems = state.quickItems || [];
   container.innerHTML = quickItems
-    .map(
-      (item) => `
+    .map((item) => {
+      const imgSrc = item.image || (item.id ? `./assets/menu/${item.id}.jpg` : "");
+      const shortPrice = Number(item.price) >= 1000
+        ? `${Math.round(item.price / 1000)}k`
+        : formatMoney(item.price);
+
+      return `
       <button class="quick-btn theme-${item.icon || "cane"}" data-id="${item.id}" type="button" aria-label="Bán nhanh ${item.name} (${formatMoney(item.price)})">
-        <span class="drink-icon">${getDrinkIconSvg(item.icon)}</span>
-        <strong>+ 1 ${item.shortName || item.name}</strong>
-        <small>${formatMoney(item.price)}</small>
+        <span class="quick-btn-badge">${shortPrice}</span>
+        <div class="quick-btn-img-box">
+          ${imgSrc ? `<img class="quick-btn-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />` : ""}
+          <span class="drink-icon" style="${imgSrc ? "display:none;" : ""}">${getDrinkIconSvg(item.icon)}</span>
+        </div>
+        <strong class="quick-btn-name">+1 ${item.shortName || item.name}</strong>
       </button>
-    `,
-    )
+    `;
+    })
     .join("");
 
   $$("#quickButtons .quick-btn").forEach((btn) => {

@@ -725,105 +725,149 @@ h3 {
   color: #92400e;
 }
 
-/* Lưới Nút Bán Nhanh 1 Chạm (Mobile-First Touch Ergonomics) */
+/* Lưới Nút Bán Nhanh 1 Chạm (Touch POS Grid) */
 .quick-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.55rem;
-  margin-bottom: 0.75rem;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
   min-width: 0;
 }
 
 @media (min-width: 480px) {
   .quick-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.65rem;
+    gap: 0.75rem;
   }
 }
 
 @media (min-width: 768px) {
   .quick-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.85rem;
   }
 }
 
 .quick-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  min-height: 5.5rem;
-  padding: 0.7rem 0.45rem;
+  justify-content: flex-start;
+  min-height: 8.5rem;
+  padding: 0.55rem 0.45rem 0.65rem;
   border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1.5px solid var(--line);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
   text-align: center;
-  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.15s ease, box-shadow 0.15s ease;
   min-width: 0;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .quick-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.16);
   border-color: var(--primary);
 }
 
 .quick-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
   background: var(--surface-hover);
-  border-color: var(--primary);
+  border-color: var(--primary-dark);
+}
+
+/* Badge Giá Tiền To Nổi Bật Ở Góc */
+.quick-btn-badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 2;
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #ffffff;
+  background: linear-gradient(135deg, #059669, #0d9488);
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.35);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Khung Ảnh Trực Quan Cho Từng Món */
+.quick-btn-img-box {
+  width: 100%;
+  height: 5.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.2rem;
+  margin-bottom: 0.4rem;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.quick-btn-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.quick-btn:hover .quick-btn-img {
+  transform: scale(1.06);
 }
 
 .quick-btn .drink-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 3rem;
+  height: 3rem;
   border-radius: 50%;
   background: var(--primary-light);
   color: var(--primary-dark);
-  margin-bottom: 0.1rem;
 }
 
-.quick-btn strong {
-  font-size: 0.9rem;
+.quick-btn-name {
+  font-size: 0.86rem;
   font-weight: 800;
   color: var(--ink);
-  line-height: 1.2;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  padding: 0 0.15rem;
 }
 
-.quick-btn small {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--primary-dark);
-  background: var(--primary-light);
-  padding: 0.15rem 0.5rem;
-  border-radius: var(--radius-pill);
-  white-space: nowrap;
+/* Theme color accents */
+.quick-btn.theme-orange .quick-btn-badge {
+  background: linear-gradient(135deg, #ea580c, #f59e0b);
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.35);
 }
 
-/* Drink button theme colors */
-.quick-btn.theme-orange .drink-icon { background: var(--orange-light); color: var(--orange-dark); }
-.quick-btn.theme-orange small { background: var(--orange-light); color: var(--orange-dark); }
+.quick-btn.theme-tea .quick-btn-badge {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);
+}
 
-.quick-btn.theme-tea .drink-icon { background: var(--gold-light); color: var(--gold-dark); }
-.quick-btn.theme-tea small { background: var(--gold-light); color: var(--gold-dark); }
+.quick-btn.theme-bean .quick-btn-badge {
+  background: linear-gradient(135deg, #65a30d, #84cc16);
+  box-shadow: 0 2px 6px rgba(101, 163, 13, 0.35);
+}
 
-.quick-btn.theme-bean .drink-icon { background: var(--lime-light); color: var(--lime-dark); }
-.quick-btn.theme-bean small { background: var(--lime-light); color: var(--lime-dark); }
-
-.quick-btn.theme-bottle .drink-icon { background: #e0e7ff; color: #4338ca; }
-.quick-btn.theme-bottle small { background: #e0e7ff; color: #4338ca; }
+.quick-btn.theme-cup_1l .quick-btn-badge,
+.quick-btn.theme-bottle .quick-btn-badge {
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
 
 /* Nút Mic Nhận Diện Giọng Nói */
 .mic-button {
