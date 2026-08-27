@@ -3,7 +3,7 @@ const DEFAULT_NOTE = "";
 
 export const DEFAULT_QUICK_ITEMS = [
   { id: "nuoc_mia", name: "Nước mía thường", category: "Nước mía thường", price: 8000, costPrice: 4000, voiceName: "nước mía", voiceUnit: "ly" },
-  { id: "nuoc_mia_1l", name: "Nước mía 1 lít", category: "Nước mía 1 lít", price: 16000, costPrice: 10000, voiceName: "nước mía 1 lít", voiceUnit: "chai" },
+  { id: "nuoc_mia_1l", name: "Nước mía 1 lít", category: "Nước mía 1 lít", price: 16000, costPrice: 10000, voiceName: "nước mía 1 lít", voiceUnit: "ly" },
   { id: "mia_tac", name: "Mía tắc", category: "Mía tắc", price: 10000, costPrice: 5000, voiceName: "mía tắc", voiceUnit: "ly" },
   { id: "mia_thom", name: "Mía thơm", category: "Mía thơm", price: 12000, costPrice: 7000, voiceName: "mía thơm", voiceUnit: "ly" },
   { id: "mia_cam", name: "Mía cam", category: "Mía cam", price: 17000, costPrice: 10000, voiceName: "mía cam", voiceUnit: "ly" },
@@ -361,7 +361,7 @@ function productQuantity(tokens, product) {
     return {
       quantity: unitHit.quantity,
       spokenUnit: unitHit.unit,
-      unit: product.id === "nuoc_mia_1l" ? "chai" : (product.voiceUnit || "ly"),
+      unit: product.voiceUnit || "ly",
     };
   }
 
@@ -743,7 +743,7 @@ export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
   let unit = "ly";
   if (loai === "thu") {
     qty = product?.quantity || 1;
-    unit = product?.unit || (product?.id === "nuoc_mia_1l" ? "chai" : "ly");
+    unit = product?.unit || product?.voiceUnit || "ly";
   } else {
     const expenseInfo = detectExpenseUnitAndQuantity(normalized, tokens, category);
     qty = expenseInfo.quantity;

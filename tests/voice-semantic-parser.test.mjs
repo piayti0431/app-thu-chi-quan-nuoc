@@ -3,7 +3,7 @@ import { phanTich, phanTichChiTiet } from "../www/js/parser.js";
 
 const quickItems = [
   { id: "nuoc_mia", category: "Bán nước mía", price: 10000, voiceName: "nước mía", voiceUnit: "ly" },
-  { id: "nuoc_mia_1l", category: "Nước mía 1 lít", price: 16000, voiceName: "nước mía 1 lít", voiceUnit: "chai" },
+  { id: "nuoc_mia_1l", category: "Nước mía 1 lít", price: 16000, voiceName: "nước mía 1 lít", voiceUnit: "ly" },
   { id: "nuoc_cam", category: "Nước cam", price: 15000, voiceName: "nước cam", voiceUnit: "ly" },
 ];
 
@@ -40,7 +40,7 @@ const incomeCases = [
     soTien: 80000,
     productId: "nuoc_mia_1l",
     quantity: 5,
-    unit: "chai",
+    unit: "ly",
     priceMode: "auto",
     confidence: "high",
   },
@@ -49,7 +49,7 @@ const incomeCases = [
     soTien: 80000,
     productId: "nuoc_mia_1l",
     quantity: 5,
-    unit: "chai",
+    unit: "ly",
     priceMode: "total",
     confidence: "high",
   },

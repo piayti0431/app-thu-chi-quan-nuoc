@@ -26,14 +26,14 @@ const cases = [
   ["3 ly nước mía 30k", quickItems, 30000, "Bán nước mía", "bán 3 ly nước mía"],
   ["3 ly nước mía 25k", quickItems, 25000, "Bán nước mía", "bán 3 ly nước mía"],
 
-  ["1 nước mía 1 lít", quickItems, 16000, "Nước mía 1 lít", "bán 1 chai nước mía 1 lít"],
-  ["2 nước mía 1 lít", quickItems, 32000, "Nước mía 1 lít", "bán 2 chai nước mía 1 lít"],
-  ["2 chai nước mía 1 lít", quickItems, 32000, "Nước mía 1 lít", "bán 2 chai nước mía 1 lít"],
-  ["hai chai nước mía 1 lít", quickItems, 32000, "Nước mía 1 lít", "bán 2 chai nước mía 1 lít"],
-  ["2 chai nước mía 1 lít 16k", quickItems, 32000, "Nước mía 1 lít", "bán 2 chai nước mía 1 lít"],
-  ["2 chai nước mía 1 lít 32k", quickItems, 32000, "Nước mía 1 lít", "bán 2 chai nước mía 1 lít"],
-  ["3 chai nước mía 1 lít 48k", quickItems, 48000, "Nước mía 1 lít", "bán 3 chai nước mía 1 lít"],
-  ["3 chai nước mía 1 lít 45k", quickItems, 45000, "Nước mía 1 lít", "bán 3 chai nước mía 1 lít"],
+  ["1 nước mía 1 lít", quickItems, 16000, "Nước mía 1 lít", "bán 1 ly nước mía 1 lít"],
+  ["2 nước mía 1 lít", quickItems, 32000, "Nước mía 1 lít", "bán 2 ly nước mía 1 lít"],
+  ["2 chai nước mía 1 lít", quickItems, 32000, "Nước mía 1 lít", "bán 2 ly nước mía 1 lít"],
+  ["hai chai nước mía 1 lít", quickItems, 32000, "Nước mía 1 lít", "bán 2 ly nước mía 1 lít"],
+  ["2 chai nước mía 1 lít 16k", quickItems, 32000, "Nước mía 1 lít", "bán 2 ly nước mía 1 lít"],
+  ["2 chai nước mía 1 lít 32k", quickItems, 32000, "Nước mía 1 lít", "bán 2 ly nước mía 1 lít"],
+  ["3 chai nước mía 1 lít 48k", quickItems, 48000, "Nước mía 1 lít", "bán 3 ly nước mía 1 lít"],
+  ["3 chai nước mía 1 lít 45k", quickItems, 45000, "Nước mía 1 lít", "bán 3 ly nước mía 1 lít"],
 
   ["1 ly nước cam", quickItems, 15000, "Nước cam", "bán 1 ly nước cam"],
   ["2 ly nước cam", quickItems, 30000, "Nước cam", "bán 2 ly nước cam"],
@@ -47,8 +47,8 @@ const cases = [
 
   ["2 ly nước mía", customQuickItems, 24000, "Bán nước mía", "bán 2 ly nước mía"],
   ["2 ly nước mía 12k", customQuickItems, 24000, "Bán nước mía", "bán 2 ly nước mía"],
-  ["2 nước mía 1 lít", customQuickItems, 36000, "Nước mía 1 lít", "bán 2 chai nước mía 1 lít"],
-  ["2 chai nước mía 1 lít 18k", customQuickItems, 36000, "Nước mía 1 lít", "bán 2 chai nước mía 1 lít"],
+  ["2 nước mía 1 lít", customQuickItems, 36000, "Nước mía 1 lít", "bán 2 ly nước mía 1 lít"],
+  ["2 chai nước mía 1 lít 18k", customQuickItems, 36000, "Nước mía 1 lít", "bán 2 ly nước mía 1 lít"],
   ["2 ly nước cam", customQuickItems, 34000, "Nước cam", "bán 2 ly nước cam"],
   ["2 ly nước cam 17k", customQuickItems, 34000, "Nước cam", "bán 2 ly nước cam"],
 ];

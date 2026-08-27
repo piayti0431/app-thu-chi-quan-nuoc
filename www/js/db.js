@@ -57,8 +57,8 @@ export const DEFAULT_DATA = {
       costPrice: 10000,
       category: "Nước mía 1 lít",
       note: "Bán nước mía 1 lít",
-      icon: "bottle",
-      voiceUnit: "chai",
+      icon: "cup_1l",
+      voiceUnit: "ly",
     },
     {
       id: "mia_tac",

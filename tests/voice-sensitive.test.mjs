@@ -8,11 +8,11 @@ const quickItems = [
 ];
 
 const cases = [
-  ["5 ly nuoc mia 1 lit", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
-  ["nam ly nuoc mia mot lit", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
-  ["5 ly nuoc mia lit", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
-  ["5 nuoc mia lit", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
-  ["5 chai nuoc mia lit 16k", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
+  ["5 ly nuoc mia 1 lit", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
+  ["nam ly nuoc mia mot lit", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
+  ["5 ly nuoc mia lit", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
+  ["5 nuoc mia lit", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
+  ["5 chai nuoc mia lit 16k", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
   ["5 ly nuoc cam", 75000, "Nước cam", "bán 5 ly nước cam"],
   ["nam ly nuoc cam", 75000, "Nước cam", "bán 5 ly nước cam"],
   ["5 nuoc cam", 75000, "Nước cam", "bán 5 ly nước cam"],

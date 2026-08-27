@@ -17,12 +17,12 @@ const cases = [
   ["nước mía 5 ly", 50000, "Bán nước mía", "bán 5 ly nước mía"],
   ["mía 5 ly", 50000, "Bán nước mía", "bán 5 ly nước mía"],
 
-  ["nước mía một lịch", 16000, "Nước mía 1 lít", "bán 1 chai nước mía 1 lít"],
-  ["mía một lịch", 16000, "Nước mía 1 lít", "bán 1 chai nước mía 1 lít"],
-  ["5 chai mía một lịch", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
-  ["nước mía 1 lid", 16000, "Nước mía 1 lít", "bán 1 chai nước mía 1 lít"],
-  ["5 ly nước mía 1 ít", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
-  ["nước mía một lít 5 chai", 80000, "Nước mía 1 lít", "bán 5 chai nước mía 1 lít"],
+  ["nước mía một lịch", 16000, "Nước mía 1 lít", "bán 1 ly nước mía 1 lít"],
+  ["mía một lịch", 16000, "Nước mía 1 lít", "bán 1 ly nước mía 1 lít"],
+  ["5 chai mía một lịch", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
+  ["nước mía 1 lid", 16000, "Nước mía 1 lít", "bán 1 ly nước mía 1 lít"],
+  ["5 ly nước mía 1 ít", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
+  ["nước mía một lít 5 chai", 80000, "Nước mía 1 lít", "bán 5 ly nước mía 1 lít"],
 ];
 
 for (const [text, soTien, danhMuc, moTaXacNhan] of cases) {
