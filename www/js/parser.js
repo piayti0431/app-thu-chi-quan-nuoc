@@ -3,9 +3,9 @@ const DEFAULT_NOTE = "";
 
 export const DEFAULT_QUICK_ITEMS = [
   { id: "nuoc_mia", name: "Nước mía thường", category: "Nước mía thường", price: 8000, costPrice: 4000, voiceName: "nước mía", voiceUnit: "ly" },
-  { id: "nuoc_mia_1l", name: "Nước mía 1 lít", category: "Nước mía 1 lít", price: 16000, costPrice: 10000, voiceName: "nước mía 1 lít", voiceUnit: "ly" },
+  { id: "nuoc_mia_1l", name: "Nước mía 1 lít", category: "Nước mía 1 lít", price: 15000, costPrice: 10000, voiceName: "nước mía 1 lít", voiceUnit: "ly" },
   { id: "mia_tac", name: "Mía tắc", category: "Mía tắc", price: 10000, costPrice: 5000, voiceName: "mía tắc", voiceUnit: "ly" },
-  { id: "mia_thom", name: "Mía thơm", category: "Mía thơm", price: 12000, costPrice: 7000, voiceName: "mía thơm", voiceUnit: "ly" },
+  { id: "mia_thom", name: "Mía thơm", category: "Mía thơm", price: 10000, costPrice: 5000, voiceName: "mía thơm", voiceUnit: "ly" },
   { id: "mia_cam", name: "Mía cam", category: "Mía cam", price: 17000, costPrice: 10000, voiceName: "mía cam", voiceUnit: "ly" },
   { id: "rau_ma", name: "Rau má tươi", category: "Rau má tươi", price: 10000, costPrice: 4000, voiceName: "rau má", voiceUnit: "ly" },
   { id: "rau_ma_sua", name: "Rau má sữa", category: "Rau má sữa", price: 15000, costPrice: 6000, voiceName: "rau má sữa", voiceUnit: "ly" },

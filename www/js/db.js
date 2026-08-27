@@ -56,7 +56,7 @@ export const DEFAULT_DATA = {
       id: "nuoc_mia_1l",
       name: "Nước mía 1 lít",
       shortName: "Mía 1 lít",
-      price: 16000,
+      price: 15000,
       costPrice: 10000,
       category: "Nước mía 1 lít",
       note: "Bán nước mía 1 lít",
@@ -80,8 +80,8 @@ export const DEFAULT_DATA = {
       id: "mia_thom",
       name: "Mía thơm",
       shortName: "Mía thơm",
-      price: 12000,
-      costPrice: 7000,
+      price: 10000,
+      costPrice: 5000,
       category: "Mía thơm",
       note: "Bán mía thơm",
       icon: "cane",
@@ -408,7 +408,7 @@ export function mergeData(data) {
   const base = cloneDefault();
   const legacyPrices = Array.isArray(data?.quickPrices) ? data.quickPrices : null;
 
-  const NOTEBOOK_VERSION = "20260827_visual_v1";
+  const NOTEBOOK_VERSION = "20260827_pricing_v2";
   const needsNotebookUpgrade = data?.costDataVersion !== NOTEBOOK_VERSION;
 
   // Quick items: use custom list if provided; otherwise fallback to default base list
@@ -419,21 +419,26 @@ export function mergeData(data) {
       let price = Number(item.price) > 0 ? Number(item.price) : 10000;
       const key = `${item.id || ""} ${item.name || ""} ${item.shortName || ""}`.toLowerCase();
 
-      // Seamlessly upgrade old default cost prices to notebook standards
+      // Seamlessly upgrade old default cost prices and selling prices to notebook standards
       if (needsNotebookUpgrade) {
         if (key.includes("nuoc_mia_1l") || key.includes("1 lít") || key.includes("1l") || key.includes("1 lit")) {
           costPrice = 10000;
-          if (price === 15000) price = 16000;
+          price = 15000;
         } else if (key.includes("mia_cam") || key.includes("mía cam")) {
           costPrice = 10000;
+          price = 17000;
         } else if (key.includes("tra_tac") || key.includes("trà tắc")) {
           costPrice = 7000;
+          price = 12000;
         } else if (key.includes("mia_thom") || key.includes("mía thơm") || key.includes("dứa")) {
-          costPrice = 7000;
+          costPrice = 5000;
+          price = 10000;
         } else if (key.includes("mia_tac") || key.includes("mía tắc")) {
           costPrice = 5000;
+          price = 10000;
         } else if (key.includes("nuoc_mia") || key.includes("mía thường") || key.includes("mía ly")) {
           costPrice = 4000;
+          price = 8000;
         }
       }
 
@@ -490,8 +495,8 @@ export function mergeData(data) {
           id: "mia_thom",
           name: "Mía thơm",
           shortName: "Mía thơm",
-          price: 12000,
-          costPrice: 7000,
+          price: 10000,
+          costPrice: 5000,
           category: "Mía thơm",
           note: "Bán mía thơm",
           icon: "cane",

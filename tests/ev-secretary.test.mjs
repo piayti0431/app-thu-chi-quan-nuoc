@@ -668,30 +668,30 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Price-only Clarification: 'thu 50k' -> asks items -> '5 ly mía thường' -> records 5 ly 50k");
 }
 
-// Test 28: Chỉ đọc tổng tiền không đọc list món: "tổng cộng 160k" -> EV hỏi lại, user đáp "10 chai mía 1 lít"
+// Test 28: Chỉ đọc tổng tiền không đọc list món: "tổng cộng 150k" -> EV hỏi lại, user đáp "10 ly mía 1 lít"
 {
   const mockState = {
     currentBranch: "Chi nhánh 2",
-    quickItems: [{ id: "nuoc_mia_1l", name: "Nước mía 1 lít", price: 16000, costPrice: 10000 }],
+    quickItems: [{ id: "nuoc_mia_1l", name: "Nước mía 1 lít", price: 15000, costPrice: 10000 }],
     crmCustomers: [],
     ds: [],
   };
 
-  const res1 = phanTichTaiChinhNoiBo("khách mua tổng cộng 160k", mockState);
+  const res1 = phanTichTaiChinhNoiBo("khách mua tổng cộng 150k", mockState);
   assert.equal(res1.type, "question");
-  assert.ok(res1.reply.includes("160.000"));
+  assert.ok(res1.reply.includes("150.000"));
   assert.ok(res1.reply.includes("những món nước nào"));
 
-  // User trả lời danh sách món: "10 chai mía 1 lít"
-  const res2 = phanTichTaiChinhNoiBo("10 chai mía 1 lít", mockState);
+  // User trả lời danh sách món: "10 ly mía 1 lít"
+  const res2 = phanTichTaiChinhNoiBo("10 ly mía 1 lít", mockState);
   assert.equal(res2.type, "command");
   assert.equal(res2.parsed.loai, "thu");
   assert.equal(res2.parsed.danhMuc, "Nước mía 1 lít");
   assert.equal(res2.parsed.soLuong, 10);
-  assert.equal(res2.parsed.soTien, 160000);
-  assert.equal(res2.parsed.tongGiaCost, 100000, "10 chai x 10k vốn = 100k");
+  assert.equal(res2.parsed.soTien, 150000);
+  assert.equal(res2.parsed.tongGiaCost, 100000, "10 ly x 10k vốn = 100k");
 
-  console.log("PASS EV Total-only Clarification: 'tổng cộng 160k' -> asks items -> '10 chai mía 1 lít' -> records 10 chai 160k");
+  console.log("PASS EV Total-only Clarification: 'tổng cộng 150k' -> asks items -> '10 ly mía 1 lít' -> records 10 ly 150k");
 }
 
 // Test 29: 5 ly mía thường chuẩn là 40k (8k/ly - vốn 4k), chỉ khi đọc "5 ly mía thường 50k" mới tính 10k/ly (ly lớn theo yêu cầu - vốn 5k)
