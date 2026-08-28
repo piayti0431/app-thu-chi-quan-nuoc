@@ -1157,7 +1157,7 @@ console.log("Starting ev-secretary.test.mjs...");
     currentBranch: "Quán Nhà (Chính)",
     overheadByBranch: {
       "Quán Nhà (Chính)": { rentMonthly: 6000000, electricityMonthly: 2400000, waterMonthly: 150000, trashMonthly: 50000, depreciationMonthly: 300000, otherMonthly: 500000, expectedCupsPerDay: 80 },
-      "Chi nhánh 2": { rentMonthly: 4500000, electricityMonthly: 1200000, waterMonthly: 100000, trashMonthly: 50000, depreciationMonthly: 200000, otherMonthly: 300000, expectedCupsPerDay: 50 },
+      "Chi nhánh 2": { rentMonthly: 6000000, electricityMonthly: 1200000, waterMonthly: 100000, trashMonthly: 50000, depreciationMonthly: 200000, otherMonthly: 300000, expectedCupsPerDay: 50 },
     },
     ds: [],
   };
@@ -1165,9 +1165,9 @@ console.log("Starting ev-secretary.test.mjs...");
   const res = phanTichTaiChinhNoiBo("Chi nhánh 2 hôm nay hòa vốn chưa EV?", mockState);
   assert.equal(res.type, "financial_advice");
   assert.ok(res.reply.includes("Chi nhánh 2"));
-  assert.ok(res.reply.includes("424.000") || res.reply.includes("423.000") || res.reply.includes("212.000") || res.reply.includes("211.667") || res.reply.includes("50 ly"));
+  assert.ok(res.reply.includes("523.333") || res.reply.includes("524.000") || res.reply.includes("261.667") || res.reply.includes("262.000") || res.reply.includes("50 ly"));
 
-  console.log("PASS EV Branch Break-Even: 'Chi nhánh 2 hòa vốn chưa?' -> calculated distinct break-even target for Chi nhánh 2");
+  console.log("PASS EV Branch Break-Even: 'Chi nhánh 2 hòa vốn chưa?' -> calculated distinct break-even target for Chi nhánh 2 (mặt bằng 6tr)");
 }
 
 // Test 55: Distinct Branch Break-Even - "Quán Nhà bán bao nhiêu ly thì hòa vốn?"

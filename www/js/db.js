@@ -216,7 +216,7 @@ export const DEFAULT_DATA = {
       expectedCupsPerDay: 80,
     },
     "Chi nhánh 2": {
-      rentMonthly: 4500000,          // Mặt bằng 150k/ngày (vỉa hè/kiosk phụ)
+      rentMonthly: 6000000,          // Mặt bằng 200k/ngày (6.000.000 đ/tháng)
       electricityMonthly: 1200000,   // Điện 40k/ngày
       waterMonthly: 100000,
       trashMonthly: 50000,
