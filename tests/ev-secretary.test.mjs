@@ -1284,4 +1284,39 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Cost Adjustment: 'sửa vốn thành 4k' -> updates last transaction's cost to 4k");
 }
 
+// Test 61: Pragmatic Calculation & Origin Queries - "ở đâu ra 7k vậy?" / "sao tính kỳ vậy?"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    ds: [
+      { id: "tx1", loai: "thu", danhMuc: "Mía tắc", soLuong: 1, soTien: 8000, giaCostDonVi: 5000, tongGiaCost: 5000 },
+    ],
+  };
+
+  const res1 = phanTichTaiChinhNoiBo("ở đâu ra 7k vậy EV?", mockState);
+  assert.equal(res1.type, "financial_advice");
+
+  const res2 = phanTichTaiChinhNoiBo("sao tính kiểu gì kỳ vậy EV?", mockState);
+  assert.equal(res2.type, "financial_advice");
+
+  console.log("PASS EV Origin & Calculation Queries: 'ở đâu ra 7k' / 'sao tính kỳ vậy' -> empathetic rationale");
+}
+
+// Test 62: Payment Method Adjustment - "đổi sang tiền mặt nha"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    ds: [
+      { id: "tx1", loai: "thu", danhMuc: "Mía tắc", soLuong: 1, soTien: 8000, giaCostDonVi: 5000, tongGiaCost: 5000, phuongThuc: "chuyen_khoan" },
+    ],
+  };
+
+  const res = phanTichTaiChinhNoiBo("đổi sang tiền mặt nha EV", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "update_last_transaction");
+  assert.equal(res.updatedTx.phuongThuc, "tien_mat");
+
+  console.log("PASS EV Payment Method Switch: 'đổi sang tiền mặt nha' -> updates payment method to cash");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

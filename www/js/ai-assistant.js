@@ -383,6 +383,33 @@ export function phanTichTaiChinhNoiBo(query, state) {
     };
   }
 
+  // 0.9 ĐỔI PHƯƠNG THỨC THANH TOÁN CHO ĐƠN VỪA GHI ("ĐỔI SANG TIỀN MẶT NHA", "ĐỔI SANG CHUYỂN KHOẢN")
+  const isPaymentMethodChange =
+    (norm.includes("doi sang tien mat") || norm.includes("doi sang ck") || norm.includes("doi sang chuyen khoan") || norm.includes("chuyen sang tien mat") || norm.includes("chuyen sang chuyen khoan") || (norm.includes("tien mat") && norm.includes("nha") && !norm.includes("ban"))) &&
+    conversationContext.lastTransaction;
+
+  if (isPaymentMethodChange) {
+    const lastTx = conversationContext.lastTransaction;
+    const isToCK = norm.includes("chuyen khoan") || norm.includes("ck") || norm.includes("qr");
+    const newMethod = isToCK ? "chuyen_khoan" : "tien_mat";
+    const updatedTx = {
+      ...lastTx,
+      phuongThuc: newMethod,
+    };
+    conversationContext.lastTransaction = updatedTx;
+
+    return {
+      type: "action",
+      action: "update_last_transaction",
+      updatedTx,
+      reply: `💳 **Dạ EV đã chuyển phương thức thanh toán cho đơn ${lastTx.danhMuc}**:
+- Hình thức mới: **${isToCK ? "Chuyển khoản QR ngân hàng" : "Tiền mặt vào két"}**
+- Số tiền: **${formatMoney(lastTx.soTien)}**
+
+*Két tiền và báo cáo doanh thu hôm nay đã được cập nhật lại chuẩn xác!*`,
+    };
+  }
+
   // 1. TỰ HỌC THÔNG TIN KHÁCH QUEN QUA CHAT (IN-CHAT CRM LEARNING)
   const isLearnCustomer =
     (norm.includes("nho la") || norm.includes("ghi nho") || norm.includes("luu lai") || norm.includes("day ev") || norm.includes("hoc nhe") || norm.includes("nho nhe")) &&
@@ -571,21 +598,27 @@ ${debtText}
     };
   }
 
-  // 1.6 BẮT LỖI / THẮC MẮC VỀ GIÁ VỐN ("VỐN NÀO MÀ 7K?", "SAO VỐN 7K?", "SAO TỰ Ý ĐIỀN GIÁ VỐN?", "SAO KHÔNG HỎI GIÁ VỐN LÀ BAO NHIÊU MÀ TỰ ĐIỀN?")
-  const isCostQuestionOrCorrection =
-    (norm.includes("von nao") ||
-      norm.includes("sao von") ||
-      norm.includes("von gi") ||
-      norm.includes("sao gia von") ||
-      norm.includes("gia von sai") ||
-      norm.includes("tu y dien") ||
-      norm.includes("sao lai von") ||
-      norm.includes("sao khong hoi") ||
-      norm.includes("khong hoi gia von") ||
-      norm.includes("sao tu y") ||
-      (norm.includes("gia von") && (norm.includes("sai") || norm.includes("nham") || norm.includes("sao") || norm.includes("the nao"))));
+  // 1.6 PHẢN BIỆN, THẮC MẮC, BẮT LỖI TÍNH TOÁN / GIÁ VỐN / NGUỒN GỐC SỐ TIỀN
+  // Ví dụ: "vốn nào mà 7k?", "ở đâu ra 7k vậy?", "sao tính kỳ vậy?", "sao không hỏi giá vốn mà tự ý điền vậy?", "tính kiểu gì vậy?"
+  const isCritiqueOrExplanationQuery =
+    norm.includes("o dau ra") ||
+    norm.includes("sao tinh") ||
+    norm.includes("tinh kieu gi") ||
+    norm.includes("sao ky vay") ||
+    norm.includes("sao la vay") ||
+    norm.includes("von nao") ||
+    norm.includes("sao von") ||
+    norm.includes("von gi") ||
+    norm.includes("sao gia von") ||
+    norm.includes("gia von sai") ||
+    norm.includes("tu y dien") ||
+    norm.includes("sao lai von") ||
+    norm.includes("sao khong hoi") ||
+    norm.includes("khong hoi gia von") ||
+    norm.includes("sao tu y") ||
+    (norm.includes("gia von") && (norm.includes("sai") || norm.includes("nham") || norm.includes("sao") || norm.includes("the nao")));
 
-  if (isCostQuestionOrCorrection) {
+  if (isCritiqueOrExplanationQuery) {
     const recentThuList = (state.ds || []).filter((tx) => !tx.deleted && tx.loai === "thu");
     const lastThu = conversationContext.lastTransaction || recentThuList[recentThuList.length - 1];
 
@@ -598,7 +631,7 @@ ${debtText}
       type: "financial_advice",
       reply: `Dạ EV xin lỗi anh/chị vì đã làm anh/chị bối rối ạ! 🙇‍♂️${lastItemText}
 
-Lý do EV tự động điền giá vốn là:
+Lý do EV tự động điền giá vốn và tính toán là:
 1. 💡 **Cơ chế tự động hóa**: EV đã được cài đặt sẵn **Bảng giá vốn chuẩn theo định mức Menu** (ví dụ: *Nước mía chuẩn vốn 4k, Mía tắc/Mía thơm vốn 5k, Trà tắc vốn 7k...*) để tự động tính ngay tiền lãi gộp và tiến độ hòa vốn giúp anh/chị mà không cần phải nhập vốn thủ công từng đơn hàng lúc đang đông khách.
 2. ⚠️ **Nếu nhận diện nhầm món hoặc giá vốn thực tế khác**:
    - Nếu món vừa bán là **Mía tắc** (vốn chuẩn 5.000 đ) nhưng bị nhận diện nhầm thành Trà tắc (vốn 7.000 đ), EV đã chuẩn hóa thuật toán để nhận diện chính xác Mía tắc!
