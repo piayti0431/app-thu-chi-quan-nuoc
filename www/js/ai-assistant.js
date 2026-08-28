@@ -571,6 +571,41 @@ ${debtText}
     };
   }
 
+  // 1.6 BẮT LỖI / THẮC MẮC VỀ GIÁ VỐN ("VỐN NÀO MÀ 7K?", "SAO VỐN 7K?", "SAO TỰ Ý ĐIỀN GIÁ VỐN?", "SAO KHÔNG HỎI GIÁ VỐN LÀ BAO NHIÊU MÀ TỰ ĐIỀN?")
+  const isCostQuestionOrCorrection =
+    (norm.includes("von nao") ||
+      norm.includes("sao von") ||
+      norm.includes("von gi") ||
+      norm.includes("sao gia von") ||
+      norm.includes("gia von sai") ||
+      norm.includes("tu y dien") ||
+      norm.includes("sao lai von") ||
+      norm.includes("sao khong hoi") ||
+      norm.includes("khong hoi gia von") ||
+      norm.includes("sao tu y") ||
+      (norm.includes("gia von") && (norm.includes("sai") || norm.includes("nham") || norm.includes("sao") || norm.includes("the nao"))));
+
+  if (isCostQuestionOrCorrection) {
+    const recentThuList = (state.ds || []).filter((tx) => !tx.deleted && tx.loai === "thu");
+    const lastThu = conversationContext.lastTransaction || recentThuList[recentThuList.length - 1];
+
+    let lastItemText = "";
+    if (lastThu) {
+      lastItemText = `\n- 🥤 Món gần nhất: **${lastThu.danhMuc}** (${lastThu.soLuong} ly) - Giá bán: **${formatMoney(lastThu.soTien)}** - Vốn đang ghi: **${formatMoney(lastThu.giaCostDonVi || lastThu.tongGiaCost)}**`;
+    }
+
+    return {
+      type: "financial_advice",
+      reply: `Dạ EV xin lỗi anh/chị vì đã làm anh/chị bối rối ạ! 🙇‍♂️${lastItemText}
+
+Lý do EV tự động điền giá vốn là:
+1. 💡 **Cơ chế tự động hóa**: EV đã được cài đặt sẵn **Bảng giá vốn chuẩn theo định mức Menu** (ví dụ: *Nước mía chuẩn vốn 4k, Mía tắc/Mía thơm vốn 5k, Trà tắc vốn 7k...*) để tự động tính ngay tiền lãi gộp và tiến độ hòa vốn giúp anh/chị mà không cần phải nhập vốn thủ công từng đơn hàng lúc đang đông khách.
+2. ⚠️ **Nếu nhận diện nhầm món hoặc giá vốn thực tế khác**:
+   - Nếu món vừa bán là **Mía tắc** (vốn chuẩn 5.000 đ) nhưng bị nhận diện nhầm thành Trà tắc (vốn 7.000 đ), EV đã chuẩn hóa thuật toán để nhận diện chính xác Mía tắc!
+   - Nếu anh/chị muốn đổi giá vốn món này theo thực tế: Anh/chị chỉ cần bảo *"EV sửa vốn món này thành [số tiền]k"*, EV sẽ cập nhật và tính lại toàn bộ lợi nhuận ngay lập tức ạ!`,
+    };
+  }
+
   // 2. LỆNH RESTART / LÀM MỚI DỮ LIỆU TRONG NGÀY KÈM GHI CHÚ
   if (norm.includes("restart") || norm.includes("reset ngay") || norm.includes("lam moi ngay") || norm.includes("khoi dong lai ngay")) {
     const isExplicitAll = norm.includes("tat ca") || norm.includes("2 quan") || norm.includes("ca 2 quan") || norm.includes("toan he thong");
@@ -1056,8 +1091,12 @@ ${breakdownLines}
     }
   }
 
-  // 5. NGƯỜI DÙNG ĐÍNH CHÍNH / BẮT LỖI TÍNH TOÁN ("100k thì phải là 10 ly chứ", "sao lại ghi 1 ly", "nhầm rồi")
+  // 5. NGƯỜI DÙNG ĐÍNH CHÍNH / BẮT LỖI TÍNH TOÁN ("100k thì phải là 10 ly chứ", "sao lại ghi 1 ly", "nhầm rồi", "sửa vốn thành 4k")
+  const quickItems = state.quickItems || [];
+  const hasSpecificMenuItem = quickItems.some((i) => norm.includes(normalizeQuery(i.name)) || (i.shortName && norm.includes(normalizeQuery(i.shortName))));
+
   const isCorrection =
+    !hasSpecificMenuItem &&
     !norm.includes("bot cho") &&
     !norm.includes("giam cho") &&
     !norm.includes("ban cho") &&
@@ -1069,6 +1108,12 @@ ${breakdownLines}
       norm.includes("sai roi") ||
       norm.includes("tinh lai") ||
       norm.includes("khong phai") ||
+      norm.includes("sua von") ||
+      norm.includes("doi von") ||
+      norm.includes("chinh von") ||
+      norm.includes("sua cost") ||
+      norm.includes("doi cost") ||
+      (norm.includes("von") && (norm.includes("thoi") || norm.includes("thanh") || norm.includes("la"))) ||
       (/(?:\d+\s*ly|100k|tien)\s+chu\b/.test(norm)) ||
       (/\bchu\s*[?!.]*$/.test(norm) && (norm.includes("ly") || norm.includes("100k") || norm.includes("tien") || /\b\d+\s*ly\b/.test(norm)))
     );
@@ -1079,6 +1124,25 @@ ${breakdownLines}
 
     const recentThuList = (state.ds || []).filter((tx) => !tx.deleted && tx.loai === "thu");
     const lastThu = conversationContext.lastTransaction || recentThuList[recentThuList.length - 1];
+
+    const quickItems = state.quickItems || [];
+    const hasSpecificMenuItem = quickItems.some((i) => norm.includes(normalizeQuery(i.name)) || (i.shortName && norm.includes(normalizeQuery(i.shortName))));
+
+    const correctedCost = extractMoneyFromText(query);
+    if ((norm.includes("von") || norm.includes("cost")) && correctedCost > 0 && lastThu && !qtyMatch && !hasSpecificMenuItem) {
+      const updatedTx = {
+        ...lastThu,
+        giaCostDonVi: correctedCost,
+        tongGiaCost: correctedCost * (Number(lastThu.soLuong) || 1),
+      };
+
+      return {
+        type: "action",
+        action: "update_last_transaction",
+        updatedTx,
+        reply: `Dạ EV đã điều chỉnh lại giá vốn cho đơn **${lastThu.danhMuc}** thành **${formatMoney(correctedCost)} / ${lastThu.donViTinh || "ly"}** (Tổng vốn: **${formatMoney(updatedTx.tongGiaCost)}**) vào sổ rồi ạ! 📝✨`,
+      };
+    }
 
     if (correctedQty > 0 && lastThu) {
       const updatedTx = {
@@ -1865,8 +1929,8 @@ ${breakdownLines}
   }
 
   // 15.1 PHẢN BIỆN / HỎI LẠI KHI CHỈ ĐỌC GIÁ TIỀN HOẶC TỔNG TIỀN MÀ KHÔNG CÓ TÊN MÓN / LIST MÓN
-  const quickItems = state.quickItems || [];
-  const hasDrinkName = quickItems.some((i) => {
+  const currentQuickItems = state.quickItems || [];
+  const hasDrinkName = currentQuickItems.some((i) => {
     const n = normalizeQuery(i.name);
     const sn = i.shortName ? normalizeQuery(i.shortName) : "";
     const vn = i.voiceName ? normalizeQuery(i.voiceName) : "";

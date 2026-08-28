@@ -1231,4 +1231,57 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Branch Overhead Update: 'EV đổi tiền mặt bằng Chi nhánh 2 thành 5 triệu' -> updated Chi nhánh 2 overhead only");
 }
 
+// Test 58: Sugarcane Kumquat (Mía tắc) Parsing - "mía tắc 8k ck"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("mía tắc 8k ck", mockState);
+  assert.equal(res.type, "command");
+  assert.equal(res.parsed.danhMuc, "Mía tắc");
+  assert.equal(res.parsed.soTien, 8000);
+  assert.equal(res.parsed.giaCostDonVi, 5000);
+  assert.equal(res.parsed.phuongThuc, "chuyen_khoan");
+
+  console.log("PASS EV Sugarcane Kumquat Parsing: 'mía tắc 8k ck' -> Mía tắc 8k, cost 5k, CK");
+}
+
+// Test 59: Cost Explanation / Critique - "sao không hỏi giá vốn là bao nhiêu mà tự ý điền vậy?" / "vốn nào mà 7k?"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    ds: [],
+  };
+
+  const res1 = phanTichTaiChinhNoiBo("sao không hỏi giá vốn là bao nhiêu mà tự ý điền vậy?", mockState);
+  assert.equal(res1.type, "financial_advice");
+  assert.ok(res1.reply.includes("Bảng giá vốn chuẩn") || res1.reply.includes("định mức Menu"));
+
+  const res2 = phanTichTaiChinhNoiBo("vốn nào mà 7k?", mockState);
+  assert.equal(res2.type, "financial_advice");
+  assert.ok(res2.reply.includes("định mức Menu") || res2.reply.includes("tự động điền giá vốn"));
+
+  console.log("PASS EV Cost Critique & Explanation: 'sao tự ý điền giá vốn' / 'vốn nào mà 7k' -> polite explanation of automated menu cost matrix");
+}
+
+// Test 60: Cost Adjustment Command - "sửa vốn thành 4k"
+{
+  const mockState = {
+    currentBranch: "Chi nhánh 2",
+    ds: [
+      { id: "tx1", loai: "thu", danhMuc: "Mía tắc", soLuong: 1, soTien: 8000, giaCostDonVi: 5000, tongGiaCost: 5000 },
+    ],
+  };
+
+  const res = phanTichTaiChinhNoiBo("sửa vốn thành 4k", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "update_last_transaction");
+  assert.equal(res.updatedTx.giaCostDonVi, 4000);
+  assert.equal(res.updatedTx.tongGiaCost, 4000);
+
+  console.log("PASS EV Cost Adjustment: 'sửa vốn thành 4k' -> updates last transaction's cost to 4k");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");

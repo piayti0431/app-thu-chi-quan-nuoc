@@ -471,7 +471,13 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
     } else if (item.id === "rau_ma" && (normalized.includes("rau ma") || normalized.includes("ma tuoi") || (hasRauMa && !hasDauXanh && !hasSua))) {
       score += 85;
       reasons.push("có từ rau má");
-    } else if (item.id === "tra_tac" && (hasTac || normalized.includes("tra tac") || normalized.includes("tra quat"))) {
+    } else if (item.id === "mia_tac" && hasMia && hasTac) {
+      score += 97;
+      reasons.push("có mía tắc");
+    } else if (item.id === "mia_thom" && hasMia && (normalized.includes("thom") || normalized.includes("khom") || normalized.includes("dua"))) {
+      score += 97;
+      reasons.push("có mía thơm");
+    } else if (item.id === "tra_tac" && (normalized.includes("tra tac") || normalized.includes("tra quat") || (hasTac && !hasMia))) {
       score += 90;
       reasons.push("có từ trà tắc");
     } else if (item.id === "mia_cam" && hasMia && hasCam) {
@@ -484,10 +490,9 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
     } else if (item.id === "nuoc_mia_1l" && hasMia && hasOneLiter) {
       score += 95;
       reasons.push("có mía và dấu hiệu 1 lít");
-    } else if (item.id === "nuoc_mia" && hasMia && !hasOneLiter && !hasCam) {
+    } else if (item.id === "nuoc_mia" && hasMia && !hasOneLiter && !hasCam && !hasTac && !normalized.includes("thom") && !normalized.includes("khom")) {
       score += 80;
       reasons.push("có từ mía");
-      if (normalized.includes("mia tac") || normalized.includes("mia thom")) score += 10;
     }
 
     if (score <= 0) continue;
