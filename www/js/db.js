@@ -205,6 +205,26 @@ export const DEFAULT_DATA = {
     otherMonthly: 500000,          // Chi phí phát sinh khác (~500.000 đ/tháng)
     expectedCupsPerDay: 80,        // Sản lượng bán dự kiến (ly/ngày)
   },
+  overheadByBranch: {
+    "Quán Nhà (Chính)": {
+      rentMonthly: 6000000,          // Mặt bằng 200k/ngày
+      electricityMonthly: 2400000,   // Điện 80k/ngày (30 ký)
+      waterMonthly: 150000,          // Nước 5k/ngày
+      trashMonthly: 50000,
+      depreciationMonthly: 300000,
+      otherMonthly: 500000,
+      expectedCupsPerDay: 80,
+    },
+    "Chi nhánh 2": {
+      rentMonthly: 4500000,          // Mặt bằng 150k/ngày (vỉa hè/kiosk phụ)
+      electricityMonthly: 1200000,   // Điện 40k/ngày
+      waterMonthly: 100000,
+      trashMonthly: 50000,
+      depreciationMonthly: 200000,
+      otherMonthly: 300000,
+      expectedCupsPerDay: 50,
+    },
+  },
   packagingConfig: {
     cups: { name: "Ly nhựa", unit: "thùng (2.000 cái)", batchCost: 1000000, batchYield: 2000, unitCost: 500 },
     straws: { name: "Ống hút", unit: "bao (10 bịch)", batchCost: 270000, batchYield: 2000, unitCost: 135 },
@@ -616,6 +636,7 @@ export function mergeData(data) {
     quickItems: mergedQuickItems,
     quickPrices: legacyPrices || mergedQuickItems.map((item) => item.price),
     overheadConfig: { ...(base.overheadConfig || {}), ...(data?.overheadConfig || {}) },
+    overheadByBranch: { ...(base.overheadByBranch || {}), ...(data?.overheadByBranch || {}) },
     packagingConfig: { ...(base.packagingConfig || {}), ...(data?.packagingConfig || {}) },
     costFormulas: { ...(base.costFormulas || {}), ...(data?.costFormulas || {}) },
     crmCustomers: Array.isArray(data?.crmCustomers) ? data.crmCustomers : (base.crmCustomers || []),
@@ -1053,15 +1074,109 @@ export async function restartDuLieuHomNay({ dateKey = localDateKey(), branch = "
   return { resetCount, branch: isAll ? "Tất cả điểm bán" : branch, note };
 }
 
-export async function luuOverheadConfig(overhead) {
-  const data = await docDuLieu();
-  data.overheadConfig = {
+export function layOverheadChoChiNhanh(data = {}, branchName = null) {
+  const isAll = !branchName || branchName === "all" || branchName === "Tất cả điểm bán" || branchName === "Toàn quán" || branchName === "Toàn bộ chi nhánh";
+  const branchMap = data.overheadByBranch || DEFAULT_DATA.overheadByBranch;
+
+  if (isAll) {
+    const branches = data.branches || DEFAULT_DATA.branches;
+    let sumRent = 0;
+    let sumElec = 0;
+    let sumWater = 0;
+    let sumTrash = 0;
+    let sumDepr = 0;
+    let sumOther = 0;
+    let sumCups = 0;
+
+    for (const b of branches) {
+      const bName = typeof b === "string" ? b : b.name;
+      const ov = branchMap[bName] || data.overheadConfig || DEFAULT_DATA.overheadConfig;
+      sumRent += Number(ov.rentMonthly) || 0;
+      sumElec += Number(ov.electricityMonthly) || 0;
+      sumWater += Number(ov.waterMonthly) || 0;
+      sumTrash += Number(ov.trashMonthly) || 0;
+      sumDepr += Number(ov.depreciationMonthly) || 0;
+      sumOther += Number(ov.otherMonthly) || 0;
+      sumCups += Number(ov.expectedCupsPerDay) || 0;
+    }
+
+    return {
+      rentMonthly: sumRent,
+      electricityMonthly: sumElec,
+      waterMonthly: sumWater,
+      trashMonthly: sumTrash,
+      depreciationMonthly: sumDepr,
+      otherMonthly: sumOther,
+      expectedCupsPerDay: sumCups,
+      isAllBranches: true,
+      branchName: "Toàn bộ chi nhánh",
+    };
+  }
+
+  if (branchMap && branchMap[branchName]) {
+    return {
+      ...branchMap[branchName],
+      branchName,
+    };
+  }
+
+  return {
     ...(data.overheadConfig || DEFAULT_DATA.overheadConfig),
+    branchName: branchName || data.currentBranch || "Quán Nhà (Chính)",
+  };
+}
+
+export function tinhDiemHoaVonChiNhanh(overhead = {}, grossMargin = 0.5) {
+  const rent = Number(overhead.rentMonthly) || 0;
+  const elec = Number(overhead.electricityMonthly) || 0;
+  const water = Number(overhead.waterMonthly) || 0;
+  const trash = Number(overhead.trashMonthly) || 0;
+  const depr = Number(overhead.depreciationMonthly) || 0;
+  const other = Number(overhead.otherMonthly) || 0;
+
+  const totalMonthlyOverhead = rent + elec + water + trash + depr + other;
+  const dailyFixedCost = Math.round(totalMonthlyOverhead / 30);
+  const rentDaily = Math.round(rent / 30);
+  const elecDaily = Math.round(elec / 30);
+
+  const margin = grossMargin > 0 ? grossMargin : 0.5;
+  const targetRevenue = Math.round(dailyFixedCost / margin);
+  const expectedCups = Number(overhead.expectedCupsPerDay) || 80;
+
+  return {
+    totalMonthlyOverhead,
+    dailyFixedCost,
+    rentDaily,
+    elecDaily,
+    targetRevenue,
+    expectedCups,
+    grossMargin: margin,
+  };
+}
+
+export async function luuOverheadChoChiNhanh(branchName, overhead) {
+  const data = await docDuLieu();
+  data.overheadByBranch = data.overheadByBranch || { ...DEFAULT_DATA.overheadByBranch };
+  const targetBranch = branchName || data.currentBranch || "Quán Nhà (Chính)";
+  data.overheadByBranch[targetBranch] = {
+    ...(data.overheadByBranch[targetBranch] || DEFAULT_DATA.overheadConfig),
     ...overhead,
   };
+  if (targetBranch === data.currentBranch || targetBranch === "Quán Nhà (Chính)") {
+    data.overheadConfig = {
+      ...(data.overheadConfig || DEFAULT_DATA.overheadConfig),
+      ...overhead,
+    };
+  }
   data.settingsVersion = Date.now();
   await luuDuLieu(data);
-  return data.overheadConfig;
+  return data.overheadByBranch[targetBranch];
+}
+
+export async function luuOverheadConfig(overhead, branchName = null) {
+  const data = await docDuLieu();
+  const targetBranch = branchName || data.currentBranch || "Quán Nhà (Chính)";
+  return await luuOverheadChoChiNhanh(targetBranch, overhead);
 }
 
 export async function luuPackagingConfig(packaging) {

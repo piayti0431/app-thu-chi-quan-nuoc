@@ -481,9 +481,17 @@
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;">
                 <!-- NHÓM 1: ĐỊNH PHÍ VẬN HÀNH HÀNG THÁNG -->
                 <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: var(--radius-md); padding: 0.85rem;">
-                  <h3 style="margin: 0 0 0.5rem; font-size: 0.92rem; font-weight: 800; color: #9a3412; display: flex; align-items: center; gap: 0.35rem;">
-                    <span>🏠 1. Định Phí Vận Hành Hàng Tháng (Cố định)</span>
-                  </h3>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem;">
+                    <h3 style="margin: 0; font-size: 0.92rem; font-weight: 800; color: #9a3412; display: flex; align-items: center; gap: 0.35rem;">
+                      <span>🏠 1. Định Phí Vận Hành Hàng Tháng</span>
+                    </h3>
+                    <div style="display: flex; align-items: center; gap: 0.35rem;">
+                      <span style="font-size: 0.78rem; font-weight: 700; color: #475569;">Điểm bán:</span>
+                      <select id="settingOverheadBranchSelect" style="padding: 0.2rem 0.45rem; font-size: 0.82rem; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff7ed; color: #9a3412;">
+                        <!-- Populated by JS -->
+                      </select>
+                    </div>
+                  </div>
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.82rem;">
                     <label style="margin: 0;">
                       <span>🏢 Tiền mặt bằng (đ/tháng):</span>

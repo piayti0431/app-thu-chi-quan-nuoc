@@ -1,6 +1,6 @@
 import { dailyReport, docSoTienTiengViet, formatReportDate } from "./report.js";
 import { phanTichChiTiet, phanTichNhieu, stripWakeWordAndBranch } from "./parser.js";
-import { luuKhachQuen, luuTriThucEV } from "./db.js";
+import { luuKhachQuen, luuTriThucEV, layOverheadChoChiNhanh, tinhDiemHoaVonChiNhanh, luuOverheadChoChiNhanh } from "./db.js";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -522,7 +522,8 @@ ${debtText}
 
   if (isRentChange) {
     const amount = extractMoneyFromText(query);
-    const overhead = state.overheadConfig || {};
+    const branchToUse = detectedBranch || (norm.includes("chi nhanh 2") ? "Chi nhánh 2" : (norm.includes("chi nhanh 1") || norm.includes("quan nha") ? "Quán Nhà (Chính)" : (state.currentBranch || "Quán Nhà (Chính)")));
+    const overhead = layOverheadChoChiNhanh(state, branchToUse);
     const oldRent = Number(overhead.rentMonthly) || 6000000;
     let newRent = oldRent;
 
@@ -532,26 +533,22 @@ ${debtText}
       newRent = amount;
     }
 
-    const elec = Number(overhead.electricityMonthly) || 2400000;
-    const water = Number(overhead.waterMonthly) || 150000;
-    const trash = Number(overhead.trashMonthly) || 50000;
-    const depr = Number(overhead.depreciationMonthly) || 300000;
-    const other = Number(overhead.otherMonthly) || 500000;
-    const totalOverhead = newRent + elec + water + trash + depr + other;
-    const dailyFixedCost = Math.round(totalOverhead / 30);
-    const newTargetRevenue = Math.round(dailyFixedCost / 0.5); // Margin ~50%
+    const updatedOverhead = { ...overhead, rentMonthly: newRent };
+    const calc = tinhDiemHoaVonChiNhanh(updatedOverhead, 0.5);
 
     return {
       type: "action",
       action: "update_overhead",
-      overhead: { ...overhead, rentMonthly: newRent },
+      branch: branchToUse,
+      overhead: updatedOverhead,
       newRent,
-      reply: `🏢 **Dạ EV đã cập nhật Tiền Mặt Bằng Mới & Tính Lại Điểm Hòa Vốn**:
+      reply: `🏢 **Dạ EV đã cập nhật Tiền Mặt Bằng Cho ${branchToUse} & Tính Lại Điểm Hòa Vốn**:
+- 📍 **Điểm bán**: **${branchToUse}**
 - 🏠 **Tiền mặt bằng mới**: **${formatMoney(newRent)} / tháng** (trước đó: ${formatMoney(oldRent)})
-- 📉 **Tổng định phí ngày**: Giảm xuống còn **${formatMoney(dailyFixedCost)} / ngày** (~${Math.round(dailyFixedCost / 1000)}k/ngày gồm mặt bằng, điện 30 ký, nước, rác).
-- 🎯 **Điểm hòa vốn mới của quán**: Chỉ cần đạt **~${formatMoney(newTargetRevenue)} / ngày** (~${Math.round(newTargetRevenue / 1000)}k doanh thu) là quán bắt đầu có lãi ròng bỏ túi!
+- 📉 **Tổng định phí ngày**: Giảm xuống còn **${formatMoney(calc.dailyFixedCost)} / ngày** (~${Math.round(calc.dailyFixedCost / 1000)}k/ngày gồm mặt bằng, điện, nước, rác).
+- 🎯 **Điểm hòa vốn mới**: Chỉ cần đạt **~${formatMoney(calc.targetRevenue)} / ngày** (~${Math.round(calc.targetRevenue / 1000)}k doanh thu) là ${branchToUse} bắt đầu có lãi ròng bỏ túi!
 
-*EV đã cập nhật trực tiếp vào hệ thống tính toán P&L toàn quán ạ!*`,
+*EV đã cập nhật trực tiếp vào hệ thống tính toán P&L cho ${branchToUse} ạ!*`,
     };
   }
 
@@ -1138,30 +1135,65 @@ ${isGood ? "✅ *Đánh giá: Tỷ lệ giá vốn đang bám sát định lư�
   }
 
   if (norm.includes("hoa von") || norm.includes("diem hoa von") || norm.includes("can ban bao nhieu ly") || norm.includes("bao nhieu tien thi hoa von") || norm.includes("muc tieu")) {
-    const overhead = state.overheadConfig || {};
-    const rent = Number(overhead.rentMonthly) || 6000000;
-    const elec = Number(overhead.electricityMonthly) || 2400000;
-    const water = Number(overhead.waterMonthly) || 150000;
-    const trash = Number(overhead.trashMonthly) || 50000;
-    const depr = Number(overhead.depreciationMonthly) || 300000;
-    const other = Number(overhead.otherMonthly) || 500000;
-    const totalOverhead = rent + elec + water + trash + depr + other; // 9.400.000 đ
-    const dailyFixedCost = Math.round(totalOverhead / 30); // ~313.300 đ
+    if (isAllBranches || norm.includes("2 quan") || norm.includes("2 chi nhanh") || norm.includes("tat ca")) {
+      const b1Name = "Quán Nhà (Chính)";
+      const b2Name = "Chi nhánh 2";
+      const ov1 = layOverheadChoChiNhanh(state, b1Name);
+      const ov2 = layOverheadChoChiNhanh(state, b2Name);
+      const calc1 = tinhDiemHoaVonChiNhanh(ov1, 0.5);
+      const calc2 = tinhDiemHoaVonChiNhanh(ov2, 0.5);
 
-    const targetRevenue = 628000;
-    const currentIncome = todayReport.income || 0;
-    const revProgress = Math.min(100, Math.round((currentIncome / targetRevenue) * 100));
+      const rev1 = b1Report.income || 0;
+      const rev2 = b2Report.income || 0;
+      const prog1 = Math.min(100, Math.round((rev1 / (calc1.targetRevenue || 1)) * 100));
+      const prog2 = Math.min(100, Math.round((rev2 / (calc2.targetRevenue || 1)) * 100));
+
+      const totalTarget = calc1.targetRevenue + calc2.targetRevenue;
+      const totalIncome = rev1 + rev2;
+      const totalDailyFixed = calc1.dailyFixedCost + calc2.dailyFixedCost;
+      const totalProg = Math.min(100, Math.round((totalIncome / (totalTarget || 1)) * 100));
+
+      return {
+        type: "financial_advice",
+        reply: `🎯 **Dạ EV phân tích Điểm Hòa Vốn Riêng Từng Chi Nhánh & Toàn Quán**:
+
+🏠 **1. ${b1Name}**:
+- 🏢 Định phí: **${formatMoney(calc1.dailyFixedCost)} / ngày** (Mặt bằng ${formatMoney(calc1.rentDaily)}, Điện ${formatMoney(calc1.elecDaily)})
+- 💰 Mục tiêu hòa vốn: **${formatMoney(calc1.targetRevenue)} / ngày** (~${calc1.expectedCups} ly/ngày)
+- 📊 Tiến độ: **${formatMoney(rev1)} / ${formatMoney(calc1.targetRevenue)}** (Đạt **${prog1}%**) ${rev1 >= calc1.targetRevenue ? "🎉 ĐÃ HÒA VỐN" : `(Thiếu ${formatMoney(calc1.targetRevenue - rev1)})`}
+
+🏪 **2. ${b2Name}**:
+- 🏢 Định phí: **${formatMoney(calc2.dailyFixedCost)} / ngày** (Mặt bằng ${formatMoney(calc2.rentDaily)}, Điện ${formatMoney(calc2.elecDaily)})
+- 💰 Mục tiêu hòa vốn: **${formatMoney(calc2.targetRevenue)} / ngày** (~${calc2.expectedCups} ly/ngày)
+- 📊 Tiến độ: **${formatMoney(rev2)} / ${formatMoney(calc2.targetRevenue)}** (Đạt **${prog2}%**) ${rev2 >= calc2.targetRevenue ? "🎉 ĐÃ HÒA VỐN" : `(Thiếu ${formatMoney(calc2.targetRevenue - rev2)})`}
+
+===============================
+🌟 **TỔNG CỘNG TOÀN BỘ 2 CHI NHÁNH**:
+- 🏢 **Tổng định phí toàn chuỗi**: **${formatMoney(totalDailyFixed)} / ngày**
+- 💰 **Mục tiêu doanh thu hòa vốn toàn chuỗi**: **${formatMoney(totalTarget)} / ngày**
+- 📊 **Tiến độ hôm nay**: **${formatMoney(totalIncome)} / ${formatMoney(totalTarget)}** (Đạt **${totalProg}%**)`,
+      };
+    }
+
+    const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+    const branchOverhead = layOverheadChoChiNhanh(state, branchToUse);
+    const calc = tinhDiemHoaVonChiNhanh(branchOverhead, 0.5);
+
+    const branchReport = branchToUse === "Quán Nhà (Chính)" ? b1Report : (branchToUse === "Chi nhánh 2" ? b2Report : todayReport);
+    const currentIncome = branchReport.income || 0;
+    const revProgress = Math.min(100, Math.round((currentIncome / (calc.targetRevenue || 1)) * 100));
 
     return {
       type: "financial_advice",
-      reply: `🎯 **Dạ EV phân tích Điểm Hòa Vốn Hôm Nay Cho Quán**:
-- 🏢 **Định phí mỗi ngày**: **${formatMoney(dailyFixedCost)} / ngày** (Mặt bằng 200k, Điện 30 ký 80k, Nước 5k, Rác, Khấu hao & phát sinh).
-- 💰 **Mục tiêu doanh thu hòa vốn**: **${formatMoney(targetRevenue)} / ngày** (~18.800.000đ/tháng với biên lãi gộp bình quân ~50%).
-- 📊 **Tiến độ hôm nay**: **${formatMoney(currentIncome)} / ${formatMoney(targetRevenue)}** [${Math.round(currentIncome / 1000)}k / ${Math.round(targetRevenue / 1000)}k] (Đạt **${revProgress}%**)
+      reply: `🎯 **Dạ EV phân tích Điểm Hòa Vốn Hôm Nay Cho ${branchToUse}**:
+- 📍 **Điểm bán**: **${branchToUse}**
+- 🏢 **Định phí mỗi ngày**: **${formatMoney(calc.dailyFixedCost)} / ngày** (Mặt bằng ${formatMoney(calc.rentDaily)}, Điện ${formatMoney(calc.elecDaily)}, Nước & Rác).
+- 💰 **Mục tiêu doanh thu hòa vốn**: **${formatMoney(calc.targetRevenue)} / ngày** (~${formatMoney(calc.totalMonthlyOverhead * 2)}/tháng với biên lãi gộp ~50%, tương đương ~${calc.expectedCups} ly/ngày).
+- 📊 **Tiến độ hôm nay**: **${formatMoney(currentIncome)} / ${formatMoney(calc.targetRevenue)}** [${Math.round(currentIncome / 1000)}k / ${Math.round(calc.targetRevenue / 1000)}k] (Đạt **${revProgress}%**)
 
-${currentIncome >= targetRevenue ? `🎉 **CHÚC MỪNG QUÁN ĐÃ VƯỢT ĐIỂM HÒA VỐN!**\nĐang có lời ròng **+${formatMoney(todayReport.grossProfit - dailyFixedCost)}** bỏ túi trọn vẹn sau khi trừ cả tiền nguyên liệu, tiền mặt bằng và điện 30 ký!` : `⚡ Quán cần thu thêm **${formatMoney(targetRevenue - currentIncome)}** để trả sạch 100% tiền nguyên liệu, tiền mặt bằng (200k) và tiền điện 30 ký (80k) hôm nay ạ!`}
+${currentIncome >= calc.targetRevenue ? `🎉 **CHÚC MỪNG ${branchToUse.toUpperCase()} ĐÃ VƯỢT ĐIỂM HÒA VỐN!**\nĐang có lời ròng **+${formatMoney(branchReport.grossProfit - calc.dailyFixedCost)}** bỏ túi trọn vẹn sau khi trừ cả tiền nguyên liệu, tiền mặt bằng và điện nước hôm nay!` : `⚡ ${branchToUse} cần thu thêm **${formatMoney(calc.targetRevenue - currentIncome)}** để trả sạch 100% tiền nguyên liệu, tiền mặt bằng (${formatMoney(calc.rentDaily)}) và tiền điện (${formatMoney(calc.elecDaily)}) hôm nay ạ!`}
 
-*(💡 Định lượng thực tế EV đã nạp: Bao bì/màng ép/ống hút/đá tính cố định 1k/phần; Mía 1L ko đá 1k; Nước mía chuẩn 8k/ly vốn 4k, ly lớn 10k).*`,
+*(💡 Mỗi chi nhánh được thiết lập mục tiêu hòa vốn và định phí độc lập phù hợp với thực tế điểm bán).*`,
     };
   }
 
@@ -1464,7 +1496,8 @@ ${expText}
       const isElec = norm.includes("dien");
       const isWater = norm.includes("nuoc");
 
-      const currentOverhead = state.overheadConfig || { rentMonthly: 6000000, electricityMonthly: 2400000, waterMonthly: 150000, trashMonthly: 50000, depreciationMonthly: 300000, otherMonthly: 500000 };
+      const branchToUse = detectedBranch || (norm.includes("chi nhanh 2") ? "Chi nhánh 2" : (norm.includes("chi nhanh 1") || norm.includes("quan nha") ? "Quán Nhà (Chính)" : (state.currentBranch || "Quán Nhà (Chính)")));
+      const currentOverhead = layOverheadChoChiNhanh(state, branchToUse);
       const updatedOverhead = { ...currentOverhead };
 
       let changedField = "Mặt bằng";
@@ -1482,11 +1515,14 @@ ${expText}
       return {
         type: "action",
         action: "update_overhead",
+        branch: branchToUse,
         overhead: updatedOverhead,
-        reply: `🏢 **Dạ EV đã cập nhật Định phí vận hành mới thành công**:
+        newRent: isRent ? amount : undefined,
+        reply: `🏢 **Dạ EV đã cập nhật Định phí cho ${branchToUse} thành công**:
+- 📍 **Điểm bán**: **${branchToUse}**
 - 📌 **Hạng mục**: **${changedField}**
-- 💰 **Số tiền mới**: **${formatMoney(amount)} / tháng**
-- 🎯 **Tự động hóa**: EV đã tính lại điểm hòa vốn và phân bổ định phí mới cho toàn bộ các báo cáo tài chính của quán!`,
+- 💰 **Số tiền mới**: **${formatMoney(amount)} / tháng** (~${formatMoney(Math.round(amount / 30))}/ngày)
+- 🎯 **Tự động hóa**: EV đã tính lại mục tiêu hòa vốn riêng biệt cho **${branchToUse}** từ hôm nay ạ!`,
       };
     }
   }

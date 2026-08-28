@@ -6,6 +6,9 @@ import {
   capNhatLaiGiaCostToanBoGiaoDich,
   datLaiGiaCostChuanSoTay,
   docDuLieu,
+  layOverheadChoChiNhanh,
+  tinhDiemHoaVonChiNhanh,
+  luuOverheadChoChiNhanh,
   luuCostFormula,
   luuDanhSachChiNhanh,
   luuDanhSachMenu,
@@ -294,21 +297,13 @@ function renderToday() {
     $("#todayOpeningCashDisplay").textContent = formatMoney(getTodayOpeningCash(selectedBranch));
   }
 
-  // Calculate Break-Even Target for Today [10k / 628k]
-  const overhead = state.overheadConfig || {};
-  const rent = Number(overhead.rentMonthly) || 6000000;
-  const elec = Number(overhead.electricityMonthly) || 2400000;
-  const water = Number(overhead.waterMonthly) || 150000;
-  const trash = Number(overhead.trashMonthly) || 50000;
-  const depr = Number(overhead.depreciationMonthly) || 300000;
-  const other = Number(overhead.otherMonthly) || 500000;
-  const totalMonthlyOverhead = rent + elec + water + trash + depr + other; // 9.400.000 đ
-  const dailyOverhead = totalMonthlyOverhead / 30; // ~313.300 đ
+  // Calculate Dynamic Break-Even Target for Today according to selected branch
+  const branchOverhead = layOverheadChoChiNhanh(state, selectedBranch);
+  const breakEvenCalc = tinhDiemHoaVonChiNhanh(branchOverhead, 0.5);
 
-  // Target break-even revenue = dailyOverhead / 0.50 (50% gross margin) = 628.000 đ
-  const targetBreakEvenRevenue = 628000;
+  const targetBreakEvenRevenue = breakEvenCalc.targetRevenue;
   const incomeK = Math.round(income / 1000);
-  const targetK = Math.round(targetBreakEvenRevenue / 1000); // 628
+  const targetK = Math.round(targetBreakEvenRevenue / 1000);
 
   const thuItems = items.filter((item) => item.loai === "thu");
   const totalCostOfSales = thuItems.reduce((sum, item) => sum + Number(item.tongGiaCost || (item.giaCostDonVi * (item.soLuong || 1)) || 0), 0);
@@ -327,12 +322,15 @@ function renderToday() {
   }
   if ($("#breakevenStatusText")) {
     if (income >= targetBreakEvenRevenue) {
-      const netProfit = currentGrossProfit - dailyOverhead;
-      $("#breakevenStatusText").innerHTML = `🎉 <strong style="color: #059669;">ĐÃ ĐẠT HÒA VỐN!</strong> Đang có lời ròng <strong>+${formatMoney(Math.max(0, netProfit))}</strong> bỏ túi sau khi trừ tiền nhà & điện nước.`;
+      const netProfit = currentGrossProfit - breakEvenCalc.dailyFixedCost;
+      $("#breakevenStatusText").innerHTML = `🎉 <strong style="color: #059669;">ĐÃ ĐẠT HÒA VỐN!</strong> Đang có lời ròng <strong>+${formatMoney(Math.max(0, netProfit))}</strong> bỏ túi sau khi trừ tiền nhà (${formatMoney(breakEvenCalc.rentDaily)}) & điện nước.`;
       $("#breakevenCard")?.classList.add("is-achieved");
     } else {
       const remain = targetBreakEvenRevenue - income;
-      $("#breakevenStatusText").innerHTML = `⚡ Cần thêm <strong>${formatMoney(remain)}</strong> doanh thu để hòa vốn tiền mặt bằng (200k) & điện 30 ký (80k) hôm nay.`;
+      const detailNote = isAll
+        ? `toàn bộ các chi nhánh (Tổng định phí ${formatMoney(breakEvenCalc.dailyFixedCost)}/ngày)`
+        : `mặt bằng (${formatMoney(breakEvenCalc.rentDaily)}) & điện (${formatMoney(breakEvenCalc.elecDaily)})`;
+      $("#breakevenStatusText").innerHTML = `⚡ Cần thêm <strong>${formatMoney(remain)}</strong> doanh thu để hòa vốn tiền ${detailNote} hôm nay.`;
       $("#breakevenCard")?.classList.remove("is-achieved");
     }
   }
@@ -1291,18 +1289,22 @@ function updateOverheadAndPackagingDisplays() {
   }
 }
 
-function renderOverheadAndPackagingManager() {
-  const overhead = state.overheadConfig || {
-    rentMonthly: 6000000,
-    electricityMonthly: 1000000,
-    waterMonthly: 300000,
-    trashMonthly: 50000,
-    depreciationMonthly: 300000,
-    otherMonthly: 150000,
-    expectedCupsPerDay: 80,
-  };
+let currentSettingOverheadBranch = "Quán Nhà (Chính)";
 
-  // Populate overhead inputs
+function populateSettingOverheadBranchSelect() {
+  const sel = $("#settingOverheadBranchSelect");
+  if (!sel) return;
+  const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
+  sel.innerHTML = branches
+    .map((b) => {
+      const name = typeof b === "string" ? b : b.name;
+      return `<option value="${name}" ${name === currentSettingOverheadBranch ? "selected" : ""}>${name}</option>`;
+    })
+    .join("");
+}
+
+function loadOverheadInputsForBranch(branchName) {
+  const overhead = layOverheadChoChiNhanh(state, branchName);
   const rentInput = $("#settingRentMonthly");
   if (rentInput) rentInput.value = overhead.rentMonthly ?? 6000000;
   const elecInput = $("#settingElectricityMonthly");
@@ -1315,6 +1317,15 @@ function renderOverheadAndPackagingManager() {
   if (otherInput) otherInput.value = (overhead.depreciationMonthly || 0) + (overhead.otherMonthly || 0) || 450000;
   const cupsInput = $("#settingExpectedCupsDay");
   if (cupsInput) cupsInput.value = overhead.expectedCupsPerDay ?? 80;
+  updateOverheadAndPackagingDisplays();
+}
+
+function renderOverheadAndPackagingManager() {
+  if (!currentSettingOverheadBranch || !state.branches?.some((b) => (b.name || b) === currentSettingOverheadBranch)) {
+    currentSettingOverheadBranch = state.currentBranch || "Quán Nhà (Chính)";
+  }
+  populateSettingOverheadBranchSelect();
+  loadOverheadInputsForBranch(currentSettingOverheadBranch);
 
   // Populate packaging table (Màng ép ly cuộn, Ly nhựa, Bọc, Ống hút, Đá viên)
   const packaging = state.packagingConfig || {
@@ -1837,6 +1848,11 @@ function initEventListeners() {
     });
   });
 
+  $("#settingOverheadBranchSelect")?.addEventListener("change", (e) => {
+    currentSettingOverheadBranch = e.target.value;
+    loadOverheadInputsForBranch(currentSettingOverheadBranch);
+  });
+
   ["#settingRentMonthly", "#settingElectricityMonthly", "#settingWaterMonthly", "#settingTrashMonthly", "#settingOtherMonthly", "#settingExpectedCupsDay"].forEach((sel) => {
     $(sel)?.addEventListener("input", () => {
       updateOverheadAndPackagingDisplays();
@@ -1879,10 +1895,11 @@ function initEventListeners() {
       };
     });
 
-    await luuOverheadVaPackagingConfig(newOverhead, newPackaging);
+    await luuOverheadChoChiNhanh(currentSettingOverheadBranch, newOverhead);
+    await luuPackagingConfig(newPackaging);
     state = await docDuLieu();
     renderAll();
-    showToast("Đã lưu định phí mặt bằng, điện nước và giá vốn bao bì!");
+    showToast(`Đã lưu định phí mặt bằng, điện nước cho ${currentSettingOverheadBranch}!`);
     triggerAutoSync();
   });
 
@@ -2478,9 +2495,11 @@ function setupAIAssistant() {
           await luuDanhSachMenu(state.quickItems);
           showToast(`Đã xóa món ${result.itemName}`);
         } else if (result.action === "update_overhead") {
-          state.overheadConfig = { ...(state.overheadConfig || {}), ...result.overhead };
-          await luuOverheadConfig(state.overheadConfig);
-          showToast(`Đã cập nhật định phí mặt bằng/điện nước thành công`);
+          const targetBranch = result.branch || state.currentBranch || "Quán Nhà (Chính)";
+          await luuOverheadChoChiNhanh(targetBranch, result.overhead);
+          state = await docDuLieu();
+          renderAll();
+          showToast(`Đã cập nhật định phí cho ${targetBranch}`);
         } else if (result.action === "add_branch") {
           state.branches = state.branches || [];
           const newBranch = { id: `branch_${Date.now()}`, name: result.branchName };

@@ -1151,4 +1151,84 @@ console.log("Starting ev-secretary.test.mjs...");
   console.log("PASS EV Best Day: 'ngày nào bán chạy nhất' -> finds 26/08 with 890k");
 }
 
+// Test 54: Distinct Branch Break-Even - "Chi nhánh 2 hôm nay hòa vốn chưa?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    overheadByBranch: {
+      "Quán Nhà (Chính)": { rentMonthly: 6000000, electricityMonthly: 2400000, waterMonthly: 150000, trashMonthly: 50000, depreciationMonthly: 300000, otherMonthly: 500000, expectedCupsPerDay: 80 },
+      "Chi nhánh 2": { rentMonthly: 4500000, electricityMonthly: 1200000, waterMonthly: 100000, trashMonthly: 50000, depreciationMonthly: 200000, otherMonthly: 300000, expectedCupsPerDay: 50 },
+    },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Chi nhánh 2 hôm nay hòa vốn chưa EV?", mockState);
+  assert.equal(res.type, "financial_advice");
+  assert.ok(res.reply.includes("Chi nhánh 2"));
+  assert.ok(res.reply.includes("424.000") || res.reply.includes("423.000") || res.reply.includes("212.000") || res.reply.includes("211.667") || res.reply.includes("50 ly"));
+
+  console.log("PASS EV Branch Break-Even: 'Chi nhánh 2 hòa vốn chưa?' -> calculated distinct break-even target for Chi nhánh 2");
+}
+
+// Test 55: Distinct Branch Break-Even - "Quán Nhà bán bao nhiêu ly thì hòa vốn?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    overheadByBranch: {
+      "Quán Nhà (Chính)": { rentMonthly: 6000000, electricityMonthly: 2400000, waterMonthly: 150000, trashMonthly: 50000, depreciationMonthly: 300000, otherMonthly: 500000, expectedCupsPerDay: 80 },
+      "Chi nhánh 2": { rentMonthly: 4500000, electricityMonthly: 1200000, waterMonthly: 100000, trashMonthly: 50000, depreciationMonthly: 200000, otherMonthly: 300000, expectedCupsPerDay: 50 },
+    },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Quán Nhà bán bao nhiêu ly thì hòa vốn?", mockState);
+  assert.equal(res.type, "financial_advice");
+  assert.ok(res.reply.includes("Quán Nhà (Chính)") || res.reply.includes("Quán Nhà"));
+  assert.ok(res.reply.includes("628.000") || res.reply.includes("626.667") || res.reply.includes("313.333") || res.reply.includes("80 ly"));
+
+  console.log("PASS EV Branch Break-Even: 'Quán Nhà hòa vốn chưa?' -> calculated distinct break-even target for Quán Nhà (Chính)");
+}
+
+// Test 56: Multi-Branch Combined Break-Even - "Cả 2 quán hôm nay hòa vốn chưa?"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    overheadByBranch: {
+      "Quán Nhà (Chính)": { rentMonthly: 6000000, electricityMonthly: 2400000, waterMonthly: 150000, trashMonthly: 50000, depreciationMonthly: 300000, otherMonthly: 500000, expectedCupsPerDay: 80 },
+      "Chi nhánh 2": { rentMonthly: 4500000, electricityMonthly: 1200000, waterMonthly: 100000, trashMonthly: 50000, depreciationMonthly: 200000, otherMonthly: 300000, expectedCupsPerDay: 50 },
+    },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("Cả 2 quán hôm nay hòa vốn chưa EV?", mockState);
+  assert.equal(res.type, "financial_advice");
+  assert.ok(res.reply.includes("Quán Nhà (Chính)"));
+  assert.ok(res.reply.includes("Chi nhánh 2"));
+  assert.ok(res.reply.includes("TỔNG CỘNG TOÀN BỘ 2 CHI NHÁNH") || res.reply.includes("toàn chuỗi"));
+
+  console.log("PASS EV Multi-Branch Break-Even: 'Cả 2 quán hòa vốn chưa?' -> multi-branch side-by-side break-even analysis");
+}
+
+// Test 57: Branch-Specific Overhead Update - "EV đổi tiền mặt bằng Chi nhánh 2 thành 5 triệu"
+{
+  const mockState = {
+    currentBranch: "Quán Nhà (Chính)",
+    overheadByBranch: {
+      "Quán Nhà (Chính)": { rentMonthly: 6000000, electricityMonthly: 2400000 },
+      "Chi nhánh 2": { rentMonthly: 4500000, electricityMonthly: 1200000 },
+    },
+    ds: [],
+  };
+
+  const res = phanTichTaiChinhNoiBo("EV đổi tiền mặt bằng Chi nhánh 2 thành 5 triệu", mockState);
+  assert.equal(res.type, "action");
+  assert.equal(res.action, "update_overhead");
+  assert.equal(res.branch, "Chi nhánh 2");
+  assert.equal(res.overhead.rentMonthly, 5000000);
+  assert.ok(res.reply.includes("Chi nhánh 2"));
+  assert.ok(res.reply.includes("5.000.000"));
+
+  console.log("PASS EV Branch Overhead Update: 'EV đổi tiền mặt bằng Chi nhánh 2 thành 5 triệu' -> updated Chi nhánh 2 overhead only");
+}
+
 console.log("ALL EV Secretary tests passed successfully!");
