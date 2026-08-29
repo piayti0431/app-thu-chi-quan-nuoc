@@ -1437,15 +1437,27 @@ export async function nhapKhoNguyenLieu(branchName, ingredientIdOrName, qty, cos
   }
 
   if (matched) {
-    matched.stockQty = Math.round((Number(matched.stockQty) + Number(qty)) * 100) / 100;
-    if (Number(costPrice) > 0) {
-      matched.unitCost = Number(costPrice);
+    const oldQty = Math.max(0, Number(matched.stockQty) || 0);
+    const oldCost = Number(matched.unitCost) || 0;
+    const addQty = Number(qty) || 0;
+    const addCost = Number(costPrice) || 0;
+
+    const newQty = Math.round((oldQty + addQty) * 100) / 100;
+
+    // Tính giá vốn bình quân gia quyền liên hoàn theo chuẩn MISA eShop
+    if (addCost > 0 && newQty > 0) {
+      if (oldQty <= 0) {
+        matched.unitCost = addCost;
+      } else {
+        matched.unitCost = Math.round(((oldQty * oldCost) + (addQty * addCost)) / newQty);
+      }
     }
+    matched.stockQty = newQty;
   }
 
   data.settingsVersion = Date.now();
   await luuDuLieu(data);
-  return { matched, stockQty: matched?.stockQty || 0 };
+  return { matched, stockQty: matched?.stockQty || 0, unitCost: matched?.unitCost || 0 };
 }
 
 export async function capNhatTonKhoThucTe(branchName, ingredientId, actualQty) {
@@ -1458,13 +1470,17 @@ export async function capNhatTonKhoThucTe(branchName, ingredientId, actualQty) {
 
   const items = data.inventoryStock[branch];
   const matched = items.find((x) => x.id === ingredientId);
+  let variance = 0;
   if (matched) {
-    matched.stockQty = Math.max(0, Number(actualQty) || 0);
+    const oldTheoretical = Number(matched.stockQty) || 0;
+    const actual = Math.max(0, Number(actualQty) || 0);
+    variance = Math.round((actual - oldTheoretical) * 100) / 100;
+    matched.stockQty = actual;
   }
 
   data.settingsVersion = Date.now();
   await luuDuLieu(data);
-  return data.inventoryStock;
+  return { inventoryStock: data.inventoryStock, matched, variance };
 }
 
 // ==========================================
