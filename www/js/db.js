@@ -1526,8 +1526,21 @@ export function tinhBaoCaoThue(transactions, periodType = "month", periodValue =
   const pitTax = Math.round(revenue * pitRate);
   const totalTax = vatTax + pitTax;
 
-  // Ngưỡng doanh thu miễn thuế đối với hộ cá thể là 100.000.000 đ/năm
-  const isExempt = revenue <= 100000000;
+  // ============================================================
+  // NGƯỠNG MIỄN THUẾ THEO THÔNG TƯ 40/2021/TT-BTC (Điều 2):
+  // Hộ kinh doanh/cá nhân KD có doanh thu NĂM <= 100.000.000 đ được miễn thuế
+  // ============================================================
+  // Ước tính doanh thu năm từ doanh thu kỳ hiện tại
+  let estimatedAnnualRevenue = revenue;
+  if (periodType === "month") {
+    estimatedAnnualRevenue = revenue * 12;
+  } else if (periodType === "quarter") {
+    estimatedAnnualRevenue = revenue * 4;
+  }
+  const ANNUAL_EXEMPT_THRESHOLD = 100_000_000; // 100 triệu đồng/năm
+  const MONTHLY_EXEMPT_GUIDE    = Math.round(ANNUAL_EXEMPT_THRESHOLD / 12); // ~8.333.333 đ/tháng
+  const isExempt = estimatedAnnualRevenue <= ANNUAL_EXEMPT_THRESHOLD;
+  const isNearThreshold = !isExempt && estimatedAnnualRevenue <= ANNUAL_EXEMPT_THRESHOLD * 1.2;
 
   return {
     periodType,
@@ -1542,6 +1555,10 @@ export function tinhBaoCaoThue(transactions, periodType = "month", periodValue =
     pitTax,
     totalTax,
     isExempt,
+    isNearThreshold,
+    estimatedAnnualRevenue,
+    annualExemptThreshold: ANNUAL_EXEMPT_THRESHOLD,
+    monthlyExemptGuide: MONTHLY_EXEMPT_GUIDE,
     generatedAt: now.toISOString(),
   };
 }
@@ -1550,6 +1567,13 @@ export function xuatToKhaiThue01CNKD(taxReport, businessInfo = {}) {
   const shopName = businessInfo.shopName || "QUÁN NƯỚC MÍA & GIẢI KHÁT TƯƠI";
   const taxId = businessInfo.taxId || "800xxxxxxx";
   const owner = businessInfo.owner || "Chủ Hộ Kinh Doanh";
+
+  const annualEst = Number(taxReport.estimatedAnnualRevenue || taxReport.revenue);
+  const exemptNote = taxReport.isExempt
+    ? `\n⚠️ DỰ BÁO MIỄN THUẾ: DT ước tính năm ${annualEst.toLocaleString("vi-VN")}đ ≤ 100.000.000đ (theo TT40/2021 Điều 2)\n   → Nếu DT thực tế cả năm ≤ 100 triệu: được miễn toàn bộ thuế!\n   → Khuyến nghị: theo dõi DT lũy kế năm để chủ động xử lý.`
+    : (taxReport.isNearThreshold
+      ? `\n⚠️ CẢNH BÁO GẦN NGƯỠNG: DT ước tính năm ${annualEst.toLocaleString("vi-VN")}đ (gần ngưỡng 100 triệu)\n   → Cần nộp thuế 4.5% theo TT40/2021!`
+      : `\n📋 DT ước tính năm: ${annualEst.toLocaleString("vi-VN")}đ (vượt ngưỡng 100 triệu → bắt buộc nộp thuế)`);
 
   return `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
 Độc lập - Tự do - Hạnh phúc
@@ -1572,11 +1596,12 @@ BẢNG KÊ DOANH THU & NGHĨA VỤ THUẾ TẠM TÍNH:
 --------------------------------------------------
 💰 TỔNG NGHĨA VỤ THUẾ PHẢI NỘP: ${Number(taxReport.totalTax).toLocaleString("vi-VN")} đ
 *(Tỷ lệ thuế khoán/kê khai ngành ăn uống: 4.5% trên doanh thu thực tế)*
-${taxReport.isExempt ? "\n⚠️ Lưu ý: Doanh thu năm dưới ngưỡng 100.000.000 đ thuộc diện miễn thuế theo quy định!" : ""}
+${exemptNote}
 --------------------------------------------------
 Ngày lập báo cáo: ${new Date().toLocaleDateString("vi-VN")}
 Người nộp thuế (Ký, ghi rõ họ tên)`;
 }
+
 
 export function tinhBaoCaoPL(transactions, periodType = "month", periodValue = null, branchName = null) {
   const now = new Date();
