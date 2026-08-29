@@ -104,19 +104,31 @@
           </div>
         </div>
 
-        <!-- NÚT TỔNG KẾT NGÀY & ĐỌC LOA BÁO CÁO & RESTART NGÀY -->
+        <!-- NÚT TỔNG KẾT NGÀY & ĐỌC LOA BÁO CÁO & RESTART NGÀY & KHO & THUẾ & LOA QR -->
         <div class="summary-action-row">
           <button class="report-voice-button summary-highlight-btn" id="openDailyClosingBtn" type="button">
             <span aria-hidden="true">📋</span>
             <strong>Tổng kết ngày</strong>
           </button>
-          <button class="report-voice-button" id="readTodayReportBtn" type="button" aria-label="Phát loa đọc doanh số hôm nay">
-            <span aria-hidden="true">🔊</span>
-            <strong>Đọc doanh số</strong>
+          <button class="report-voice-button" id="openInventoryBtn" type="button" aria-label="Quản lý tồn kho nguyên liệu định mức">
+            <span aria-hidden="true">📦</span>
+            <strong>Kho NVL</strong>
+          </button>
+          <button class="report-voice-button" id="openTaxReportBtn" type="button" aria-label="Báo cáo thuế hộ kinh doanh mẫu 01/CNKD">
+            <span aria-hidden="true">📑</span>
+            <strong>Khai thuế</strong>
+          </button>
+          <button class="report-voice-button" id="openBarcodeScannerBtn" type="button" aria-label="Quét mã vạch hoặc chụp hóa đơn">
+            <span aria-hidden="true">📷</span>
+            <strong>Quét mã</strong>
+          </button>
+          <button class="report-voice-button" id="toggleAudioAlertBtn" type="button" aria-label="Bật hoặc tắt loa AI đọc tiền chuyển khoản" title="Loa AI đọc to số tiền khi khách chuyển khoản QR">
+            <span aria-hidden="true" id="audioAlertIcon">🔊</span>
+            <strong id="audioAlertText">Loa QR: Bật</strong>
           </button>
           <button class="report-voice-button restart-day-button" id="openRestartDayBtn" type="button" aria-label="Khởi động lại dữ liệu ngày hôm nay" title="Restart lại dữ liệu trong ngày">
             <span aria-hidden="true">🔄</span>
-            <strong>Restart ngày</strong>
+            <strong>Restart</strong>
           </button>
         </div>
 
@@ -1102,6 +1114,188 @@
           <button class="primary-action" id="saveVoiceSettingsBtn" type="button">Lưu cài đặt</button>
         </div>
       </form>
+    </dialog>
+
+    <!-- HỘP THOẠI QUẢN LÝ TỒN KHO & ĐỊNH MỨC NGUYÊN LIỆU (BOM) -->
+    <dialog class="confirm-dialog" id="inventoryDialog" style="max-width: 650px; width: 95vw;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.5rem;">📦</span>
+          <div>
+            <h2 style="margin: 0; font-size: 1.2rem; color: #0f766e;">Quản Lý Tồn Kho Nguyên Liệu (BOM)</h2>
+            <p style="margin: 0; font-size: 0.8rem; color: var(--muted);">Tự động trừ kho theo công thức định lượng mỗi ly nước bán ra</p>
+          </div>
+        </div>
+        <select id="inventoryBranchSelect" style="padding: 0.35rem 0.6rem; font-size: 0.85rem; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #f0fdfa; color: #0f766e;">
+          <!-- Populated by JS -->
+        </select>
+      </div>
+
+      <div id="inventoryWarningBanner" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 0.6rem 0.85rem; margin-bottom: 0.75rem; color: #991b1b; font-size: 0.85rem;">
+        ⚠️ <strong id="inventoryWarningText">Có nguyên liệu sắp hết!</strong>
+      </div>
+
+      <!-- DANH SÁCH TỒN KHO NGUYÊN LIỆU -->
+      <div style="max-height: 40vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); margin-bottom: 0.85rem;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
+          <thead style="background: #f8fafc; position: sticky; top: 0; border-bottom: 1px solid #cbd5e1;">
+            <tr>
+              <th style="padding: 0.5rem 0.6rem;">Nguyên liệu</th>
+              <th style="padding: 0.5rem 0.6rem;">Đơn vị</th>
+              <th style="padding: 0.5rem 0.6rem; text-align: right;">Tồn kho</th>
+              <th style="padding: 0.5rem 0.6rem; text-align: right;">Định mức an toàn</th>
+              <th style="padding: 0.5rem 0.6rem; text-align: center;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryTableBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FORM NHẬP KHO / KIỂM KHO NHANH -->
+      <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 0.6rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
+        <summary style="font-weight: 700; color: #0369a1; cursor: pointer;">➕ Nhập thêm hàng vào kho / Kiểm kê điều chỉnh kho</summary>
+        <form id="inventoryQuickActionForm" style="margin-top: 0.6rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+          <label style="margin: 0;">
+            <span>Nguyên liệu:</span>
+            <select id="quickStockItemSelect" style="width: 100%; padding: 0.4rem; font-weight: 600;">
+              <!-- Populated by JS -->
+            </select>
+          </label>
+          <label style="margin: 0;">
+            <span>Hành động:</span>
+            <select id="quickStockActionType" style="width: 100%; padding: 0.4rem; font-weight: 600;">
+              <option value="nhap">+ Nhập thêm hàng (Cộng dồn)</option>
+              <option value="kiem">🔄 Kiểm kho thực tế (Ghi đè số lượng)</option>
+            </select>
+          </label>
+          <label style="margin: 0;">
+            <span>Số lượng:</span>
+            <input type="number" step="0.1" id="quickStockQtyInput" placeholder="Ví dụ: 5" required style="width: 100%; padding: 0.4rem;">
+          </label>
+          <label style="margin: 0;">
+            <span>Tiền chi mua (đ - nếu là nhập hàng):</span>
+            <input type="number" id="quickStockCostInput" placeholder="Ví dụ: 75000" style="width: 100%; padding: 0.4rem;">
+          </label>
+          <div style="grid-column: span 2; display: flex; justify-content: flex-end; margin-top: 0.4rem;">
+            <button class="primary-action slim" type="submit" style="background: #0f766e; border-color: #0d9488;">Lưu cập nhật kho</button>
+          </div>
+        </form>
+      </details>
+
+      <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+        <button class="ghost-button" id="closeInventoryBtn" type="button">Đóng</button>
+      </div>
+    </dialog>
+
+    <!-- HỘP THOẠI BÁO CÁO THUẾ & MẪU TỜ KHAI 01/CNKD -->
+    <dialog class="confirm-dialog" id="taxReportDialog" style="max-width: 600px; width: 95vw;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.5rem;">📑</span>
+          <div>
+            <h2 style="margin: 0; font-size: 1.2rem; color: #1e3a8a;">Báo Cáo Thuế Hộ Kinh Doanh (01/CNKD)</h2>
+            <p style="margin: 0; font-size: 0.8rem; color: var(--muted);">Ước tính nghĩa vụ thuế F&B (GTGT 3% + TNCN 1.5% theo TT 40/2021/TT-BTC)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- BỘ LỌC KỲ THUẾ -->
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.85rem; background: #f8fafc; padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid #e2e8f0;">
+        <label style="margin: 0; flex: 1; font-size: 0.82rem;">
+          <span>Kỳ tính thuế:</span>
+          <select id="taxPeriodTypeSelect" style="width: 100%; padding: 0.35rem; font-weight: 700;">
+            <option value="month" selected>Theo Tháng</option>
+            <option value="quarter">Theo Quý</option>
+            <option value="year">Cả Năm</option>
+          </select>
+        </label>
+        <label style="margin: 0; flex: 1; font-size: 0.82rem;">
+          <span>Điểm bán:</span>
+          <select id="taxBranchSelect" style="width: 100%; padding: 0.35rem; font-weight: 700;">
+            <!-- Populated by JS -->
+          </select>
+        </label>
+      </div>
+
+      <!-- THẺ KẾT QUẢ TÍNH THUẾ -->
+      <div id="taxResultCard" style="background: #ffffff; border: 2px solid #3b82f6; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+          <span>💰 Tổng doanh thu bán hàng:</span>
+          <strong id="taxTotalRevenueDisplay" style="font-size: 1.05rem; color: #1e3a8a;">0 đ</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; font-size: 0.85rem; color: #475569;">
+          <span>- Thuế Giá trị gia tăng (GTGT 3.0%):</span>
+          <strong id="taxVatDisplay">0 đ</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.6rem; font-size: 0.85rem; color: #475569;">
+          <span>- Thuế Thu nhập cá nhân (TNCN 1.5%):</span>
+          <strong id="taxPitDisplay">0 đ</strong>
+        </div>
+        <div style="border-top: 1px dashed #cbd5e1; padding-top: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 700; color: #b91c1c; font-size: 0.95rem;">🎯 TỔNG NGHĨA VỤ THUẾ TẠM TÍNH (4.5%):</span>
+          <strong id="taxTotalAmountDisplay" style="font-size: 1.25rem; color: #b91c1c;">0 đ</strong>
+        </div>
+      </div>
+
+      <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
+        <button class="ghost-button" id="copyTaxFormBtn" type="button" style="font-weight: 700;">📋 Sao chép Mẫu 01/CNKD</button>
+        <button class="primary-action slim" id="downloadTaxFormBtn" type="button" style="background: #1e3a8a; border-color: #1e40af;">📥 Tải Tờ Khai Thuế</button>
+        <button class="ghost-button" id="closeTaxReportBtn" type="button">Đóng</button>
+      </div>
+    </dialog>
+
+    <!-- HỘP THOẠI QUÉT MÃ VẠCH BARCODE & CHỤP HÓA ĐƠN OCR -->
+    <dialog class="confirm-dialog" id="scannerDialog" style="max-width: 500px; width: 95vw;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.6rem; margin-bottom: 0.75rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.4rem;">📷</span>
+          <h2 style="margin: 0; font-size: 1.15rem; color: #0284c7;">Quét Mã Vạch / Chụp Hóa Đơn</h2>
+        </div>
+        <button class="ghost-button" id="closeScannerModalBtn" type="button" style="min-height: 2rem; padding: 0.2rem 0.5rem;">✕</button>
+      </div>
+
+      <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+        <button class="ghost-button" id="switchBarcodeModeBtn" type="button" style="flex: 1; font-weight: 700; background: #e0f2fe; color: #0369a1; border-color: #7dd3fc;">🏷️ Quét mã vạch</button>
+        <button class="ghost-button" id="switchOcrModeBtn" type="button" style="flex: 1; font-weight: 700;">🧾 Chụp hóa đơn chi phí</button>
+      </div>
+
+      <!-- KHỐI QUÉT BARCODE BẰNG CAMERA HOẶC NHẬP MÃ -->
+      <div id="barcodeScannerSection">
+        <div style="background: #000; border-radius: var(--radius-sm); overflow: hidden; height: 220px; position: relative; display: flex; align-items: center; justify-content: center;">
+          <video id="barcodeVideo" style="width: 100%; height: 100%; object-fit: cover;" autoplay playsinline muted></video>
+          <div id="scannerOverlay" style="position: absolute; border: 2px dashed #38bdf8; width: 75%; height: 60%; border-radius: 8px; pointer-events: none;"></div>
+          <div id="scannerStatusText" style="position: absolute; bottom: 8px; background: rgba(0,0,0,0.6); color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;">Đang khởi động camera...</div>
+        </div>
+
+        <div style="margin-top: 0.75rem;">
+          <label style="font-size: 0.82rem; margin: 0;">
+            <span>Hoặc nhập mã vạch thủ công (hoặc máy quét USB/Bluetooth):</span>
+            <div style="display: flex; gap: 0.4rem; margin-top: 0.3rem;">
+              <input type="text" id="manualBarcodeInput" placeholder="Quét hoặc nhập mã SKU..." style="flex: 1; padding: 0.45rem;">
+              <button class="primary-action slim" id="submitBarcodeBtn" type="button">Tìm món</button>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- KHỐI CHỤP ẢNH HÓA ĐƠN CHI PHÍ (OCR) -->
+      <div id="ocrInvoiceSection" style="display: none;">
+        <div style="border: 2px dashed #cbd5e1; border-radius: var(--radius-sm); padding: 1.25rem; text-align: center; background: #f8fafc; cursor: pointer;" id="invoiceDropZone">
+          <span style="font-size: 2rem; display: block; margin-bottom: 0.4rem;">🧾</span>
+          <strong style="color: #0369a1; font-size: 0.95rem;">Bấm để chụp ảnh hoặc chọn ảnh hóa đơn</strong>
+          <p style="margin: 0.25rem 0 0; font-size: 0.78rem; color: var(--muted);">AI sẽ tự động đọc ngày, tiền chi và phân loại vào sổ chi phí</p>
+          <input type="file" id="invoiceFileInput" accept="image/*" capture="environment" style="display: none;">
+        </div>
+        <div id="ocrResultBox" style="display: none; margin-top: 0.75rem; background: #fff; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 0.75rem;">
+          <h4 style="margin: 0 0 0.4rem; font-size: 0.88rem; color: #0369a1;">Kết quả AI trích xuất hóa đơn:</h4>
+          <p id="ocrSummaryText" style="margin: 0; font-size: 0.84rem; color: #334155;"></p>
+          <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.6rem;">
+            <button class="primary-action slim" id="applyOcrExpenseBtn" type="button">Ghi vào sổ chi phí</button>
+          </div>
+        </div>
+      </div>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

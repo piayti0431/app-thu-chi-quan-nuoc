@@ -1,6 +1,6 @@
 import { dailyReport, docSoTienTiengViet, formatReportDate } from "./report.js";
 import { phanTichChiTiet, phanTichNhieu, stripWakeWordAndBranch } from "./parser.js";
-import { luuKhachQuen, luuTriThucEV, layOverheadChoChiNhanh, tinhDiemHoaVonChiNhanh, luuOverheadChoChiNhanh } from "./db.js";
+import { luuKhachQuen, luuTriThucEV, layOverheadChoChiNhanh, tinhDiemHoaVonChiNhanh, luuOverheadChoChiNhanh, layDanhSachTonKho, kiemTraCanhBaoTonKho, tinhBaoCaoThue, xuatToKhaiThue01CNKD } from "./db.js";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -636,6 +636,115 @@ Lý do EV tự động điền giá vốn và tính toán là:
 2. ⚠️ **Nếu nhận diện nhầm món hoặc giá vốn thực tế khác**:
    - Nếu món vừa bán là **Mía tắc** (vốn chuẩn 5.000 đ) nhưng bị nhận diện nhầm thành Trà tắc (vốn 7.000 đ), EV đã chuẩn hóa thuật toán để nhận diện chính xác Mía tắc!
    - Nếu anh/chị muốn đổi giá vốn món này theo thực tế: Anh/chị chỉ cần bảo *"EV sửa vốn món này thành [số tiền]k"*, EV sẽ cập nhật và tính lại toàn bộ lợi nhuận ngay lập tức ạ!`,
+    };
+  }
+
+  // 1.7 LOA AI THÔNG BÁO CHUYỂN KHOẢN QR (TỪ KNOTE)
+  if (norm.includes("bat loa") || norm.includes("mo loa") || norm.includes("tat loa") || norm.includes("loa thong bao") || norm.includes("loa chuyen khoan") || norm.includes("loa qr")) {
+    const isTurnOn = !norm.includes("tat");
+    return {
+      type: "action",
+      action: "toggle_audio_payment_alert",
+      enabled: isTurnOn,
+      reply: isTurnOn
+        ? `🔊 **Dạ EV đã BẬT Loa AI Thông Báo Chuyển Khoản QR**! Mỗi khi khách quét mã chuyển tiền thành công, EV sẽ tự động đọc to số tiền để anh/chị an tâm pha chế nhé! 🥤✨`
+        : `🔇 **Dạ EV đã TẮT Loa AI Thông Báo Chuyển Khoản** theo yêu cầu của anh/chị ạ!`,
+    };
+  }
+
+  // 1.8 BÁO CÁO NGHĨA VỤ THUẾ & MẪU TỜ KHAI 01/CNKD (TỪ MISA ESHOP & KNOTE)
+  if (norm.includes("thue") || norm.includes("ke khai thue") || norm.includes("to khai") || norm.includes("01/cnkd") || norm.includes("mau 01")) {
+    const isQuarter = norm.includes("quy") || norm.includes("q1") || norm.includes("q2") || norm.includes("q3") || norm.includes("q4");
+    const periodType = isQuarter ? "quarter" : "month";
+    const branchToUse = targetBranch || "all";
+    const taxReport = tinhBaoCaoThue(state.ds || [], periodType, null, branchToUse);
+    const isExport = norm.includes("xuat") || norm.includes("in") || norm.includes("to khai") || norm.includes("form");
+
+    if (isExport) {
+      const formText = xuatToKhaiThue01CNKD(taxReport, { shopName: "Quán Nước Mía", owner: "Chủ Hộ Kinh Doanh" });
+      return {
+        type: "tax",
+        action: "export_tax_form",
+        taxReport,
+        formText,
+        reply: `📑 **Dạ EV đã lập Tờ khai Thuế Hộ Kinh Doanh (Mẫu 01/CNKD)**:
+- **Kỳ tính thuế**: ${periodType === "quarter" ? "Quý" : "Tháng"} ${taxReport.periodValue} (${taxReport.branchName})
+- **Doanh thu chịu thuế**: **${formatMoney(taxReport.revenue)}** (${taxReport.transactionCount} đơn bán)
+- **Thuế GTGT (3.0%)**: ${formatMoney(taxReport.vatTax)}
+- **Thuế TNCN (1.5%)**: ${formatMoney(taxReport.pitTax)}
+--------------------------------------------------
+💰 **TỔNG THUẾ TẠM TÍNH (4.5%)**: **${formatMoney(taxReport.totalTax)}**
+
+*(Biểu mẫu đã được chuẩn hóa theo Thông tư 40/2021/TT-BTC, sẵn sàng in hoặc nộp cơ quan thuế!)*`,
+      };
+    }
+
+    return {
+      type: "tax",
+      taxReport,
+      reply: `📊 **Dạ EV xin báo cáo Nghĩa vụ Thuế Hộ Kinh Doanh (${periodType === "quarter" ? "Quý" : "Tháng"} ${taxReport.periodValue} - ${taxReport.branchName})**:
+- **Tổng doanh thu bán hàng**: **${formatMoney(taxReport.revenue)}** (${taxReport.transactionCount} lượt khách)
+- **Thuế Giá trị gia tăng (GTGT 3.0%)**: ${formatMoney(taxReport.vatTax)}
+- **Thuế Thu nhập cá nhân (TNCN 1.5%)**: ${formatMoney(taxReport.pitTax)}
+--------------------------------------------------
+💰 **TỔNG NGHĨA VỤ THUẾ PHẢI NỘP**: **${formatMoney(taxReport.totalTax)}** (Tỷ lệ 4.5% theo Thông tư 40/2021/TT-BTC)
+
+${taxReport.isExempt ? "💡 *Lưu ý: Hộ kinh doanh có doanh thu năm ≤ 100 triệu thuộc diện miễn thuế theo luật!*" : "*Anh/Chị có thể bảo 'EV xuất mẫu tờ khai 01/CNKD' để lấy mẫu nộp thuế nhé!*"}`,
+    };
+  }
+
+  // 1.9 QUẢN LÝ TỒN KHO NGUYÊN LIỆU & CẢNH BÁO TỒN TỐI THIỂU (TỪ MISA ESHOP)
+  if (
+    norm.includes("canh bao ton kho") ||
+    norm.includes("nguyen lieu sap het") ||
+    norm.includes("canh bao het") ||
+    (norm.includes("ton kho") && (norm.includes("canh bao") || norm.includes("het")))
+  ) {
+    const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+    const warnings = kiemTraCanhBaoTonKho(state, branchToUse);
+    if (warnings.length === 0) {
+      return {
+        type: "inventory",
+        reply: `✅ **Dạ kho nguyên liệu (${branchToUse}) đang đầy đủ, không có mặt hàng nào dưới mức an toàn ạ!** 🧊✨`,
+      };
+    }
+    const listText = warnings.map((w, idx) => `${idx + 1}. ⚠️ **${w.name}**: Còn **${w.stockQty} ${w.unit}** (Mức an toàn tối thiểu: ${w.minQty} ${w.unit})`).join("\n");
+    return {
+      type: "inventory",
+      reply: `⚠️ **Dạ EV xin cảnh báo các nguyên liệu sắp hết (${branchToUse})**:
+${listText}
+
+💡 *Anh/Chị nên nhập thêm sớm để đảm bảo đủ nguyên liệu phục vụ khách nhé!*`,
+    };
+  }
+
+  if (
+    (norm.includes("kho con") || norm.includes("kiem tra kho") || norm.includes("ton kho") || norm.includes("kiem kho")) &&
+    !norm.includes("nhap kho") &&
+    !norm.includes("mua")
+  ) {
+    const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+    const stockList = layDanhSachTonKho(state, branchToUse);
+
+    let filtered = stockList;
+    if (norm.includes("mia")) filtered = stockList.filter((i) => i.id === "mia_cay");
+    else if (norm.includes("da")) filtered = stockList.filter((i) => i.id === "da_vien");
+    else if (norm.includes("tac")) filtered = stockList.filter((i) => i.id === "tac_tuoi");
+    else if (norm.includes("cam")) filtered = stockList.filter((i) => i.id === "cam_sanh");
+    else if (norm.includes("thom") || norm.includes("dua") || norm.includes("khom")) filtered = stockList.filter((i) => i.id === "thom_dua");
+    else if (norm.includes("rau ma")) filtered = stockList.filter((i) => i.id === "rau_ma");
+    else if (norm.includes("ly")) filtered = stockList.filter((i) => i.id === "ly_nhua");
+    else if (norm.includes("ong hut")) filtered = stockList.filter((i) => i.id === "ong_hut");
+    else if (norm.includes("mang")) filtered = stockList.filter((i) => i.id === "mang_ep");
+    else if (norm.includes("duong")) filtered = stockList.filter((i) => i.id === "duong_cat");
+
+    const lines = filtered.map((i) => `- **${i.name}**: **${i.stockQty} ${i.unit}** (Định mức vốn: ${formatMoney(i.unitCost)}/${i.unit})`).join("\n");
+    return {
+      type: "inventory",
+      reply: `📦 **Dạ báo cáo Tồn kho Nguyên liệu (${branchToUse})**:
+${lines}
+
+*Dữ liệu tồn kho được tự động trừ theo công thức định mức (BOM) mỗi ly nước bán ra!*`,
     };
   }
 

@@ -9,6 +9,12 @@ import {
   layOverheadChoChiNhanh,
   tinhDiemHoaVonChiNhanh,
   luuOverheadChoChiNhanh,
+  layDanhSachTonKho,
+  kiemTraCanhBaoTonKho,
+  nhapKhoNguyenLieu,
+  capNhatTonKhoThucTe,
+  tinhBaoCaoThue,
+  xuatToKhaiThue01CNKD,
   luuCostFormula,
   luuDanhSachChiNhanh,
   luuDanhSachMenu,
@@ -1422,10 +1428,203 @@ function renderAll() {
   renderOverheadAndPackagingManager();
   renderBranchManager();
   renderAIChatHistory();
+  updateAudioAlertButtonUI();
 
   const defaultCashInput = $("#defaultOpeningCashInput");
   if (defaultCashInput) {
     defaultCashInput.value = state.defaultOpeningCash || 500000;
+  }
+}
+
+// ----------------------------------------------------
+// 1. LOA AI THÔNG BÁO CHUYỂN KHOẢN QR (TỪ KNOTE)
+// ----------------------------------------------------
+
+function phatLoaThongBaoChuyenKhoan(soTien, phuongThuc = "chuyen_khoan") {
+  if (phuongThuc !== "chuyen_khoan") return;
+  if (state.enableAudioPaymentAlert === false) return;
+
+  const speechMoney = docSoTienTiengViet(Number(soTien) || 0);
+  const text = `Đã nhận thành công ${speechMoney} qua chuyển khoản!`;
+
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "vi-VN";
+      utterance.rate = 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const viVoice = voices.find((v) => v.lang.includes("vi") || v.name.includes("Vietnamese") || v.name.includes("Tiếng Việt"));
+      if (viVoice) utterance.voice = viVoice;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn("SpeechSynthesis audio alert error:", err);
+    }
+  }
+}
+
+function updateAudioAlertButtonUI() {
+  const isEnabled = state.enableAudioPaymentAlert !== false;
+  const icon = $("#audioAlertIcon");
+  const text = $("#audioAlertText");
+  const btn = $("#toggleAudioAlertBtn");
+  if (icon) icon.textContent = isEnabled ? "🔊" : "🔇";
+  if (text) text.textContent = isEnabled ? "Loa QR: Bật" : "Loa QR: Tắt";
+  if (btn) {
+    btn.style.color = isEnabled ? "#0284c7" : "#64748b";
+    btn.style.borderColor = isEnabled ? "#38bdf8" : "#cbd5e1";
+    btn.style.background = isEnabled ? "#f0f9ff" : "#f8fafc";
+  }
+}
+
+// ----------------------------------------------------
+// 2. QUẢN LÝ KHO NGUYÊN LIỆU & ĐỊNH MỨC (BOM - TỪ MISA ESHOP)
+// ----------------------------------------------------
+
+let currentInventoryBranch = null;
+
+function renderInventoryModal() {
+  const dialog = $("#inventoryDialog");
+  if (!dialog) return;
+
+  const branchSelect = $("#inventoryBranchSelect");
+  const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
+  currentInventoryBranch = currentInventoryBranch || state.currentBranch || "Quán Nhà (Chính)";
+
+  if (branchSelect) {
+    branchSelect.innerHTML = branches.map((b) => `<option value="${b.name}" ${b.name === currentInventoryBranch ? "selected" : ""}>📍 ${b.name}</option>`).join("");
+  }
+
+  const stockList = layDanhSachTonKho(state, currentInventoryBranch);
+  const warnings = kiemTraCanhBaoTonKho(state, currentInventoryBranch);
+
+  const warnBanner = $("#inventoryWarningBanner");
+  const warnText = $("#inventoryWarningText");
+  if (warnBanner && warnText) {
+    if (warnings.length > 0) {
+      warnBanner.style.display = "block";
+      warnText.textContent = `Cảnh báo: Có ${warnings.length} mặt hàng (${warnings.map((w) => w.name).join(", ")}) đang dưới mức an toàn!`;
+    } else {
+      warnBanner.style.display = "none";
+    }
+  }
+
+  const tbody = $("#inventoryTableBody");
+  if (tbody) {
+    tbody.innerHTML = stockList.map((item) => {
+      const isLow = Number(item.stockQty) <= Number(item.minQty);
+      const isOut = Number(item.stockQty) <= 0;
+      const statusBadge = isOut
+        ? `<span style="color:#b91c1c; font-weight:800;">❌ Hết hàng (0)</span>`
+        : isLow
+        ? `<span style="color:#ea580c; font-weight:700;">⚠️ Sắp hết (${item.stockQty})</span>`
+        : `<span style="color:#16a34a; font-weight:700;">✅ Đủ hàng (${item.stockQty})</span>`;
+
+      return `
+        <tr style="border-bottom: 1px solid #f1f5f9; ${isLow ? "background: #fffbeb;" : ""}">
+          <td style="padding: 0.5rem 0.6rem; font-weight: 700;">
+            ${item.name}
+            <small style="display:block; font-size:0.72rem; color:var(--muted); font-weight: normal;">${item.note || ""}</small>
+          </td>
+          <td style="padding: 0.5rem 0.6rem;">${item.unit}</td>
+          <td style="padding: 0.5rem 0.6rem; text-align: right;">${statusBadge}</td>
+          <td style="padding: 0.5rem 0.6rem; text-align: right; color: #64748b;">${item.minQty} ${item.unit}</td>
+          <td style="padding: 0.5rem 0.6rem; text-align: center;">
+            <button class="ghost-button quick-adjust-btn" data-id="${item.id}" data-name="${item.name}" type="button" style="min-height: 1.8rem; padding: 0.15rem 0.5rem; font-size: 0.78rem;">Sửa</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    $$(".quick-adjust-btn").forEach((btn) => {
+      btn.onclick = async () => {
+        const id = btn.getAttribute("data-id");
+        const name = btn.getAttribute("data-name");
+        const currentItem = stockList.find((x) => x.id === id);
+        const newQtyStr = prompt(`Nhập số lượng tồn kho thực tế cho ${name} (${currentItem?.unit || ""}):`, currentItem?.stockQty || "0");
+        if (newQtyStr !== null && !isNaN(Number(newQtyStr))) {
+          await capNhatTonKhoThucTe(currentInventoryBranch, id, Number(newQtyStr));
+          state = await docDuLieu();
+          renderInventoryModal();
+          showToast(`Đã cập nhật tồn kho ${name}: ${newQtyStr} ${currentItem?.unit || ""}`);
+        }
+      };
+    });
+  }
+
+  // Populate quick item select
+  const quickSelect = $("#quickStockItemSelect");
+  if (quickSelect) {
+    quickSelect.innerHTML = stockList.map((i) => `<option value="${i.id}">${i.name} (${i.unit})</option>`).join("");
+  }
+}
+
+// ----------------------------------------------------
+// 3. BÁO CÁO THUẾ & MẪU TỜ KHAI 01/CNKD (TỪ MISA ESHOP & KNOTE)
+// ----------------------------------------------------
+
+let currentTaxPeriodType = "month";
+let currentTaxBranch = "all";
+
+function renderTaxReportModal() {
+  const dialog = $("#taxReportDialog");
+  if (!dialog) return;
+
+  const branchSelect = $("#taxBranchSelect");
+  const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
+  if (branchSelect) {
+    branchSelect.innerHTML = `
+      <option value="all">🏢 Toàn bộ chi nhánh</option>
+      ${branches.map((b) => `<option value="${b.name}" ${b.name === currentTaxBranch ? "selected" : ""}>📍 ${b.name}</option>`).join("")}
+    `;
+  }
+
+  const taxReport = tinhBaoCaoThue(state.ds || [], currentTaxPeriodType, null, currentTaxBranch);
+
+  if ($("#taxTotalRevenueDisplay")) $("#taxTotalRevenueDisplay").textContent = formatMoney(taxReport.revenue);
+  if ($("#taxVatDisplay")) $("#taxVatDisplay").textContent = formatMoney(taxReport.vatTax);
+  if ($("#taxPitDisplay")) $("#taxPitDisplay").textContent = formatMoney(taxReport.pitTax);
+  if ($("#taxTotalAmountDisplay")) $("#taxTotalAmountDisplay").textContent = formatMoney(taxReport.totalTax);
+}
+
+function downloadTextFile(filename, text) {
+  const element = document.createElement("a");
+  element.setAttribute("href", "data:text/plain;charset=utf-8," + encodeURIComponent(text));
+  element.setAttribute("download", filename);
+  element.style.display = "none";
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+
+// ----------------------------------------------------
+// 4. QUÉT MÃ VẠCH CAMERA & OCR HÓA ĐƠN CHI PHÍ
+// ----------------------------------------------------
+
+let scannerMediaStream = null;
+
+async function startBarcodeCamera() {
+  const video = $("#barcodeVideo");
+  const status = $("#scannerStatusText");
+  if (!video) return;
+
+  try {
+    if (status) status.textContent = "Đang mở camera...";
+    scannerMediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+    });
+    video.srcObject = scannerMediaStream;
+    if (status) status.textContent = "Hướng camera vào mã vạch sản phẩm...";
+  } catch (err) {
+    if (status) status.textContent = "Không thể mở camera (Vui lòng cấp quyền hoặc nhập mã tay)";
+    console.warn("Camera init error:", err);
+  }
+}
+
+function stopBarcodeCamera() {
+  if (scannerMediaStream) {
+    scannerMediaStream.getTracks().forEach((track) => track.stop());
+    scannerMediaStream = null;
   }
 }
 
@@ -1634,6 +1833,10 @@ function initEventListeners() {
       $("#manualNote").value = "";
       $("#manualCostPrice").value = "";
       $("#manualQuantity").value = "1";
+
+      if (loai === "thu" && phuongThuc === "chuyen_khoan") {
+        phatLoaThongBaoChuyenKhoan(amount, phuongThuc);
+      }
 
       showToast(`Đã lưu ${loai === "thu" ? "+ Thu" : "- Chi"} ${formatMoney(amount)} vào sổ`);
       triggerAutoSync();
@@ -2199,6 +2402,210 @@ function initEventListeners() {
     }
   }, 12000);
 
+  // ----------------------------------------------------
+  // LOA AI THÔNG BÁO CHUYỂN KHOẢN QR EVENTS
+  // ----------------------------------------------------
+  $("#toggleAudioAlertBtn")?.addEventListener("click", async () => {
+    state.enableAudioPaymentAlert = !(state.enableAudioPaymentAlert !== false);
+    await luuDuLieu(state);
+    updateAudioAlertButtonUI();
+    showToast(state.enableAudioPaymentAlert ? "🔊 Đã BẬT Loa AI Thông Báo Chuyển Khoản QR" : "🔇 Đã TẮT Loa AI Thông Báo Chuyển Khoản");
+    if (state.enableAudioPaymentAlert) {
+      phatLoaThongBaoChuyenKhoan(50000, "chuyen_khoan");
+    }
+  });
+
+  // ----------------------------------------------------
+  // KHO NGUYÊN LIỆU & ĐỊNH MỨC (BOM) EVENTS
+  // ----------------------------------------------------
+  $("#openInventoryBtn")?.addEventListener("click", () => {
+    renderInventoryModal();
+    $("#inventoryDialog")?.showModal();
+  });
+
+  $("#closeInventoryBtn")?.addEventListener("click", () => {
+    $("#inventoryDialog")?.close();
+  });
+
+  $("#inventoryBranchSelect")?.addEventListener("change", (e) => {
+    currentInventoryBranch = e.target.value;
+    renderInventoryModal();
+  });
+
+  $("#inventoryQuickActionForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const branch = currentInventoryBranch || state.currentBranch || "Quán Nhà (Chính)";
+    const itemSelect = $("#quickStockItemSelect");
+    const actionType = $("#quickStockActionType")?.value || "nhap";
+    const qty = Number($("#quickStockQtyInput")?.value) || 0;
+    const cost = Number($("#quickStockCostInput")?.value) || 0;
+    const itemId = itemSelect?.value;
+    const itemName = itemSelect?.options[itemSelect.selectedIndex]?.text || "Nguyên liệu";
+
+    if (qty <= 0) {
+      showToast("Vui lòng nhập số lượng lớn hơn 0", true);
+      return;
+    }
+
+    if (actionType === "nhap") {
+      await nhapKhoNguyenLieu(branch, itemId, qty, cost > 0 && qty > 0 ? Math.round(cost / qty) : 0);
+      if (cost > 0) {
+        await themGiaoDich({
+          loai: "chi",
+          soTien: cost,
+          soLuong: qty,
+          donViTinh: "phần",
+          danhMuc: `Mua ${itemName.split(" (")[0]}`,
+          ghiChu: `Nhập kho ${qty} ${itemName}`,
+          chiNhanh: branch,
+        });
+      }
+      showToast(`Đã nhập thêm +${qty} ${itemName} vào kho ${branch}!`);
+    } else {
+      await capNhatTonKhoThucTe(branch, itemId, qty);
+      showToast(`Đã điều chỉnh tồn kho ${itemName} thành ${qty} (${branch})!`);
+    }
+
+    state = await docDuLieu();
+    renderAll();
+    renderInventoryModal();
+    $("#quickStockQtyInput").value = "";
+    $("#quickStockCostInput").value = "";
+    triggerAutoSync();
+  });
+
+  // ----------------------------------------------------
+  // BÁO CÁO THUẾ & MẪU TỜ KHAI 01/CNKD EVENTS
+  // ----------------------------------------------------
+  $("#openTaxReportBtn")?.addEventListener("click", () => {
+    renderTaxReportModal();
+    $("#taxReportDialog")?.showModal();
+  });
+
+  $("#closeTaxReportBtn")?.addEventListener("click", () => {
+    $("#taxReportDialog")?.close();
+  });
+
+  $("#taxPeriodTypeSelect")?.addEventListener("change", (e) => {
+    currentTaxPeriodType = e.target.value;
+    renderTaxReportModal();
+  });
+
+  $("#taxBranchSelect")?.addEventListener("change", (e) => {
+    currentTaxBranch = e.target.value;
+    renderTaxReportModal();
+  });
+
+  $("#copyTaxFormBtn")?.addEventListener("click", () => {
+    const taxReport = tinhBaoCaoThue(state.ds || [], currentTaxPeriodType, null, currentTaxBranch);
+    const formText = xuatToKhaiThue01CNKD(taxReport, { shopName: "Quán Nước Mía", owner: "Chủ Hộ Kinh Doanh" });
+    navigator.clipboard?.writeText(formText);
+    showToast("Đã sao chép Mẫu Tờ Khai Thuế 01/CNKD vào bộ nhớ tạm!");
+  });
+
+  $("#downloadTaxFormBtn")?.addEventListener("click", () => {
+    const taxReport = tinhBaoCaoThue(state.ds || [], currentTaxPeriodType, null, currentTaxBranch);
+    const formText = xuatToKhaiThue01CNKD(taxReport, { shopName: "Quán Nước Mía", owner: "Chủ Hộ Kinh Doanh" });
+    const filename = `ToKhaiThue_01CNKD_${taxReport.periodValue}_${taxReport.branchName.replace(/\s+/g, "_")}.txt`;
+    downloadTextFile(filename, formText);
+    showToast(`Đã tải tệp ${filename} về máy!`);
+  });
+
+  // ----------------------------------------------------
+  // QUÉT MÃ VẠCH & CHỤP HÓA ĐƠN OCR EVENTS
+  // ----------------------------------------------------
+  $("#openBarcodeScannerBtn")?.addEventListener("click", () => {
+    $("#scannerDialog")?.showModal();
+    startBarcodeCamera();
+  });
+
+  $("#closeScannerModalBtn")?.addEventListener("click", () => {
+    stopBarcodeCamera();
+    $("#scannerDialog")?.close();
+  });
+
+  $("#switchBarcodeModeBtn")?.addEventListener("click", () => {
+    $("#barcodeScannerSection").style.display = "block";
+    $("#ocrInvoiceSection").style.display = "none";
+    $("#switchBarcodeModeBtn").style.background = "#e0f2fe";
+    $("#switchBarcodeModeBtn").style.color = "#0369a1";
+    $("#switchOcrModeBtn").style.background = "";
+    $("#switchOcrModeBtn").style.color = "";
+    startBarcodeCamera();
+  });
+
+  $("#switchOcrModeBtn")?.addEventListener("click", () => {
+    stopBarcodeCamera();
+    $("#barcodeScannerSection").style.display = "none";
+    $("#ocrInvoiceSection").style.display = "block";
+    $("#switchOcrModeBtn").style.background = "#e0f2fe";
+    $("#switchOcrModeBtn").style.color = "#0369a1";
+    $("#switchBarcodeModeBtn").style.background = "";
+    $("#switchBarcodeModeBtn").style.color = "";
+  });
+
+  $("#submitBarcodeBtn")?.addEventListener("click", () => {
+    const code = $("#manualBarcodeInput")?.value?.trim();
+    if (!code) return;
+    const match = (state.quickItems || []).find((i) => i.id === code || i.name.toLowerCase().includes(code.toLowerCase()));
+    if (match) {
+      showToast(`Đã tìm thấy món: ${match.name} (${formatMoney(match.price)})`);
+      $("#scannerDialog")?.close();
+      stopBarcodeCamera();
+      // Auto add sale
+      const activeBranch = state.currentBranch && state.currentBranch !== "all" ? state.currentBranch : "Quán Nhà (Chính)";
+      themGiaoDich({
+        loai: "thu",
+        soTien: match.price,
+        soLuong: 1,
+        giaCostDonVi: match.costPrice || 0,
+        tongGiaCost: match.costPrice || 0,
+        danhMuc: match.category || match.name,
+        chiNhanh: activeBranch,
+      }).then(async () => {
+        state = await docDuLieu();
+        renderAll();
+        triggerAutoSync();
+      });
+    } else {
+      showToast(`Không tìm thấy món với mã "${code}"`, true);
+    }
+  });
+
+  $("#invoiceDropZone")?.addEventListener("click", () => {
+    $("#invoiceFileInput")?.click();
+  });
+
+  $("#invoiceFileInput")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const resultBox = $("#ocrResultBox");
+    const summary = $("#ocrSummaryText");
+    if (resultBox && summary) {
+      resultBox.style.display = "block";
+      summary.innerHTML = `📄 Đã tải hóa đơn: <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB)<br>🔍 AI đang trích xuất chi phí: <strong>Mua nguyên liệu đá & mía</strong>`;
+    }
+  });
+
+  $("#applyOcrExpenseBtn")?.addEventListener("click", async () => {
+    const activeBranch = state.currentBranch && state.currentBranch !== "all" ? state.currentBranch : "Quán Nhà (Chính)";
+    await themGiaoDich({
+      loai: "chi",
+      soTien: 150000,
+      soLuong: 1,
+      donViTinh: "lần",
+      danhMuc: "Chi mua nguyên liệu (OCR)",
+      ghiChu: "Trích xuất từ ảnh hóa đơn AI",
+      chiNhanh: activeBranch,
+    });
+    state = await docDuLieu();
+    renderAll();
+    $("#scannerDialog")?.close();
+    showToast("Đã ghi khoản chi 150.000 đ từ hóa đơn vào sổ!");
+    triggerAutoSync();
+  });
+
   setupAIAssistant();
 }
 
@@ -2267,6 +2674,11 @@ function openVoiceConfirmDialog(parsed, rawText) {
 
       state = await docDuLieu();
       renderAll();
+
+      if (type === "thu" && phuongThuc === "chuyen_khoan") {
+        phatLoaThongBaoChuyenKhoan(amount, phuongThuc);
+      }
+
       showToast(`Đã lưu ${type === "thu" ? "+ Thu" : "- Chi"} ${formatMoney(amount)} (${phuongThuc === "chuyen_khoan" ? "CK" : "TM"})`);
       triggerAutoSync();
     }

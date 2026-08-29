@@ -225,6 +225,35 @@ export const DEFAULT_DATA = {
       expectedCupsPerDay: 50,
     },
   },
+  enableAudioPaymentAlert: true,      // Loa AI thông báo chuyển khoản QR
+  inventoryStock: {
+    "Quán Nhà (Chính)": [
+      { id: "mia_cay", name: "Mía cây tươi", unit: "bó", stockQty: 20, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây ~45 ly" },
+      { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 10, minQty: 2, unitCost: 20000, yieldPerUnit: 20, note: "20-25 phần/kg" },
+      { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 15, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
+      { id: "thom_dua", name: "Thơm (Dứa) tươi", unit: "trái", stockQty: 10, minQty: 2, unitCost: 15000, yieldPerUnit: 4, note: "4 ly/trái" },
+      { id: "rau_ma", name: "Rau má tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 30000, yieldPerUnit: 5, note: "5 ly/kg" },
+      { id: "dau_xanh", name: "Đậu xanh chín", unit: "kg", stockQty: 5, minQty: 1, unitCost: 40000, yieldPerUnit: 10, note: "10 ly/kg" },
+      { id: "da_vien", name: "Đá viên sạch", unit: "bao", stockQty: 10, minQty: 2, unitCost: 15000, yieldPerUnit: 30, note: "1 bao ~30 ly" },
+      { id: "ly_nhua", name: "Ly nhựa + Nắp", unit: "cái", stockQty: 1000, minQty: 200, unitCost: 500, yieldPerUnit: 1, note: "1 cái/ly" },
+      { id: "mang_ep", name: "Màng ép miệng ly", unit: "ly", stockQty: 2000, minQty: 300, unitCost: 23, yieldPerUnit: 1, note: "1 cuộn 2000 ly" },
+      { id: "ong_hut", name: "Ống hút", unit: "cái", stockQty: 1000, minQty: 200, unitCost: 135, yieldPerUnit: 1, note: "1 cái/ly" },
+      { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 20, minQty: 5, unitCost: 22000, yieldPerUnit: 25, note: "25 ly/kg" },
+    ],
+    "Chi nhánh 2": [
+      { id: "mia_cay", name: "Mía cây tươi", unit: "bó", stockQty: 15, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây ~45 ly" },
+      { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 20000, yieldPerUnit: 20, note: "20-25 phần/kg" },
+      { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 10, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
+      { id: "thom_dua", name: "Thơm (Dứa) tươi", unit: "trái", stockQty: 8, minQty: 2, unitCost: 15000, yieldPerUnit: 4, note: "4 ly/trái" },
+      { id: "rau_ma", name: "Rau má tươi", unit: "kg", stockQty: 6, minQty: 2, unitCost: 30000, yieldPerUnit: 5, note: "5 ly/kg" },
+      { id: "dau_xanh", name: "Đậu xanh chín", unit: "kg", stockQty: 4, minQty: 1, unitCost: 40000, yieldPerUnit: 10, note: "10 ly/kg" },
+      { id: "da_vien", name: "Đá viên sạch", unit: "bao", stockQty: 8, minQty: 2, unitCost: 15000, yieldPerUnit: 30, note: "1 bao ~30 ly" },
+      { id: "ly_nhua", name: "Ly nhựa + Nắp", unit: "cái", stockQty: 800, minQty: 200, unitCost: 500, yieldPerUnit: 1, note: "1 cái/ly" },
+      { id: "mang_ep", name: "Màng ép miệng ly", unit: "ly", stockQty: 1500, minQty: 300, unitCost: 23, yieldPerUnit: 1, note: "1 cuộn 2000 ly" },
+      { id: "ong_hut", name: "Ống hút", unit: "cái", stockQty: 800, minQty: 200, unitCost: 135, yieldPerUnit: 1, note: "1 cái/ly" },
+      { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 15, minQty: 5, unitCost: 22000, yieldPerUnit: 25, note: "25 ly/kg" },
+    ],
+  },
   packagingConfig: {
     cups: { name: "Ly nhựa", unit: "thùng (2.000 cái)", batchCost: 1000000, batchYield: 2000, unitCost: 500 },
     straws: { name: "Ống hút", unit: "bao (10 bịch)", batchCost: 270000, batchYield: 2000, unitCost: 135 },
@@ -780,6 +809,9 @@ export async function themGiaoDich(input) {
   const branch = input.chiNhanh || data.currentBranch || "Quán Nhà (Chính)";
   const giaoDich = taoGiaoDich({ ...input, chiNhanh: branch }, data.ds, branch, data.quickItems);
   data.ds.unshift(giaoDich);
+  if (giaoDich.loai === "thu") {
+    truKhoNguyenLieuTheoDonHang(data, giaoDich);
+  }
   await luuDuLieu(data);
   return giaoDich;
 }
@@ -1267,5 +1299,266 @@ export async function xoaLichSuAIChat() {
   data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.aiChatHistory;
+}
+
+// ==========================================
+// MODULE QUẢN LÝ TỒN KHO & ĐỊNH MỨC NGUYÊN LIỆU (BOM)
+// ==========================================
+
+export function layDanhSachTonKho(state, branchName = null) {
+  const stockMap = state.inventoryStock || DEFAULT_DATA.inventoryStock;
+  if (!branchName || branchName === "all" || branchName === "Tất cả điểm bán") {
+    // Tổng hợp toàn chuỗi
+    const combined = {};
+    for (const [bName, list] of Object.entries(stockMap)) {
+      for (const item of list) {
+        if (!combined[item.id]) {
+          combined[item.id] = { ...item, stockQty: 0, minQty: 0 };
+        }
+        combined[item.id].stockQty += Number(item.stockQty || 0);
+        combined[item.id].minQty += Number(item.minQty || 0);
+      }
+    }
+    return Object.values(combined);
+  }
+  return stockMap[branchName] || stockMap["Quán Nhà (Chính)"] || [];
+}
+
+export function kiemTraCanhBaoTonKho(state, branchName = null) {
+  const stockMap = state.inventoryStock || DEFAULT_DATA.inventoryStock;
+  const warnings = [];
+
+  const branchesToCheck = branchName && branchName !== "all" && branchName !== "Tất cả điểm bán"
+    ? [branchName]
+    : Object.keys(stockMap);
+
+  for (const b of branchesToCheck) {
+    const list = stockMap[b] || [];
+    for (const item of list) {
+      if (Number(item.stockQty) <= Number(item.minQty)) {
+        warnings.push({
+          ...item,
+          branch: b,
+          isCritical: Number(item.stockQty) <= 0,
+        });
+      }
+    }
+  }
+  return warnings;
+}
+
+export function truKhoNguyenLieuTheoDonHang(state, transaction) {
+  if (!transaction || transaction.loai !== "thu") return state;
+  const branchName = transaction.chiNhanh || state.currentBranch || "Quán Nhà (Chính)";
+  if (!state.inventoryStock) state.inventoryStock = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock));
+  if (!state.inventoryStock[branchName]) {
+    state.inventoryStock[branchName] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
+  }
+
+  const items = state.inventoryStock[branchName];
+  const qty = Math.max(1, Number(transaction.soLuong) || 1);
+  const drinkId = transaction.slots?.productId || "";
+  const drinkName = (transaction.danhMuc || "").toLowerCase();
+
+  const updateItemQty = (id, delta) => {
+    const it = items.find((x) => x.id === id);
+    if (it) {
+      it.stockQty = Math.max(0, Math.round((Number(it.stockQty) - delta) * 100) / 100);
+    }
+  };
+
+  // Bao bì chung
+  updateItemQty("ly_nhua", qty * 1);
+  updateItemQty("mang_ep", qty * 1);
+  updateItemQty("ong_hut", qty * 1);
+
+  // Đá viên
+  if (!drinkName.includes("1 lít") && !drinkName.includes("1l") && !drinkName.includes("không đá")) {
+    updateItemQty("da_vien", Math.round(qty * 0.033 * 100) / 100); // 1 bao ~30 ly
+  }
+
+  // Nguyên liệu theo từng món
+  if (drinkId === "nuoc_mia_1l" || drinkName.includes("1 lít") || drinkName.includes("1l")) {
+    updateItemQty("mia_cay", Math.round(qty * 0.1 * 100) / 100); // 1 chai 1L ~0.1 bó
+  } else if (drinkId.includes("mia") || drinkName.includes("mía")) {
+    updateItemQty("mia_cay", Math.round(qty * 0.022 * 100) / 100); // 1 bó ~45 ly
+  }
+
+  if (drinkId === "mia_tac" || drinkId === "tra_tac" || drinkName.includes("tắc") || drinkName.includes("quat")) {
+    updateItemQty("tac_tuoi", Math.round(qty * 0.05 * 100) / 100); // ~0.05kg tắc / ly
+  }
+
+  if (drinkId === "mia_cam" || drinkId === "nuoc_cam" || drinkName.includes("cam")) {
+    updateItemQty("cam_sanh", Math.round(qty * 0.33 * 100) / 100); // ~0.33kg cam / ly
+  }
+
+  if (drinkId === "mia_thom" || drinkName.includes("thơm") || drinkName.includes("khóm") || drinkName.includes("dứa")) {
+    updateItemQty("thom_dua", Math.round(qty * 0.25 * 100) / 100); // ~0.25 trái / ly
+  }
+
+  if (drinkId.includes("rau_ma") || drinkName.includes("rau má") || drinkName.includes("má")) {
+    updateItemQty("rau_ma", Math.round(qty * 0.2 * 100) / 100); // ~0.2kg rau má / ly
+  }
+
+  if (drinkId === "rau_ma_dau_xanh" || drinkName.includes("đậu xanh") || drinkName.includes("đậu")) {
+    updateItemQty("dau_xanh", Math.round(qty * 0.1 * 100) / 100); // ~0.1kg đậu xanh / ly
+  }
+
+  if (drinkName.includes("trà") || drinkName.includes("cam") || drinkName.includes("rau má")) {
+    updateItemQty("duong_cat", Math.round(qty * 0.04 * 100) / 100); // ~0.04kg đường / ly
+  }
+
+  return state;
+}
+
+export async function nhapKhoNguyenLieu(branchName, ingredientIdOrName, qty, costPrice = 0) {
+  const data = await docDuLieu();
+  const branch = branchName || data.currentBranch || "Quán Nhà (Chính)";
+  if (!data.inventoryStock) data.inventoryStock = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock));
+  if (!data.inventoryStock[branch]) {
+    data.inventoryStock[branch] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
+  }
+
+  const items = data.inventoryStock[branch];
+  const queryNorm = String(ingredientIdOrName).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let matched = items.find((x) => x.id === ingredientIdOrName || x.name.toLowerCase().includes(queryNorm));
+
+  if (!matched) {
+    if (queryNorm.includes("da")) matched = items.find((x) => x.id === "da_vien");
+    else if (queryNorm.includes("mia")) matched = items.find((x) => x.id === "mia_cay");
+    else if (queryNorm.includes("tac")) matched = items.find((x) => x.id === "tac_tuoi");
+    else if (queryNorm.includes("cam")) matched = items.find((x) => x.id === "cam_sanh");
+    else if (queryNorm.includes("thom") || queryNorm.includes("dua") || queryNorm.includes("khom")) matched = items.find((x) => x.id === "thom_dua");
+    else if (queryNorm.includes("rau ma")) matched = items.find((x) => x.id === "rau_ma");
+    else if (queryNorm.includes("ly")) matched = items.find((x) => x.id === "ly_nhua");
+    else if (queryNorm.includes("ong hut")) matched = items.find((x) => x.id === "ong_hut");
+    else if (queryNorm.includes("mang")) matched = items.find((x) => x.id === "mang_ep");
+    else if (queryNorm.includes("duong")) matched = items.find((x) => x.id === "duong_cat");
+  }
+
+  if (matched) {
+    matched.stockQty = Math.round((Number(matched.stockQty) + Number(qty)) * 100) / 100;
+    if (Number(costPrice) > 0) {
+      matched.unitCost = Number(costPrice);
+    }
+  }
+
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return { matched, stockQty: matched?.stockQty || 0 };
+}
+
+export async function capNhatTonKhoThucTe(branchName, ingredientId, actualQty) {
+  const data = await docDuLieu();
+  const branch = branchName || data.currentBranch || "Quán Nhà (Chính)";
+  if (!data.inventoryStock) data.inventoryStock = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock));
+  if (!data.inventoryStock[branch]) {
+    data.inventoryStock[branch] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
+  }
+
+  const items = data.inventoryStock[branch];
+  const matched = items.find((x) => x.id === ingredientId);
+  if (matched) {
+    matched.stockQty = Math.max(0, Number(actualQty) || 0);
+  }
+
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return data.inventoryStock;
+}
+
+// ==========================================
+// MODULE BÁO CÁO THUẾ & MẪU TỜ KHAI 01/CNKD
+// ==========================================
+
+export function tinhBaoCaoThue(transactions, periodType = "month", periodValue = null, branchName = null) {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const currentYear = String(now.getFullYear());
+  const currentQuarter = `Q${Math.floor(now.getMonth() / 3) + 1}-${now.getFullYear()}`;
+
+  const targetPeriod = periodValue || (periodType === "quarter" ? currentQuarter : (periodType === "year" ? currentYear : currentMonth));
+
+  const validTx = (transactions || []).filter((tx) => {
+    if (tx.deleted || tx.loai !== "thu") return false;
+    if (branchName && branchName !== "all" && branchName !== "Tất cả điểm bán" && tx.chiNhanh !== branchName) {
+      return false;
+    }
+    const dateStr = String(tx.ngay || tx.timestamp || "");
+    if (periodType === "month") {
+      return dateStr.startsWith(targetPeriod);
+    } else if (periodType === "year") {
+      return dateStr.startsWith(targetPeriod);
+    } else if (periodType === "quarter") {
+      const parts = targetPeriod.split("-");
+      const qNum = Number(parts[0].replace("Q", ""));
+      const year = parts[1] || currentYear;
+      if (!dateStr.startsWith(year)) return false;
+      const monthNum = Number(dateStr.split("-")[1] || 0);
+      const qOfTx = Math.floor((monthNum - 1) / 3) + 1;
+      return qOfTx === qNum;
+    }
+    return true;
+  });
+
+  const revenue = validTx.reduce((sum, tx) => sum + (Number(tx.soTien) || 0), 0);
+  const vatRate = 0.03;  // 3% Thuế GTGT ngành ăn uống không bao thầu (Thông tư 40/2021/TT-BTC)
+  const pitRate = 0.015; // 1.5% Thuế TNCN
+  const totalTaxRate = 0.045; // 4.5%
+
+  const vatTax = Math.round(revenue * vatRate);
+  const pitTax = Math.round(revenue * pitRate);
+  const totalTax = vatTax + pitTax;
+
+  // Ngưỡng doanh thu miễn thuế đối với hộ cá thể là 100.000.000 đ/năm
+  const isExempt = revenue <= 100000000;
+
+  return {
+    periodType,
+    periodValue: targetPeriod,
+    branchName: branchName || "Toàn bộ chi nhánh",
+    transactionCount: validTx.length,
+    revenue,
+    vatRate: 3,
+    pitRate: 1.5,
+    totalTaxRate: 4.5,
+    vatTax,
+    pitTax,
+    totalTax,
+    isExempt,
+    generatedAt: now.toISOString(),
+  };
+}
+
+export function xuatToKhaiThue01CNKD(taxReport, businessInfo = {}) {
+  const shopName = businessInfo.shopName || "QUÁN NƯỚC MÍA & GIẢI KHÁT TƯƠI";
+  const taxId = businessInfo.taxId || "800xxxxxxx";
+  const owner = businessInfo.owner || "Chủ Hộ Kinh Doanh";
+
+  return `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+Độc lập - Tự do - Hạnh phúc
+--------------------------------------------------
+TỜ KHAI THUẾ ĐỐI VỚI HỘ KINH DOANH, CÁ NHÂN KINH DOANH
+(Mẫu số: 01/CNKD - Ban hành kèm theo Thông tư số 40/2021/TT-BTC)
+
+1. Kỳ tính thuế: ${taxReport.periodType === "quarter" ? "Quý" : "Tháng"} ${taxReport.periodValue}
+2. Tên người nộp thuế: ${owner}
+3. Tên cửa hàng/điểm bán: ${shopName} (${taxReport.branchName})
+4. Mã số thuế: ${taxId}
+5. Ngành nghề kinh doanh: Dịch vụ ăn uống, giải khát (F&B)
+
+--------------------------------------------------
+BẢNG KÊ DOANH THU & NGHĨA VỤ THUẾ TẠM TÍNH:
+1. Tổng doanh thu bán hàng phát sinh: ${Number(taxReport.revenue).toLocaleString("vi-VN")} đ
+2. Số lượng giao dịch bán ra: ${taxReport.transactionCount} đơn
+3. Thuế Giá trị gia tăng (GTGT 3.0%): ${Number(taxReport.vatTax).toLocaleString("vi-VN")} đ
+4. Thuế Thu nhập cá nhân (TNCN 1.5%): ${Number(taxReport.pitTax).toLocaleString("vi-VN")} đ
+--------------------------------------------------
+💰 TỔNG NGHĨA VỤ THUẾ PHẢI NỘP: ${Number(taxReport.totalTax).toLocaleString("vi-VN")} đ
+*(Tỷ lệ thuế khoán/kê khai ngành ăn uống: 4.5% trên doanh thu thực tế)*
+${taxReport.isExempt ? "\n⚠️ Lưu ý: Doanh thu năm dưới ngưỡng 100.000.000 đ thuộc diện miễn thuế theo quy định!" : ""}
+--------------------------------------------------
+Ngày lập báo cáo: ${new Date().toLocaleDateString("vi-VN")}
+Người nộp thuế (Ký, ghi rõ họ tên)`;
 }
 
