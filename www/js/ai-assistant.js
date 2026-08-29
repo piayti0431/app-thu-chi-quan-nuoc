@@ -1,6 +1,6 @@
 import { dailyReport, docSoTienTiengViet, formatReportDate } from "./report.js";
 import { phanTichChiTiet, phanTichNhieu, stripWakeWordAndBranch } from "./parser.js";
-import { luuKhachQuen, luuTriThucEV, layOverheadChoChiNhanh, tinhDiemHoaVonChiNhanh, luuOverheadChoChiNhanh, layDanhSachTonKho, kiemTraCanhBaoTonKho, tinhBaoCaoThue, xuatToKhaiThue01CNKD } from "./db.js";
+import { luuKhachQuen, luuTriThucEV, layOverheadChoChiNhanh, tinhDiemHoaVonChiNhanh, luuOverheadChoChiNhanh, layDanhSachTonKho, kiemTraCanhBaoTonKho, tinhBaoCaoThue, xuatToKhaiThue01CNKD, tinhBaoCaoPL } from "./db.js";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -649,6 +649,33 @@ Lý do EV tự động điền giá vốn và tính toán là:
       reply: isTurnOn
         ? `🔊 **Dạ EV đã BẬT Loa AI Thông Báo Chuyển Khoản QR**! Mỗi khi khách quét mã chuyển tiền thành công, EV sẽ tự động đọc to số tiền để anh/chị an tâm pha chế nhé! 🥤✨`
         : `🔇 **Dạ EV đã TẮT Loa AI Thông Báo Chuyển Khoản** theo yêu cầu của anh/chị ạ!`,
+    };
+  }
+
+  // 1.81 BÁO CÁO TÀI CHÍNH P&L & DÒNG TIỀN (TỪ MISA ESHOP)
+  if (norm.includes("p&l") || norm.includes("lai lo") || norm.includes("ket qua kinh doanh") || norm.includes("dong tien") || norm.includes("bao cao tai chinh")) {
+    const isQuarter = norm.includes("quy") || norm.includes("q1") || norm.includes("q2") || norm.includes("q3") || norm.includes("q4");
+    const isYear = norm.includes("nam") || norm.includes("ca nam");
+    const periodType = isQuarter ? "quarter" : (isYear ? "year" : "month");
+    const branchToUse = targetBranch || "all";
+    const pl = tinhBaoCaoPL(state.ds || [], periodType, null, branchToUse);
+
+    return {
+      type: "financial_report",
+      plReport: pl,
+      reply: `📊 **Dạ EV xin gửi Báo cáo Kết quả Hoạt Động Kinh Doanh P&L (${periodType === "quarter" ? "Quý" : (periodType === "year" ? "Năm" : "Tháng")} ${pl.periodValue} - ${pl.branchName})**:
+
+1. 💵 **DOANH THU THUẦN (Net Revenue)**: **${formatMoney(pl.revenue)}** (${pl.totalCups} ly / ${pl.orderCount} đơn)
+2. 🧊 **GIÁ VỐN NGUYÊN LIỆU (COGS)**: -${formatMoney(pl.cogs)}
+3. 📈 **LỢI NHUẬN GỘP (Gross Profit)**: **+${formatMoney(pl.grossProfit)}** (Biên lợi nhuận gộp: **${pl.grossMarginPct}%**)
+4. 🏢 **CHI PHÍ HOẠT ĐỘNG (OPEX)**: -${formatMoney(pl.operatingExpenses)}
+5. 🏛️ **Thuế dự tính (4.5% Doanh thu)**: -${formatMoney(pl.totalTax)}
+--------------------------------------------------
+💰 **LỢI NHUẬN RÒNG THỰC NHẬN (Net Profit)**: **${formatMoney(pl.netProfit)}** (Tỷ suất sinh lời: **${pl.netMarginPct}%**)
+
+🌊 **Báo cáo Dòng tiền (Cash Flow)**:
+- Tiền mặt vào két: +${formatMoney(pl.cashFlow.cashIn)} | Tiền mặt chi: -${formatMoney(pl.cashFlow.cashOut)} $\\rightarrow$ **Dòng tiền mặt**: **${formatMoney(pl.cashFlow.netCashFlow)}**
+- Chuyển khoản QR: **+${formatMoney(pl.cashFlow.transferIn)}**`,
     };
   }
 

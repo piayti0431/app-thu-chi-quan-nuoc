@@ -1578,3 +1578,87 @@ Ngày lập báo cáo: ${new Date().toLocaleDateString("vi-VN")}
 Người nộp thuế (Ký, ghi rõ họ tên)`;
 }
 
+export function tinhBaoCaoPL(transactions, periodType = "month", periodValue = null, branchName = null) {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const currentYear = String(now.getFullYear());
+  const currentQuarter = `Q${Math.floor(now.getMonth() / 3) + 1}-${now.getFullYear()}`;
+
+  const targetPeriod = periodValue || (periodType === "quarter" ? currentQuarter : (periodType === "year" ? currentYear : currentMonth));
+
+  const validTx = (transactions || []).filter((tx) => {
+    if (tx.deleted) return false;
+    if (branchName && branchName !== "all" && branchName !== "Tất cả điểm bán" && tx.chiNhanh !== branchName) {
+      return false;
+    }
+    const dateStr = String(tx.ngay || tx.timestamp || "");
+    if (periodType === "month") {
+      return dateStr.startsWith(targetPeriod);
+    } else if (periodType === "year") {
+      return dateStr.startsWith(targetPeriod);
+    } else if (periodType === "quarter") {
+      const parts = targetPeriod.split("-");
+      const qNum = Number(parts[0].replace("Q", ""));
+      const year = parts[1] || currentYear;
+      if (!dateStr.startsWith(year)) return false;
+      const monthNum = Number(dateStr.split("-")[1] || 0);
+      const qOfTx = Math.floor((monthNum - 1) / 3) + 1;
+      return qOfTx === qNum;
+    }
+    return true;
+  });
+
+  const thuList = validTx.filter((t) => t.loai === "thu");
+  const chiList = validTx.filter((t) => t.loai === "chi");
+
+  const revenue = thuList.reduce((sum, tx) => sum + (Number(tx.soTien) || 0), 0);
+  const totalCups = thuList.reduce((sum, tx) => sum + (Number(tx.soLuong) || 1), 0);
+  const cogs = thuList.reduce((sum, tx) => sum + (Number(tx.tongGiaCost) || 0), 0);
+  const grossProfit = revenue - cogs;
+  const grossMarginPct = revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;
+
+  const operatingExpenses = chiList.reduce((sum, tx) => sum + (Number(tx.soTien) || 0), 0);
+  const ebit = grossProfit - operatingExpenses;
+
+  const vatTax = Math.round(revenue * 0.03);
+  const pitTax = Math.round(revenue * 0.015);
+  const totalTax = vatTax + pitTax;
+
+  const netProfit = ebit - totalTax;
+  const netMarginPct = revenue > 0 ? Math.round((netProfit / revenue) * 1000) / 10 : 0;
+
+  // Dòng tiền mặt vs Chuyển khoản
+  const cashIn = thuList.filter((t) => t.phuongThuc !== "chuyen_khoan").reduce((s, t) => s + (Number(t.soTien) || 0), 0);
+  const transferIn = thuList.filter((t) => t.phuongThuc === "chuyen_khoan").reduce((s, t) => s + (Number(t.soTien) || 0), 0);
+  const cashOut = chiList.filter((t) => t.phuongThuc !== "chuyen_khoan").reduce((s, t) => s + (Number(t.soTien) || 0), 0);
+  const transferOut = chiList.filter((t) => t.phuongThuc === "chuyen_khoan").reduce((s, t) => s + (Number(t.soTien) || 0), 0);
+  const netCashFlow = cashIn - cashOut;
+
+  return {
+    periodType,
+    periodValue: targetPeriod,
+    branchName: branchName || "Toàn bộ chi nhánh",
+    orderCount: thuList.length,
+    totalCups,
+    revenue,
+    cogs,
+    grossProfit,
+    grossMarginPct,
+    operatingExpenses,
+    ebit,
+    vatTax,
+    pitTax,
+    totalTax,
+    netProfit,
+    netMarginPct,
+    cashFlow: {
+      cashIn,
+      cashOut,
+      netCashFlow,
+      transferIn,
+      transferOut,
+    },
+    generatedAt: now.toISOString(),
+  };
+}
+
