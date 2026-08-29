@@ -36,7 +36,7 @@ import {
 } from "./db.js";
 import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
 import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney } from "./report.js";
-import { batDauNghe, docLai, dungNghe, getVoiceSettings, saveVoiceSettings, yeuCauQuyenMicro } from "./speech.js";
+import { batDauNghe, docLai, dungNghe, getVoiceSettings, saveVoiceSettings, yeuCauQuyenMicro, phatTiengChuongTingTing } from "./speech.js";
 import { hoiGeminiAI, phanTichTaiChinhNoiBo } from "./ai-assistant.js";
 import {
   batDauRealtime,
@@ -1444,23 +1444,28 @@ function phatLoaThongBaoChuyenKhoan(soTien, phuongThuc = "chuyen_khoan") {
   if (phuongThuc !== "chuyen_khoan") return;
   if (state.enableAudioPaymentAlert === false) return;
 
+  // Phát chuông ting ting báo ngân chuyên nghiệp
+  phatTiengChuongTingTing();
+
   const speechMoney = docSoTienTiengViet(Number(soTien) || 0);
   const text = `Đã nhận thành công ${speechMoney} qua chuyển khoản!`;
 
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "vi-VN";
-      utterance.rate = 1.0;
-      const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find((v) => v.lang.includes("vi") || v.name.includes("Vietnamese") || v.name.includes("Tiếng Việt"));
-      if (viVoice) utterance.voice = viVoice;
-      window.speechSynthesis.speak(utterance);
-    } catch (err) {
-      console.warn("SpeechSynthesis audio alert error:", err);
+  setTimeout(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "vi-VN";
+        utterance.rate = 1.0;
+        const voices = window.speechSynthesis.getVoices();
+        const viVoice = voices.find((v) => v.lang.includes("vi") || v.name.includes("Vietnamese") || v.name.includes("Tiếng Việt"));
+        if (viVoice) utterance.voice = viVoice;
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.warn("SpeechSynthesis audio alert error:", err);
+      }
     }
-  }
+  }, 350);
 }
 
 function updateAudioAlertButtonUI() {

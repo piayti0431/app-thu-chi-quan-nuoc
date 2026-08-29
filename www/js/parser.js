@@ -414,7 +414,7 @@ function productQuantity(tokens, product) {
 function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS) {
   const hasMia = normalized.includes("mia") || hasToken(tokens, MIA_WORDS);
   const hasCam = normalized.includes("cam") || hasToken(tokens, CAM_WORDS);
-  const hasRauMa = normalized.includes("rau ma") || normalized.includes("ma") || normalized.includes("rauma");
+  const hasRauMa = (normalized.includes("rau ma") || normalized.includes("rauma") || normalized.includes("ma tuoi")) || (tokens.includes("ma") && !hasMia && !normalized.includes("mang"));
   const hasDauXanh =
     normalized.includes("dau xanh") ||
     normalized.includes("dau") ||
@@ -764,6 +764,46 @@ function detectPaymentMethod(normalized) {
   return "tien_mat";
 }
 
+export function detectDrinkModifiers(normalized) {
+  const notes = [];
+
+  // Sugar modifiers
+  if (/khong\s*(duong|duongg)|ko\s*duong|0\s*duong/i.test(normalized)) {
+    notes.push("Không đường");
+  } else if (/it\s*duong|it\s*duongg|giam\s*duong/i.test(normalized)) {
+    notes.push("Ít đường");
+  } else if (/nhieu\s*duong|them\s*duong|ngot\s*dam|ngot\s*nhieu/i.test(normalized)) {
+    notes.push("Nhiều đường");
+  }
+
+  // Ice modifiers
+  if (/khong\s*(da|daa)|ko\s*da|0\s*da/i.test(normalized)) {
+    notes.push("Không đá");
+  } else if (/it\s*da|it\s*daa|giam\s*da/i.test(normalized)) {
+    notes.push("Ít đá");
+  } else if (/nhieu\s*da|them\s*da|day\s*da/i.test(normalized)) {
+    notes.push("Nhiều đá");
+  } else if (/da\s*rieng|de\s*da\s*rieng|mang\s*da\s*rieng/i.test(normalized)) {
+    notes.push("Đá riêng");
+  }
+
+  // Serving mode (Takeaway vs Dine-in)
+  if (/mang\s*(ve|di)|dem\s*(ve|di)|mua\s*ve|cam\s*ve|take\s*away/i.test(normalized)) {
+    notes.push("Mang về");
+  } else if (/uong\s*(tai\s*quan|tai\s*cho|day|o\s*day)|ngoi\s*lai/i.test(normalized)) {
+    notes.push("Uống tại quán");
+  }
+
+  // Cup size note
+  if (/(?:ly|coc|size|mia|nuoc|tra)\s*(?:lon|bu|to|khong\s*lo|dai)\b|\b(?:size\s+l|size\s+xl)\b/i.test(normalized)) {
+    notes.push("Ly lớn");
+  } else if (/(?:ly|coc|size|mia|nuoc|tra)\s*(?:nho|vua|be)\b|\b(?:size\s+s|size\s+m)\b/i.test(normalized)) {
+    notes.push("Ly nhỏ");
+  }
+
+  return notes;
+}
+
 export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
   const { cleanText, branch } = stripWakeWordAndBranch(text);
   const normalized = normalizeText(cleanText || text);
@@ -773,7 +813,12 @@ export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
   const product = loai === "thu" ? detectProduct(normalized, tokens, quickItems) : null;
   const category = detectCategory(normalized, loai, product);
   const money = parseMoney(normalized, tokens, loai, product);
-  const moTaXacNhan = describeTransaction(loai, normalized, product, category);
+  const modifiers = detectDrinkModifiers(normalized);
+  const modifierText = modifiers.length > 0 ? modifiers.join(", ") : "";
+  let moTaXacNhan = describeTransaction(loai, normalized, product, category);
+  if (modifierText) {
+    moTaXacNhan += ` (${modifierText})`;
+  }
   const confidence = confidenceLevel({
     product,
     amount: money.amount,
@@ -806,6 +851,9 @@ export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
   const totalCost = loai === "thu" ? qty * unitCost : 0;
   const phuongThuc = detectPaymentMethod(normalized);
 
+  const rawNote = text?.trim() || DEFAULT_NOTE;
+  const structuredNote = modifierText ? `${rawNote} [${modifierText}]` : rawNote;
+
   return {
     loai,
     soTien: money.amount,
@@ -817,10 +865,12 @@ export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
     danhMuc: category,
     chiNhanh: branch || null,
     moTaXacNhan,
-    ghiChu: text?.trim() || DEFAULT_NOTE,
+    ghiChu: structuredNote,
     cauNoiGoc: text?.trim() || "",
     confidence,
     tokens,
+    modifiers,
+    modifierText,
     slots: {
       type: loai,
       productId: product?.id || null,
@@ -832,6 +882,8 @@ export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
       costPrice: unitCost,
       explicitMoney: money.explicitMoney,
       priceMode: money.priceMode,
+      modifiers,
+      modifierText,
     },
     alternatives: alternatives.map((item) => ({
       productId: item.id,

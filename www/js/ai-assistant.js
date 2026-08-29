@@ -748,6 +748,51 @@ ${lines}
     };
   }
 
+  // 1.10 SO SÁNH HIỆU QUẢ KINH DOANH GIỮA CÁC NGÀY / KỲ (TỪ KNOTE)
+  if (
+    norm.includes("so sanh") ||
+    (norm.includes("hom nay") && (norm.includes("hom qua") || norm.includes("so voi"))) ||
+    norm.includes("tang truong") ||
+    norm.includes("ban chay hon") ||
+    norm.includes("so voi hom qua") ||
+    norm.includes("so voi tuan truoc")
+  ) {
+    const today = todayKey();
+    const yesterday = shiftDateKey(today, -1);
+    const branchToUse = targetBranch || state.currentBranch || "all";
+    const isAll = branchToUse === "all";
+
+    const allTx = (state.ds || []).filter((tx) => !tx.deleted && (isAll || tx.chiNhanh === branchToUse));
+    const todayThu = allTx.filter((t) => t.ngay === today && t.loai === "thu");
+    const yestThu = allTx.filter((t) => t.ngay === yesterday && t.loai === "thu");
+
+    const todayRev = todayThu.reduce((s, t) => s + (Number(t.soTien) || 0), 0);
+    const yestRev = yestThu.reduce((s, t) => s + (Number(t.soTien) || 0), 0);
+    const todayCups = todayThu.reduce((s, t) => s + (Number(t.soLuong) || 1), 0);
+    const yestCups = yestThu.reduce((s, t) => s + (Number(t.soLuong) || 1), 0);
+
+    const diffRev = todayRev - yestRev;
+    const diffPct = yestRev > 0 ? Math.round((diffRev / yestRev) * 100) : (todayRev > 0 ? 100 : 0);
+    const isHigher = diffRev >= 0;
+
+    let growthEmoji = isHigher ? "📈" : "📉";
+    let growthText = isHigher
+      ? `TĂNG TRƯỞNG **+${formatMoney(diffRev)}** (+${diffPct}%) so với hôm qua`
+      : `GIẢM **-${formatMoney(Math.abs(diffRev))}** (${diffPct}%) so với hôm qua`;
+
+    return {
+      type: "financial_report",
+      reply: `📊 **Dạ EV xin gửi Báo cáo So sánh Hiệu quả Bán hàng (${isAll ? "Tất cả điểm bán" : branchToUse})**:
+
+- 🗓️ **Hôm nay (${formatDateDisplay(today)})**: **${formatMoney(todayRev)}** (${todayCups} ly)
+- 🗓️ **Hôm qua (${formatDateDisplay(yesterday)})**: **${formatMoney(yestRev)}** (${yestCups} ly)
+--------------------------------------------------
+${growthEmoji} **Kết quả**: ${growthText}!
+
+💡 *${isHigher ? "Quán đang bán rất tốt, anh/chị tiếp tục giữ vững phong độ nhé! 🥤✨" : "Hôm nay doanh thu có chút chậm hơn hôm qua, hãy đẩy mạnh mời khách hoặc kiểm tra lại lượng đá và mía nhé! 🧊"}*`,
+    };
+  }
+
   // 2. LỆNH RESTART / LÀM MỚI DỮ LIỆU TRONG NGÀY KÈM GHI CHÚ
   if (norm.includes("restart") || norm.includes("reset ngay") || norm.includes("lam moi ngay") || norm.includes("khoi dong lai ngay")) {
     const isExplicitAll = norm.includes("tat ca") || norm.includes("2 quan") || norm.includes("ca 2 quan") || norm.includes("toan he thong");
