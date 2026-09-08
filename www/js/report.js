@@ -32,7 +32,11 @@ function docBlock3(n, hasHigher = false) {
 }
 
 export function docSoTiengViet(number) {
-  const num = Math.round(Math.abs(Number(number) || 0));
+  const rawNum = Number(number) || 0;
+  if (rawNum < 0) {
+    return 'âm ' + docSoTiengViet(Math.abs(rawNum));
+  }
+  const num = Math.round(Math.abs(rawNum));
   if (num === 0) return "không";
 
   const ty = Math.floor(num / 1_000_000_000);
@@ -90,13 +94,11 @@ export function matchBranch(itemBranch, selectedBranch) {
   const normSel = String(selectedBranch).toLowerCase().trim();
   if (normItem === normSel) return true;
 
-  const isItemMain = normItem.includes("nhà") || normItem.includes("chính") || normItem === "main";
-  const isSelMain = normSel.includes("nhà") || normSel.includes("chính") || normSel === "main";
-  if (isItemMain && isSelMain) return true;
+  const isMain = (s) => s.includes("nhà") || s.includes("chính") || s === "main";
+  if (isMain(normItem) && isMain(normSel)) return true;
 
-  const isItemBranch2 = normItem.includes("2") || normItem.includes("cn2") || normItem === "branch_2";
-  const isSelBranch2 = normSel.includes("2") || normSel.includes("cn2") || normSel === "branch_2";
-  if (isItemBranch2 && isSelBranch2) return true;
+  const isBranch2 = (s) => /\b(?:cn\s*2|chi\s*nhánh\s*2|chi\s*nhanh\s*2|branch\s*2)\b/i.test(s) || s === "2" || s === "cn2";
+  if (isBranch2(normItem) && isBranch2(normSel)) return true;
 
   return false;
 }
@@ -105,42 +107,49 @@ export function dailyReport(transactions, dateKey, branch = null, openingCash = 
   const items = transactions.filter(
     (item) => !item.deleted && item.ngay === dateKey && matchBranch(item.chiNhanh, branch),
   );
-  const income = items
-    .filter((item) => item.loai === "thu")
-    .reduce((total, item) => total + Number(item.soTien || 0), 0);
-  const expense = items
-    .filter((item) => item.loai === "chi")
-    .reduce((total, item) => total + Number(item.soTien || 0), 0);
-  const cost = items
-    .filter((item) => item.loai === "thu")
-    .reduce((total, item) => total + Number(item.tongGiaCost || (Number(item.soLuong || 1) * Number(item.giaCostDonVi || 0)) || 0), 0);
-  const totalDrinks = items
-    .filter((item) => item.loai === "thu")
-    .reduce((total, item) => total + Number(item.soLuong || 1), 0);
-  const cashIncome = items
-    .filter((item) => item.loai === "thu" && item.phuongThuc !== "chuyen_khoan")
-    .reduce((total, item) => total + Number(item.soTien || 0), 0);
-  const transferIncome = items
-    .filter((item) => item.loai === "thu" && item.phuongThuc === "chuyen_khoan")
-    .reduce((total, item) => total + Number(item.soTien || 0), 0);
-  const cashDrawerExpense = items
-    .filter((item) => {
-      if (item.loai !== "chi") return false;
-      // Hỗ trợ tương thích ngược dữ liệu cũ (Trước 01/09/2026)
+
+  let income = 0;
+  let expense = 0;
+  let cost = 0;
+  let totalDrinks = 0;
+  let cashIncome = 0;
+  let transferIncome = 0;
+  let cashDrawerExpense = 0;
+
+  for (const item of items) {
+    const amount = Number(item.soTien || 0);
+    if (item.loai === "thu") {
+      income += amount;
+      const qty = Number(item.soLuong || 1);
+      const unitCost = Number(item.giaCostDonVi || 0);
+      cost += Number(item.tongGiaCost || (qty * unitCost) || 0);
+      totalDrinks += qty;
+
+      if (item.phuongThuc === "chuyen_khoan") {
+        transferIncome += amount;
+      } else {
+        cashIncome += amount;
+      }
+    } else if (item.loai === "chi") {
+      expense += amount;
+      let isFromDrawer = true;
       if (!item.nguonTienChi) {
         const itemDateStr = item.ngay || "";
         if (itemDateStr < "2026-09-01") {
           const name = (item.danhMuc || "").toLowerCase();
-          // Quá khứ: Chỉ có "đá viên (1 bao)" 21k là từ két, còn lại từ ví
-          if (name.includes("đá") && Number(item.soTien) === 21000) {
-            return true; // Két
-          }
-          return false; // Ví
+          isFromDrawer = name.includes("đá") && amount === 21000;
+        } else {
+          isFromDrawer = true;
         }
+      } else {
+        isFromDrawer = item.nguonTienChi !== "tien_von";
       }
-      return item.nguonTienChi !== "tien_von";
-    })
-    .reduce((total, item) => total + Number(item.soTien || 0), 0);
+      if (isFromDrawer) {
+        cashDrawerExpense += amount;
+      }
+    }
+  }
+
   const walletExpense = expense - cashDrawerExpense;
   
   const cashBalance = cashIncome - cashDrawerExpense;
@@ -180,7 +189,7 @@ export function dailyReport(transactions, dateKey, branch = null, openingCash = 
 }
 
 export function computeFundBalances(data) {
-  let capitalWallet = 4990000;
+  let capitalWallet = Number(data?.initialCapital ?? data?.capitalWalletInitial ?? 4990000);
   let rentFund = 0;
   let profitFund = 0;
 

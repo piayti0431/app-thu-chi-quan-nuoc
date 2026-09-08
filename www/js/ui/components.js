@@ -12,3 +12,12 @@ export function showToast(message, isError = false) {
     toast.className = 'toast';
   }, 2600);
 }
+
+export function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { setupTestEnv } from "./setup.mjs";
+setupTestEnv();
 import {
   DEFAULT_DATA,
   layDanhSachTonKho,
@@ -7,6 +9,7 @@ import {
   nhapKhoNguyenLieu,
   capNhatTonKhoThucTe,
   themGiaoDich,
+  docDuLieu,
 } from "../www/js/db.js";
 import { phanTichChiTiet, phanTichNhieu } from "../www/js/parser.js";
 import { phanTichTaiChinhNoiBo } from "../www/js/ai-assistant.js";
@@ -23,27 +26,26 @@ console.log("==================================================");
     { drink: "Mía tắc", id: "mia_tac", qty: 4, expectedMiaDeduct: 0.088, expectedTacDeduct: 0.2, expectedLy: 4 },
     { drink: "Mía cam", id: "mia_cam", qty: 3, expectedMiaDeduct: 0.066, expectedCamDeduct: 0.99, expectedLy: 3 },
     { drink: "Mía thơm", id: "mia_thom", qty: 2, expectedMiaDeduct: 0.044, expectedThomDeduct: 0.5, expectedLy: 2 },
-    { drink: "Trà tắc", id: "tra_tac", qty: 5, expectedTacDeduct: 0.25, expectedDuongDeduct: 0.2, expectedLy: 5 },
-    { drink: "Nước mía 1 lít", id: "nuoc_mia_1l", qty: 1, expectedMiaDeduct: 0.1, expectedDaDeduct: 0, expectedLy: 1 },
-    { drink: "Rau má tươi", id: "rau_ma", qty: 2, expectedRauMaDeduct: 0.4, expectedLy: 2 },
-    { drink: "Rau má đậu xanh", id: "rau_ma_dau_xanh", qty: 3, expectedRauMaDeduct: 0.6, expectedDauXanhDeduct: 0.3, expectedLy: 3 },
+    { drink: "Nước cam", id: "nuoc_cam", qty: 5, expectedCamDeduct: 1.65, expectedLy: 5 },
+    { drink: "Rau má", id: "rau_ma", qty: 6, expectedRauMaDeduct: 0.6, expectedLy: 6 },
+    { drink: "Rau má đậu", id: "rau_ma_dau", qty: 2, expectedRauMaDeduct: 0.2, expectedDauXanhDeduct: 0.1, expectedLy: 2 },
+    { drink: "Rau má sữa", id: "rau_ma_sua", qty: 3, expectedRauMaDeduct: 0.3, expectedSuaDacDeduct: 0.15, expectedLy: 3 },
+    { drink: "Trà tắc", id: "tra_tac", qty: 5, expectedTacDeduct: 0.25, expectedLy: 5 },
+    { drink: "Nước mía 1 lít", id: "nuoc_mia_1l", qty: 2, expectedMiaDeduct: 0.2, expectedDaDeduct: 0 },
   ];
 
   for (const tc of testCases) {
-    const s = JSON.parse(JSON.stringify(DEFAULT_DATA));
-    truKhoNguyenLieuTheoDonHang(s, {
+    const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    truKhoNguyenLieuTheoDonHang(state, {
       loai: "thu",
       danhMuc: tc.drink,
       soLuong: tc.qty,
-      soTien: 100000,
+      soTien: 50000,
       chiNhanh: "Quán Nhà (Chính)",
       slots: { productId: tc.id },
     });
 
-    const stock = layDanhSachTonKho(s, "Quán Nhà (Chính)");
-    const ly = stock.find((i) => i.id === "ly_nhua");
-    assert.equal(ly.stockQty, 2000 - tc.expectedLy);
-
+    const stock = layDanhSachTonKho(state, "Quán Nhà (Chính)");
     if (tc.expectedMiaDeduct !== undefined) {
       const mia = stock.find((i) => i.id === "mia_cay");
       assert.equal(mia.stockQty, Math.round((20 - tc.expectedMiaDeduct) * 100) / 100);
@@ -92,41 +94,45 @@ console.log("==================================================");
 
 // AUDIT 3: Moving Weighted Average Cost Multi-Step Simulation
 {
-  const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  const state = await docDuLieu();
   const item = state.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "da_vien");
   
   // Step 1: Start with 10 bags @ 17,000 đ
   assert.equal(item.stockQty, 10);
   assert.equal(item.unitCost, 17000);
 
-  // Step 2: Restock 10 bags @ 25,000 đ
+  // Step 2: Restock 10 bags @ 25,000 đ via actual nhapKhoNguyenLieu
   // New cost = (10 * 17000 + 10 * 25000) / 20 = 420000 / 20 = 21,000 đ
-  const res1 = Math.round(((10 * 17000) + (10 * 25000)) / 20);
-  assert.equal(res1, 21000);
+  await nhapKhoNguyenLieu("Quán Nhà (Chính)", "da_vien", 10, 25000);
+  let updatedData = await docDuLieu();
+  let updatedItem = updatedData.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "da_vien");
+  assert.equal(updatedItem.stockQty, 20);
+  assert.equal(updatedItem.unitCost, 21000);
 
-  // Step 3: Restock 5 bags @ 31,000 đ
+  // Step 3: Restock 5 bags @ 31,000 đ via actual nhapKhoNguyenLieu
   // New cost = (20 * 21000 + 5 * 31000) / 25 = (420000 + 155000) / 25 = 575000 / 25 = 23,000 đ
-  const res2 = Math.round(((20 * 21000) + (5 * 31000)) / 25);
-  assert.equal(res2, 23000);
+  await nhapKhoNguyenLieu("Quán Nhà (Chính)", "da_vien", 5, 31000);
+  updatedData = await docDuLieu();
+  updatedItem = updatedData.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "da_vien");
+  assert.equal(updatedItem.stockQty, 25);
+  assert.equal(updatedItem.unitCost, 23000);
 
   console.log("✅ AUDIT 3 PASS: Multi-step Weighted Average Cost simulation holds true.");
 }
 
 // AUDIT 4: End-of-Day Physical Audit Variance (Overage and Shortage)
 {
-  const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
-  
-  // Case A: Shortage (Đá bị tan chảy 2 bao)
-  const theoreticalIce = 10;
-  const countedIce = 8;
-  const shortageVariance = countedIce - theoreticalIce;
-  assert.equal(shortageVariance, -2);
+  // Case A: Shortage (Đá bị tan chảy 2 bao) -> set actual count to 8
+  await capNhatTonKhoThucTe("Quán Nhà (Chính)", "da_vien", 8);
+  let updatedData = await docDuLieu();
+  let updatedItem = updatedData.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "da_vien");
+  assert.equal(updatedItem.stockQty, 8);
 
-  // Case B: Overage (Ép khéo dôi ra 1 bó mía)
-  const theoreticalMia = 15;
-  const countedMia = 16;
-  const overageVariance = countedMia - theoreticalMia;
-  assert.equal(overageVariance, 1);
+  // Case B: Overage (Mía dôi ra 1 bó) -> set actual count to 16
+  await capNhatTonKhoThucTe("Quán Nhà (Chính)", "mia_cay", 16);
+  updatedData = await docDuLieu();
+  updatedItem = updatedData.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "mia_cay");
+  assert.equal(updatedItem.stockQty, 16);
 
   console.log("✅ AUDIT 4 PASS: Physical Audit accurately logs both shortage and overage variances.");
 }

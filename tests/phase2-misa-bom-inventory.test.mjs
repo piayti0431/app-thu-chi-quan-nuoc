@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { DEFAULT_DATA, layDanhSachTonKho, kiemTraCanhBaoTonKho, truKhoNguyenLieuTheoDonHang, nhapKhoNguyenLieu, capNhatTonKhoThucTe } from "../www/js/db.js";
+import { setupTestEnv } from "./setup.mjs";
+setupTestEnv();
+import { DEFAULT_DATA, layDanhSachTonKho, kiemTraCanhBaoTonKho, truKhoNguyenLieuTheoDonHang, nhapKhoNguyenLieu, capNhatTonKhoThucTe, docDuLieu } from "../www/js/db.js";
 import { phanTichTaiChinhNoiBo } from "../www/js/ai-assistant.js";
 
 console.log("Starting phase2-misa-bom-inventory.test.mjs...");
@@ -88,6 +90,14 @@ console.log("Starting phase2-misa-bom-inventory.test.mjs...");
   const expectedUnitCost = Math.round(((oldQty * oldCost) + (addQty * addCost)) / (oldQty + addQty));
 
   assert.equal(expectedUnitCost, 100000);
+
+  // Invoke actual nhapKhoNguyenLieu function
+  await nhapKhoNguyenLieu("Quán Nhà (Chính)", "mia_cay", addQty, addCost);
+  const updatedData = await docDuLieu();
+  const updatedItem = updatedData.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "mia_cay");
+  assert.equal(updatedItem.stockQty, 30);
+  assert.equal(updatedItem.unitCost, 100000);
+
   console.log("PASS 3: Moving Weighted Average Cost (MISA eShop) formula verified accurately");
 }
 
@@ -97,6 +107,13 @@ console.log("Starting phase2-misa-bom-inventory.test.mjs...");
   const actualCount = 18.0;
   const variance = Math.round((actualCount - oldTheoretical) * 100) / 100;
   assert.equal(variance, -1.89);
+
+  // Invoke actual capNhatTonKhoThucTe function
+  await capNhatTonKhoThucTe("Quán Nhà (Chính)", "mia_cay", actualCount);
+  const updatedData = await docDuLieu();
+  const updatedItem = updatedData.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "mia_cay");
+  assert.equal(updatedItem.stockQty, 18.0);
+
   console.log("PASS 4: Physical Count Audit & Variance discrepancy tracking verified");
 }
 

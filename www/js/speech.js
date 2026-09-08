@@ -355,6 +355,11 @@ export function chuanHoaLoiNoiTiengViet(rawText) {
 
   // Format standalone digits into Vietnamese words
   text = text.replace(/\b(\d+)\b/g, (match, p1) => {
+    // Nếu là số điện thoại (bắt đầu bằng 0 và có từ 10 chữ số) -> đọc từng chữ số
+    if (p1.length >= 10 && p1.startsWith("0")) {
+      const digitNames = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
+      return p1.split("").map((d) => digitNames[Number(d)] || d).join(" ");
+    }
     return docSoTiengViet(Number(p1));
   });
 
@@ -465,10 +470,7 @@ export async function phatAmThanhGoogleTTS(text, options = {}) {
   try {
     for (const chunk of chunks) {
       const encoded = encodeURIComponent(chunk);
-      // Ưu tiên 1: Serverless proxy /api/tts (chuẩn Google TTS Tiếng Việt tự nhiên 100%, không bao giờ bị CORS hay chặn)
-      // Ưu tiên 2: Gọi trực tiếp Google TTS
       const audioSources = [
-        `/api/tts?text=${encoded}`,
         `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encoded}`,
       ];
 

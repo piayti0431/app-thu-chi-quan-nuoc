@@ -56,10 +56,9 @@ console.log("Starting phase1-knote-ai-speech.test.mjs...");
 {
   const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
   const now = new Date();
-  const todayKey = now.toISOString().slice(0, 10);
-  const yestDt = new Date(now);
-  yestDt.setDate(yestDt.getDate() - 1);
-  const yestKey = yestDt.toISOString().slice(0, 10);
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const yestDt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const yestKey = `${yestDt.getFullYear()}-${String(yestDt.getMonth() + 1).padStart(2, "0")}-${String(yestDt.getDate()).padStart(2, "0")}`;
 
   state.ds = [
     { id: "tx1", loai: "thu", soTien: 300000, soLuong: 30, ngay: todayKey, chiNhanh: "Quán Nhà (Chính)" },

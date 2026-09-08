@@ -63,7 +63,7 @@ export async function daDangNhap() {
   if (!activeClient) return false;
   try {
     const sessionPromise = activeClient.auth.getSession();
-    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 2000));
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 8000));
     const result = await Promise.race([sessionPromise, timeoutPromise]);
     if (!result?.data?.session) {
       clearRemembered();
@@ -232,7 +232,21 @@ export async function dongBo() {
   if (finalRemoteSettings && (remoteVersion > localSettingsVersion || (localSettingsVersion === 0 && remoteItems.length > 0) || (remoteHasUniqueItems && remoteVersion >= localSettingsVersion))) {
     // Remote has newer settings OR remote has unique items and equal version -> pull all from remote
     if (remoteItems.length > 0) {
-      data.quickItems = finalRemoteSettings.quickItems;
+      // Merge quickItems: keep local items not in remote, update existing from remote
+      if (finalRemoteSettings.quickItems && Array.isArray(finalRemoteSettings.quickItems)) {
+        const remoteMap = new Map(finalRemoteSettings.quickItems.map(item => [item.id || item.name, item]));
+        const localItems = data.quickItems || [];
+        // Add local items not in remote
+        for (const localItem of localItems) {
+          const key = localItem.id || localItem.name;
+          if (!remoteMap.has(key)) {
+            remoteMap.set(key, localItem);
+          }
+        }
+        data.quickItems = Array.from(remoteMap.values());
+      } else if (finalRemoteSettings.quickItems) {
+        data.quickItems = finalRemoteSettings.quickItems;
+      }
     }
     if (Array.isArray(finalRemoteSettings.branches) && finalRemoteSettings.branches.length > 0) {
       data.branches = finalRemoteSettings.branches;
@@ -277,6 +291,7 @@ export async function dongBo() {
       data.sugarcaneBatches = finalRemoteSettings.sugarcaneBatches;
     }
     if (finalRemoteSettings.inventoryStock) {
+      // TODO: Known issue - inventoryStock should be separated from settings payload in the future
       data.inventoryStock = finalRemoteSettings.inventoryStock;
     }
     data.settingsVersion = remoteVersion || Date.now();

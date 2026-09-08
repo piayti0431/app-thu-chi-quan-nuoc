@@ -426,7 +426,17 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
   const hasNuoc = normalized.includes("nuoc") || hasToken(tokens, NUOC_WORDS);
   const hasOneLiter = hasLiterHint(normalized, tokens);
 
+  const defaultIds = new Set([
+    "rau_ma_dau_xanh", "rau_ma_sua", "rau_ma", "tra_tac",
+    "mia_cam", "mia_thom", "mia_tac", "nuoc_cam", "nuoc_mia_1l", "nuoc_mia"
+  ]);
+
+  const customItems = (quickItems || []).filter(
+    (item) => item && item.id && !defaultIds.has(item.id) && item.id !== "nuoc_da"
+  );
+
   const productList = [
+    ...customItems,
     findQuickItem(quickItems, "rau_ma_dau_xanh", 7),
     findQuickItem(quickItems, "rau_ma_sua", 6),
     findQuickItem(quickItems, "rau_ma", 5),
@@ -437,7 +447,7 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
     findQuickItem(quickItems, "nuoc_cam", 9),
     findQuickItem(quickItems, "nuoc_mia_1l", 1),
     findQuickItem(quickItems, "nuoc_mia", 0),
-  ];
+  ].filter(Boolean);
 
   const candidates = [];
 
@@ -462,7 +472,22 @@ function productCandidates(normalized, tokens, quickItems = DEFAULT_QUICK_ITEMS)
     let score = 0;
     const reasons = [];
 
-    if (item.id === "rau_ma_dau_xanh" && (normalized.includes("dau xanh") || (hasRauMa && hasDauXanh) || normalized.includes("ma dau") || normalized.includes("ma dua"))) {
+    if (!defaultIds.has(item.id)) {
+      const candidateNames = [
+        item.voiceName,
+        item.name,
+        item.shortName,
+        item.category,
+      ].filter(Boolean).map((s) => normalizeText(s));
+
+      for (const nameNorm of candidateNames) {
+        if (nameNorm && (normalized.includes(nameNorm) || tokens.includes(nameNorm))) {
+          score += 92;
+          reasons.push(`khớp món tự tạo: ${item.name}`);
+          break;
+        }
+      }
+    } else if (item.id === "rau_ma_dau_xanh" && (normalized.includes("dau xanh") || (hasRauMa && hasDauXanh) || normalized.includes("ma dau") || normalized.includes("ma dua"))) {
       score += 100;
       reasons.push("có từ rau má đậu xanh");
     } else if (item.id === "rau_ma_sua" && (normalized.includes("rau ma sua") || normalized.includes("ma sua") || (hasRauMa && hasSua))) {
@@ -805,12 +830,13 @@ export function detectDrinkModifiers(normalized) {
 }
 
 export function phanTichChiTiet(text, quickItems = DEFAULT_QUICK_ITEMS) {
+  const items = Array.isArray(quickItems) ? quickItems : (quickItems?.quickItems || DEFAULT_QUICK_ITEMS);
   const { cleanText, branch } = stripWakeWordAndBranch(text);
   const normalized = normalizeText(cleanText || text);
   const tokens = tokenize(normalized);
   const loai = detectType(normalized);
-  const alternatives = productCandidates(normalized, tokens, quickItems);
-  const product = loai === "thu" ? detectProduct(normalized, tokens, quickItems) : null;
+  const alternatives = productCandidates(normalized, tokens, items);
+  const product = loai === "thu" ? detectProduct(normalized, tokens, items) : null;
   const category = detectCategory(normalized, loai, product);
   const money = parseMoney(normalized, tokens, loai, product);
   const modifiers = detectDrinkModifiers(normalized);
@@ -900,11 +926,11 @@ function splitBatchSegments(text) {
   const raw = String(text || "").trim();
   if (!raw) return [];
   const normalized = normalizeText(raw);
-  const hasBatchSeparator = /[,;]|\s(?:va|voi|roi|cong them|them)\s/.test(normalized);
+  const hasBatchSeparator = /[,;]|\s(?:va|voi|roi|cong them)\s/.test(normalized);
   if (!hasBatchSeparator) return [raw];
 
   return raw
-    .split(/[,;]|\s+(?:và|va|với|voi|rồi|roi|cộng thêm|cong them|thêm|them)\s+/i)
+    .split(/[,;]|\s+(?:và|va|với|voi|rồi|roi|cộng thêm|cong them)\s+/i)
     .map((segment) => segment.trim())
     .filter(Boolean);
 }
@@ -961,10 +987,16 @@ export function phanTichNhieu(text, quickItems = DEFAULT_QUICK_ITEMS) {
 
   const total = items.reduce((sum, item) => sum + Number(item.soTien || 0), 0);
   const totalCost = items.reduce((sum, item) => sum + Number(item.tongGiaCost || 0), 0);
+  const hasThu = items.some((item) => item.loai === "thu");
+  const hasChi = items.some((item) => item.loai === "chi");
+  const isMixed = hasThu && hasChi;
   const type = items.every((item) => item.loai === "chi") ? "chi" : "thu";
 
   return {
     isBatch: true,
+    hasMixed: isMixed,
+    thuTotal: items.filter((i) => i.loai === "thu").reduce((s, i) => s + Number(i.soTien || 0), 0),
+    chiTotal: items.filter((i) => i.loai === "chi").reduce((s, i) => s + Number(i.soTien || 0), 0),
     items,
     total,
     loai: type,

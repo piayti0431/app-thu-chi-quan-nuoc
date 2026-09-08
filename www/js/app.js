@@ -1,11 +1,9 @@
-import { $, $$, showToast } from "./ui/components.js";
-import { capNhatTonKhoThucTe, truKhoNguyenLieuTheoDonHang, layDanhSachTonKho, kiemTraCanhBaoTonKho, nhapKhoNguyenLieu, truKhoNguyenLieu } from './logic/inventory.js';
-import { tinhBaoCaoThue, tinhBaoCaoPL, xuatToKhaiThue01CNKD } from './logic/tax.js';
+import { $, $$, showToast, escapeHtml } from "./ui/components.js";
+import { capNhatTonKhoThucTe, layDanhSachTonKho, kiemTraCanhBaoTonKho, nhapKhoNguyenLieu, truKhoNguyenLieu } from './logic/inventory.js';
+import { tinhBaoCaoThue, xuatToKhaiThue01CNKD } from './logic/tax.js';
 import {
-  capNhatCauHinhSync,
   capNhatCostChoMon,
   capNhatCurrentBranch,
-  capNhatGiaNhanh,
   capNhatLaiGiaCostToanBoGiaoDich,
   chuyenTatCaGiaoDichMua10kgThanhXuatDung,
   datLaiGiaCostChuanSoTay,
@@ -19,7 +17,6 @@ import {
   luuDanhSachNguyenLieu,
   luuDuLieu,
   luuOverheadConfig,
-  luuOverheadVaPackagingConfig,
   luuPackagingConfig,
   luuTienThoiDauNgay,
   luuTienThoiMacDinh,
@@ -39,24 +36,20 @@ import {
   ghiNhanSoCheDotMia,
   dongDotNhapMia,
   layDotMiaDangHoatDong,
-  DEFAULT_DATA,
 } from "./db.js";
 import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
-import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney, matchBranch, computeFundBalances } from "./report.js";
-import { batDauNghe, docLai, dungNghe, getVoiceSettings, saveVoiceSettings, yeuCauQuyenMicro, phatTiengChuongTingTing } from "./speech.js";
-import { hoiGeminiAI, phanTichTaiChinhNoiBo } from "./ai-assistant.js";
+import { dailyReport, docSoTienTiengViet, matchBranch, computeFundBalances } from "./report.js";
+import { batDauNghe, docLai, dungNghe, getVoiceSettings, saveVoiceSettings, phatTiengChuongTingTing } from "./speech.js";
+import { hoiGeminiAI } from "./ai-assistant.js";
 import {
   batDauRealtime,
   dangKy,
   dangNhap,
-  dangXuat,
   daDangNhap,
   dongBo,
-  dungRealtime,
   phatTinHieuSync,
   syncErrorMessage,
 } from "./sync.js";
-import { caiCapNhat, kiemTraCapNhat, layPhienBanHienTai } from "./updater.js";
 
 const isAuthBypassedForTest = () => window.__NUOCMIA_TEST_AUTH__ === true;
 
@@ -73,73 +66,12 @@ const MONTH_NAMES = [
 
 let state = await docDuLieu();
 
-// Tự động kiểm tra và đồng bộ đợt nhập 50 bó mía 4 triệu và sơ chế 4 bó thu 60kg cho phiên làm việc
-try {
-  let needsSave = false;
-  if (!state.sugarcaneBatches || !state.sugarcaneBatches.some((b) => b.id === "batch_50_mia_4tr" || b.code === "DOT-50MIA" || String(b.name).includes("50 bó"))) {
-    const batch50 = {
-      id: "batch_50_mia_4tr",
-      date: "2026-09-08",
-      code: "DOT-50MIA",
-      name: "Đợt nhập 50 bó mía 12 cây dài (4 triệu)",
-      branch: "Kho Tổng",
-      rawStalkBundles: 50,
-      costPerBundle: 80000,
-      totalCost: 4000000,
-      processedRawBundles: 4,
-      remainingRawBundles: 46,
-      yield10kgBundles: 6,
-      yieldKg: 60,
-      status: "active",
-      history: [
-        { time: "08/09/2026 08:00", rawQty: 4, yieldQty: 6, yieldKg: 60, note: "Bào 4 bó 12 cây ➔ thu 60kg sạch (CN2: 40kg / 4 bó, Quán Nhà: 20kg / 2 bó)" },
-      ],
-    };
-    state.sugarcaneBatches = [batch50, ...(state.sugarcaneBatches || []).filter((b) => b.id !== "batch_default")];
-    needsSave = true;
-  }
-  const has50Tx = state.ds?.some((t) => !t.deleted && (t.billCode === "#PO-50MIA" || (t.loai === "chi" && Number(t.soLuong) === 50 && Number(t.soTien) === 4000000)));
-  if (!has50Tx && Array.isArray(DEFAULT_DATA.ds) && DEFAULT_DATA.ds.length >= 2) {
-    state.ds = state.ds || [];
-    state.ds.unshift(DEFAULT_DATA.ds[0], DEFAULT_DATA.ds[1]);
-    needsSave = true;
-  }
-  if (state.inventoryStock) {
-    if (!state.inventoryStock["Kho Tổng"]) {
-      state.inventoryStock["Kho Tổng"] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Kho Tổng"]));
-      needsSave = true;
-    } else {
-      const kt = state.inventoryStock["Kho Tổng"];
-      const item12 = kt.find((x) => x.id === "mia_cay");
-      const item10 = kt.find((x) => x.id === "mia_10kg");
-      if (item12 && (item12.stockQty === 20 || item12.stockQty === undefined)) {
-        item12.stockQty = 46;
-        item12.unitCost = 80000;
-        needsSave = true;
-      }
-      if (item10 && (item10.stockQty === 10 || item10.stockQty === undefined)) {
-        item10.stockQty = 6;
-        needsSave = true;
-      }
-    }
-  }
-  if (needsSave) {
-    await luuDuLieu(state);
-  }
-} catch (err) {
-  console.warn("Lỗi đồng bộ dữ liệu đợt mía 50 bó:", err);
-}
+
 let pendingVoice = null;
 let dailyChart = null;
 let categoryChart = null;
 let micListening = false;
-let micStopping = false;
 let authLoggedIn = false;
-let authLoginBusy = false;
-let realtimeActive = false;
-let pendingUpdate = null;
-let updateCheckBusy = false;
-let updateCheckTimer = null;
 let appVersionText = "Phiên bản 2.0 (Toàn diện)";
 
 // Stats view state
@@ -836,12 +768,12 @@ function renderToday() {
         <div class="tx-main">
           <div class="tx-title-row">
             ${billBadge}
-            <span class="tx-title">${item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi")}</span>
+            <span class="tx-title">${escapeHtml(item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi"))}</span>
             ${methodBadge}
             <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || (item.loai === "thu" ? "ly" : "kg")}` : ""}</span>
-            <span class="tx-branch-badge ${branchBadgeClass}">${branchName}</span>
+            <span class="tx-branch-badge ${branchBadgeClass}">${escapeHtml(branchName)}</span>
           </div>
-          <p class="tx-note">${item.ghiChu || item.cauNoiGoc || "Không có ghi chú"}</p>
+          <p class="tx-note">${escapeHtml(item.ghiChu || item.cauNoiGoc || "Không có ghi chú")}</p>
           <div class="tx-meta">
             <span>${item.gio || ""}</span>
             ${item.giaCostDonVi > 0 ? `<span>Vốn: ${formatMoney(item.tongGiaCost || item.giaCostDonVi * (item.soLuong || 1))}</span>` : ""}
@@ -857,37 +789,6 @@ function renderToday() {
     )
     .join("");
 
-  $$("#todayList .delete-btn").forEach((btn) => {
-    btn.onclick = async () => {
-      const rawId = btn.getAttribute("data-id");
-      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
-      if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) return;
-      await xoaGiaoDich(id);
-      state = await docDuLieu();
-      renderAll();
-      showToast("Đã xóa giao dịch khỏi sổ");
-      triggerAutoSync();
-    };
-  });
-
-  $$("#todayList .method-toggle-btn").forEach((btn) => {
-    btn.onclick = async (e) => {
-      e.stopPropagation();
-      const rawId = btn.getAttribute("data-id");
-      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
-      const tx = (state.ds || []).find((t) => t.id === id);
-      if (!tx) return;
-      const newMethod = tx.phuongThuc === "chuyen_khoan" ? "tien_mat" : "chuyen_khoan";
-      tx.phuongThuc = newMethod;
-      tx.daSync = false;
-      tx.updatedAt = new Date().toISOString();
-      await luuDuLieu(state);
-      state = await docDuLieu();
-      renderAll();
-      showToast(`Đã chuyển đơn ${formatMoney(tx.soTien)} sang ${newMethod === "chuyen_khoan" ? "Chuyển khoản (QR)" : "Tiền mặt"}`);
-      triggerAutoSync();
-    };
-  });
 }
 
 function renderHistory() {
@@ -1037,12 +938,12 @@ function renderHistory() {
               <div class="tx-main">
                 <div class="tx-title-row">
                   ${billBadge}
-                  <span class="tx-title">${item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi")}</span>
+                  <span class="tx-title">${escapeHtml(item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi"))}</span>
                   ${methodBadge}
                   <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || (item.loai === "thu" ? "ly" : "kg")}` : ""}</span>
-                  <span class="tx-branch-badge ${branchBadgeClass}">${branchName}</span>
+                  <span class="tx-branch-badge ${branchBadgeClass}">${escapeHtml(branchName)}</span>
                 </div>
-                <p class="tx-note">${item.ghiChu || item.cauNoiGoc || ""}</p>
+                <p class="tx-note">${escapeHtml(item.ghiChu || item.cauNoiGoc || "")}</p>
                 <div class="tx-meta">
                   <span>${item.gio || ""}</span>
                   ${item.giaCostDonVi > 0 ? `<span>Vốn: ${formatMoney(item.tongGiaCost || item.giaCostDonVi * (item.soLuong || 1))}</span>` : ""}
@@ -1068,38 +969,6 @@ function renderHistory() {
     })
     .join("");
 
-  // Attach button event listeners
-  $$("#historyList .delete-btn").forEach((btn) => {
-    btn.onclick = async () => {
-      const rawId = btn.getAttribute("data-id");
-      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
-      if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này khỏi lịch sử?")) return;
-      await xoaGiaoDich(id);
-      state = await docDuLieu();
-      renderAll();
-      showToast("Đã xóa giao dịch");
-      triggerAutoSync();
-    };
-  });
-
-  $$("#historyList .method-toggle-btn").forEach((btn) => {
-    btn.onclick = async (e) => {
-      e.stopPropagation();
-      const rawId = btn.getAttribute("data-id");
-      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
-      const tx = (state.ds || []).find((t) => t.id === id);
-      if (!tx) return;
-      const newMethod = tx.phuongThuc === "chuyen_khoan" ? "tien_mat" : "chuyen_khoan";
-      tx.phuongThuc = newMethod;
-      tx.daSync = false;
-      tx.updatedAt = new Date().toISOString();
-      await luuDuLieu(state);
-      state = await docDuLieu();
-      renderAll();
-      showToast(`Đã chuyển đơn ${formatMoney(tx.soTien)} sang ${newMethod === "chuyen_khoan" ? "Chuyển khoản (QR)" : "Tiền mặt"}`);
-      triggerAutoSync();
-    };
-  });
 }
 
 // ----------------------------------------------------
@@ -2865,12 +2734,28 @@ function renderAll(options = {}) {
   try { renderQuickIngredients(); } catch (e) { console.warn("renderQuickIngredients error:", e); }
   try { renderCategoryDatalist(); } catch (e) { console.warn("renderCategoryDatalist error:", e); }
   try { renderFundsWidget(); } catch (e) { console.warn("renderFundsWidget error:", e); }
+
+  const activeView = $(".tabs .tab.is-active")?.getAttribute("data-view") || "today";
+
+  // Always render Today (home view)
   try { renderToday(); } catch (e) { console.warn("renderToday error:", e); }
-  try { renderHistory(); } catch (e) { console.warn("renderHistory error:", e); }
-  try { renderStats(); } catch (e) { console.warn("renderStats error:", e); }
-  try { renderJarsView(); } catch (e) { console.warn("renderJarsView error:", e); }
-  try { renderClosingsView(); } catch (e) { console.warn("renderClosingsView error:", e); }
-  try { renderMaterialsView(); } catch (e) { console.warn("renderMaterialsView error:", e); }
+
+  // Lazy render: only render other views if active or forced
+  if (options.forceAll || activeView === "history") {
+    try { renderHistory(); } catch (e) { console.warn("renderHistory error:", e); }
+  }
+  if (options.forceAll || activeView === "stats") {
+    try { renderStats(); } catch (e) { console.warn("renderStats error:", e); }
+  }
+  if (options.forceAll || activeView === "jars") {
+    try { renderJarsView(); } catch (e) { console.warn("renderJarsView error:", e); }
+  }
+  if (options.forceAll || activeView === "closings") {
+    try { renderClosingsView(); } catch (e) { console.warn("renderClosingsView error:", e); }
+  }
+  if (options.forceAll || activeView === "materials") {
+    try { renderMaterialsView(); } catch (e) { console.warn("renderMaterialsView error:", e); }
+  }
 
   const isEditingSettings = document.activeElement && (
     document.querySelector("#menuItemsEditor")?.contains(document.activeElement) ||
@@ -4577,6 +4462,45 @@ function initEventListeners() {
     };
   });
 
+  // Event delegation for transactions (todayList & historyList)
+  const handleTxListClick = async (e, isHistory = false) => {
+    const delBtn = e.target.closest(".delete-btn");
+    if (delBtn) {
+      e.stopPropagation();
+      const rawId = delBtn.getAttribute("data-id");
+      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
+      const confirmMsg = isHistory ? "Bạn có chắc chắn muốn xóa giao dịch này khỏi lịch sử?" : "Bạn có chắc chắn muốn xóa giao dịch này?";
+      if (!confirm(confirmMsg)) return;
+      await xoaGiaoDich(id);
+      state = await docDuLieu();
+      renderAll();
+      showToast(isHistory ? "Đã xóa giao dịch" : "Đã xóa giao dịch khỏi sổ");
+      triggerAutoSync();
+      return;
+    }
+    const methodBtn = e.target.closest(".method-toggle-btn");
+    if (methodBtn) {
+      e.stopPropagation();
+      const rawId = methodBtn.getAttribute("data-id");
+      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
+      const tx = (state.ds || []).find((t) => t.id === id);
+      if (!tx) return;
+      const newMethod = tx.phuongThuc === "chuyen_khoan" ? "tien_mat" : "chuyen_khoan";
+      tx.phuongThuc = newMethod;
+      tx.daSync = false;
+      tx.updatedAt = new Date().toISOString();
+      await luuDuLieu(state);
+      state = await docDuLieu();
+      renderAll();
+      showToast(`Đã chuyển đơn ${formatMoney(tx.soTien)} sang ${newMethod === "chuyen_khoan" ? "Chuyển khoản (QR)" : "Tiền mặt"}`);
+      triggerAutoSync();
+      return;
+    }
+  };
+
+  $("#todayList")?.addEventListener("click", (e) => handleTxListClick(e, false));
+  $("#historyList")?.addEventListener("click", (e) => handleTxListClick(e, true));
+
   // Tab Nguyên Liệu & Kho NVL Listeners
   $("#materialsBranchSelect")?.addEventListener("change", () => {
     renderMaterialsView();
@@ -6189,22 +6113,6 @@ function initEventListeners() {
     showToast("Đang sử dụng ở chế độ lưu trữ thiết bị");
   });
 
-  // Auto-sync on window focus / app resume
-  window.addEventListener("focus", () => {
-    triggerAutoSync();
-  });
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      triggerAutoSync();
-    }
-  });
-
-  // Periodic heartbeat sync every 12 seconds when visible
-  setInterval(() => {
-    if (document.visibilityState === "visible" && authLoggedIn) {
-      triggerAutoSync();
-    }
-  }, 12000);
 
   // ----------------------------------------------------
   // LOA AI THÔNG BÁO CHUYỂN KHOẢN QR EVENTS
@@ -6355,6 +6263,10 @@ function initEventListeners() {
     $("#scannerDialog")?.close();
   });
 
+  $("#scannerDialog")?.addEventListener("close", () => {
+    stopBarcodeCamera();
+  });
+
   $("#switchBarcodeModeBtn")?.addEventListener("click", () => {
     $("#barcodeScannerSection").style.display = "block";
     $("#ocrInvoiceSection").style.display = "none";
@@ -6487,6 +6399,7 @@ function openVoiceConfirmDialog(parsed, rawText) {
       const note = $("#confirmNote")?.value || rawText;
 
       const unitCost = parsed.giaCostDonVi || (state.quickItems || []).find((q) => q.name === cat || q.category === cat)?.costPrice || 0;
+      const tongGiaCost = parsed.tongGiaCost || (qty * unitCost);
 
       await themGiaoDich({
         loai: type,
@@ -6495,7 +6408,7 @@ function openVoiceConfirmDialog(parsed, rawText) {
         donViTinh: parsed.donViTinh || (type === "thu" ? "ly" : "kg"),
         phuongThuc,
         giaCostDonVi: unitCost,
-        tongGiaCost: qty * unitCost,
+        tongGiaCost: tongGiaCost,
         danhMuc: cat,
         ghiChu: note,
         cauNoiGoc: rawText,
@@ -6514,13 +6427,6 @@ function openVoiceConfirmDialog(parsed, rawText) {
       triggerAutoSync();
     }
   };
-}
-
-function escapeHtml(str) {
-  return String(str || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 function renderMarkdownLite(md) {
@@ -7008,7 +6914,7 @@ async function init() {
 
   // Render everything
   try {
-    renderAll();
+    renderAll({ forceAll: true });
   } catch (e) {
     console.error("renderAll error:", e);
   }
@@ -7070,6 +6976,12 @@ async function init() {
   }
 
   console.log("Sổ Quán Nước Mía 2.0 đã khởi động thành công!");
+
+  if (typeof window !== "undefined" && "serviceWorker" in navigator && window.location.protocol.startsWith("http")) {
+    navigator.serviceWorker.register("./sw.js").catch((err) => {
+      console.warn("[SW] Registration failed:", err);
+    });
+  }
 }
 
 init();
@@ -7126,7 +7038,7 @@ window.openWalletLedger = function() {
   ledger.sort((a, b) => a.dateObj - b.dateObj);
   
   let html = '';
-  let runningBalance = 4990000; // Khởi tạo
+  let runningBalance = Number(state?.initialCapital ?? state?.capitalWalletInitial ?? 4990000); // Khởi tạo
   
   html += `<tr>
     <td style="font-size: 0.8rem; color: #64748b;">Khởi tạo</td>
@@ -7141,7 +7053,7 @@ window.openWalletLedger = function() {
     
     html += `<tr>
       <td style="font-size: 0.8rem; color: #64748b;">${timeStr}</td>
-      <td>${tx.title}<br><span style="color: ${isPos ? '#10b981' : '#ef4444'}; font-weight: bold; font-size: 0.9rem;">${isPos ? '+' : ''}${formatMoney(tx.amount)}</span></td>
+      <td>${escapeHtml(tx.title)}<br><span style="color: ${isPos ? '#10b981' : '#ef4444'}; font-weight: bold; font-size: 0.9rem;">${isPos ? '+' : ''}${formatMoney(tx.amount)}</span></td>
       <td style="text-align: right; font-weight: bold; color: #1e293b;">${formatMoney(runningBalance)}</td>
     </tr>`;
   });
