@@ -269,3 +269,39 @@ test("Inventory workflow: Trừ kho trực tiếp trên Kho Tổng, đồng bộ
   assert.equal(data.inventoryStock["Chi nhánh 2"].find((x) => x.id === "mia_10kg").stockQty, 20);
 });
 
+test("Inventory workflow: Kiểm tra đợt nhập 50 bó mía 4tr và bào 4 bó ra 60kg thành phẩm (CN2: 40kg, Quán Nhà: 20kg)", async () => {
+  const batch = DEFAULT_DATA.sugarcaneBatches?.find((b) => b.id === "batch_50_mia_4tr");
+  assert.ok(batch, "Đợt mía 50 bó 4 triệu phải tồn tại trong sugarcaneBatches");
+  assert.equal(batch.rawStalkBundles, 50);
+  assert.equal(batch.totalCost, 4000000);
+  assert.equal(batch.costPerBundle, 80000);
+  assert.equal(batch.processedRawBundles, 4);
+  assert.equal(batch.remainingRawBundles, 46);
+  assert.equal(batch.yieldKg, 60);
+  assert.equal(batch.yield10kgBundles, 6);
+  assert.equal(batch.status, "active");
+
+  const poTx = DEFAULT_DATA.ds?.find((t) => t.billCode === "#PO-50MIA");
+  assert.ok(poTx, "Phiếu chi nhập 50 bó mía (#PO-50MIA) phải có trong ds");
+  assert.equal(poTx.soLuong, 50);
+  assert.equal(poTx.soTien, 4000000);
+  assert.equal(poTx.donGia, 80000);
+
+  const scTx = DEFAULT_DATA.ds?.find((t) => t.billCode === "#SC-0001");
+  assert.ok(scTx, "Phiếu sơ chế 4 bó thu 60kg (#SC-0001) phải có trong ds");
+  assert.equal(scTx.rawQty, 4);
+  assert.equal(scTx.yieldQty, 6);
+  assert.equal(scTx.yieldKg, 60);
+
+  // Kiểm tra tồn kho Kho Tổng
+  const ktStock = DEFAULT_DATA.inventoryStock["Kho Tổng"];
+  assert.ok(ktStock);
+  assert.equal(ktStock.find((x) => x.id === "mia_cay").stockQty, 46);
+  assert.equal(ktStock.find((x) => x.id === "mia_10kg").stockQty, 6);
+
+  // Phân bổ thực tế: CN2 có 4 bó (40kg), Quán Nhà có 2 bó (20kg)
+  assert.equal(DEFAULT_DATA.inventoryStock["Chi nhánh 2"].find((x) => x.id === "mia_10kg").stockQty, 4);
+  assert.equal(DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === "mia_10kg").stockQty, 2);
+});
+
+

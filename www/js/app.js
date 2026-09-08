@@ -39,6 +39,7 @@ import {
   ghiNhanSoCheDotMia,
   dongDotNhapMia,
   layDotMiaDangHoatDong,
+  DEFAULT_DATA,
 } from "./db.js";
 import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
 import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney, matchBranch, computeFundBalances } from "./report.js";
@@ -71,6 +72,63 @@ const MONTH_NAMES = [
 ];
 
 let state = await docDuLieu();
+
+// Tự động kiểm tra và đồng bộ đợt nhập 50 bó mía 4 triệu và sơ chế 4 bó thu 60kg cho phiên làm việc
+try {
+  let needsSave = false;
+  if (!state.sugarcaneBatches || !state.sugarcaneBatches.some((b) => b.id === "batch_50_mia_4tr" || b.code === "DOT-50MIA" || String(b.name).includes("50 bó"))) {
+    const batch50 = {
+      id: "batch_50_mia_4tr",
+      date: "2026-09-08",
+      code: "DOT-50MIA",
+      name: "Đợt nhập 50 bó mía 12 cây dài (4 triệu)",
+      branch: "Kho Tổng",
+      rawStalkBundles: 50,
+      costPerBundle: 80000,
+      totalCost: 4000000,
+      processedRawBundles: 4,
+      remainingRawBundles: 46,
+      yield10kgBundles: 6,
+      yieldKg: 60,
+      status: "active",
+      history: [
+        { time: "08/09/2026 08:00", rawQty: 4, yieldQty: 6, yieldKg: 60, note: "Bào 4 bó 12 cây ➔ thu 60kg sạch (CN2: 40kg / 4 bó, Quán Nhà: 20kg / 2 bó)" },
+      ],
+    };
+    state.sugarcaneBatches = [batch50, ...(state.sugarcaneBatches || []).filter((b) => b.id !== "batch_default")];
+    needsSave = true;
+  }
+  const has50Tx = state.ds?.some((t) => !t.deleted && (t.billCode === "#PO-50MIA" || (t.loai === "chi" && Number(t.soLuong) === 50 && Number(t.soTien) === 4000000)));
+  if (!has50Tx && Array.isArray(DEFAULT_DATA.ds) && DEFAULT_DATA.ds.length >= 2) {
+    state.ds = state.ds || [];
+    state.ds.unshift(DEFAULT_DATA.ds[0], DEFAULT_DATA.ds[1]);
+    needsSave = true;
+  }
+  if (state.inventoryStock) {
+    if (!state.inventoryStock["Kho Tổng"]) {
+      state.inventoryStock["Kho Tổng"] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Kho Tổng"]));
+      needsSave = true;
+    } else {
+      const kt = state.inventoryStock["Kho Tổng"];
+      const item12 = kt.find((x) => x.id === "mia_cay");
+      const item10 = kt.find((x) => x.id === "mia_10kg");
+      if (item12 && (item12.stockQty === 20 || item12.stockQty === undefined)) {
+        item12.stockQty = 46;
+        item12.unitCost = 80000;
+        needsSave = true;
+      }
+      if (item10 && (item10.stockQty === 10 || item10.stockQty === undefined)) {
+        item10.stockQty = 6;
+        needsSave = true;
+      }
+    }
+  }
+  if (needsSave) {
+    await luuDuLieu(state);
+  }
+} catch (err) {
+  console.warn("Lỗi đồng bộ dữ liệu đợt mía 50 bó:", err);
+}
 let pendingVoice = null;
 let dailyChart = null;
 let categoryChart = null;
@@ -2888,14 +2946,14 @@ function openMiaOperationsModal(tab = "soche") {
   const dialog = $("#miaOperationsDialog");
   if (!dialog) return;
 
-  const qnStock12 = (state.inventoryStock?.["Quán Nhà (Chính)"]?.find(x => x.id === "mia_cay")?.stockQty) ?? 20;
-  const qnStock10 = (state.inventoryStock?.["Quán Nhà (Chính)"]?.find(x => x.id === "mia_10kg")?.stockQty) ?? 10;
+  const qnStock12 = (state.inventoryStock?.["Kho Tổng"]?.find(x => x.id === "mia_cay")?.stockQty) ?? (state.inventoryStock?.["Quán Nhà (Chính)"]?.find(x => x.id === "mia_cay")?.stockQty ?? 46);
+  const qnStock10 = (state.inventoryStock?.["Kho Tổng"]?.find(x => x.id === "mia_10kg")?.stockQty) ?? (state.inventoryStock?.["Quán Nhà (Chính)"]?.find(x => x.id === "mia_10kg")?.stockQty ?? 6);
   
   const socheStockInfo = $("#socheStockInfo");
   if (socheStockInfo) socheStockInfo.textContent = `Kho thô: ${qnStock12} bó 12 cây`;
 
   const transferStockInfo = $("#transferStockInfo");
-  if (transferStockInfo) transferStockInfo.textContent = `Kho Quán Nhà còn: ${qnStock10 * 10} kg (${qnStock10} bó)`;
+  if (transferStockInfo) transferStockInfo.textContent = `Kho Tổng còn: ${qnStock10 * 10} kg (${qnStock10} bó)`;
 
   const tabRadio = $(`#miaOpTabGroup input[value='${tab}']`);
   if (tabRadio) tabRadio.checked = true;

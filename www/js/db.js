@@ -2,7 +2,61 @@ const STORAGE_KEY = "nuocmia_v1";
 const BACKUP_STORAGE_KEY = `${STORAGE_KEY}_backup`;
 
 export const DEFAULT_DATA = {
-  ds: [],
+  ds: [
+    {
+      id: 1788860001000,
+      ngay: "2026-09-08",
+      thoiGian: "07:30",
+      gio: "07:30",
+      loai: "chi",
+      danhMuc: "Mua mía cây",
+      tenMon: "Mía cây thô (12 cây dài)",
+      soLuong: 50,
+      donViTinh: "bó",
+      donGia: 80000,
+      soTien: 4000000,
+      phuongThuc: "tien_mat",
+      nguonTienChi: "tien_von",
+      chiNhanh: "Kho Tổng",
+      ingredientId: "mia_cay",
+      inventoryAction: "nhap",
+      batchId: "batch_50_mia_4tr",
+      billCode: "#PO-50MIA",
+      ghiChu: "[Nhập đợt mía] Nhập 50 bó mía dài 12 cây giá 4 triệu (#PO-50MIA)",
+      cauNoiGoc: "[Nhập đợt mía] Nhập 50 bó mía dài 12 cây giá 4 triệu (#PO-50MIA)",
+      timestamp: "2026-09-08T07:30:00.000Z",
+      updatedAt: "2026-09-08T07:30:00.000Z",
+      daSync: true,
+    },
+    {
+      id: 1788860002000,
+      ngay: "2026-09-08",
+      thoiGian: "08:00",
+      gio: "08:00",
+      loai: "xuat_dung",
+      danhMuc: "Sơ chế mía 10kg",
+      tenMon: "Mía sạch (1 bó = 10kg)",
+      soLuong: 6,
+      donViTinh: "bó (60 kg)",
+      soTien: 0,
+      giaCostDonVi: 0,
+      tongGiaCost: 0,
+      phuongThuc: "tien_mat",
+      chiNhanh: "Kho Tổng",
+      ingredientId: "mia_10kg",
+      inventoryAction: "soche",
+      rawQty: 4,
+      yieldQty: 6,
+      yieldKg: 60,
+      batchId: "batch_50_mia_4tr",
+      billCode: "#SC-0001",
+      ghiChu: "[Sơ chế mía] Bào 4 bó 12 cây ➔ thu 60kg thành phẩm (CN2: 40kg, Quán Nhà: 20kg) (#SC-0001)",
+      cauNoiGoc: "[Sơ chế mía] Bào 4 bó 12 cây ➔ thu 60kg thành phẩm (CN2: 40kg, Quán Nhà: 20kg) (#SC-0001)",
+      timestamp: "2026-09-08T08:00:00.000Z",
+      updatedAt: "2026-09-08T08:00:00.000Z",
+      daSync: true,
+    },
+  ],
   currentBranch: "Quán Nhà (Chính)",
   defaultOpeningCash: 50000,
   openingCashByDate: {},
@@ -484,28 +538,28 @@ export const DEFAULT_DATA = {
   enableAudioPaymentAlert: true,      // Loa AI thông báo chuyển khoản QR
   sugarcaneBatches: [
     {
-      id: "batch_default",
-      date: "2026-09-02",
-      code: "DOT-0209",
-      name: "Đợt mía thô 02/09 (20 bó 12 cây dài)",
-      branch: "Quán Nhà (Chính)",
-      rawStalkBundles: 20,
-      costPerBundle: 90000,
-      totalCost: 1800000,
-      processedRawBundles: 5,
-      remainingRawBundles: 15,
-      yield10kgBundles: 14.5,
+      id: "batch_50_mia_4tr",
+      date: "2026-09-08",
+      code: "DOT-50MIA",
+      name: "Đợt nhập 50 bó mía 12 cây dài (4 triệu)",
+      branch: "Kho Tổng",
+      rawStalkBundles: 50,
+      costPerBundle: 80000,
+      totalCost: 4000000,
+      processedRawBundles: 4,
+      remainingRawBundles: 46,
+      yield10kgBundles: 6,
+      yieldKg: 60,
       status: "active",
       history: [
-        { time: "02/09/2026 08:30", rawQty: 2, yieldQty: 6, note: "Bào ca sáng" },
-        { time: "02/09/2026 14:30", rawQty: 3, yieldQty: 8.5, note: "Bào ca chiều" },
+        { time: "08/09/2026 08:00", rawQty: 4, yieldQty: 6, yieldKg: 60, note: "Bào 4 bó 12 cây ➔ thu 60kg sạch (CN2: 40kg / 4 bó, Quán Nhà: 20kg / 2 bó)" },
       ],
     },
   ],
   inventoryStock: {
     "Kho Tổng": [
-      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 10, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
-      { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 20, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)" },
+      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 6, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
+      { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 46, minQty: 5, unitCost: 80000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua 80k về bào ra ~1.5 bó 10kg (~45 ly)" },
       { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 10, minQty: 2, unitCost: 30000, yieldPerUnit: 25, note: "1.5kg tắc 45k (30k/kg)" },
       { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 15, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
       { id: "thom_dua", name: "Thơm (Dứa) tươi", unit: "trái", stockQty: 10, minQty: 2, unitCost: 15000, yieldPerUnit: 4, note: "4 ly/trái" },
@@ -520,7 +574,7 @@ export const DEFAULT_DATA = {
       { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 20, minQty: 5, unitCost: 20000, yieldPerUnit: 25, note: "Đường 20k/kg" },
     ],
     "Quán Nhà (Chính)": [
-      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 10, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
+      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 2, minQty: 1, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
       { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 20, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)" },
       { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 10, minQty: 2, unitCost: 30000, yieldPerUnit: 25, note: "1.5kg tắc 45k (30k/kg)" },
       { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 15, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
@@ -536,7 +590,7 @@ export const DEFAULT_DATA = {
       { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 20, minQty: 5, unitCost: 20000, yieldPerUnit: 25, note: "Đường 20k/kg" },
     ],
     "Chi nhánh 2": [
-      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 8, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
+      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 4, minQty: 1, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
       { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 15, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)" },
       { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 30000, yieldPerUnit: 25, note: "1.5kg tắc 45k (30k/kg)" },
       { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 10, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
@@ -979,8 +1033,11 @@ export function mergeData(data) {
     if (m.category) costMap.set(m.category.toLowerCase().trim(), cost);
   });
 
-  const normalizedTransactions = Array.isArray(data?.ds)
-    ? data.ds.map((item) => {
+  const rawTxList = Array.isArray(data?.ds)
+    ? data.ds
+    : (Array.isArray(base.ds) ? base.ds : []);
+
+  const normalizedTransactions = rawTxList.map((item) => {
         const qty = Number(item.soLuong) || 1;
         let costPerUnit = Number(item.giaCostDonVi) >= 0 ? Number(item.giaCostDonVi) : 0;
 
@@ -1050,8 +1107,7 @@ export function mergeData(data) {
           tongGiaCost: itemTongGiaCost,
           nguonTienChi: item.nguonTienChi || (itemLoai === "chi" ? "tien_von" : undefined),
         };
-      })
-    : [];
+      });
 
   return {
     ...base,
@@ -1134,9 +1190,36 @@ export function mergeData(data) {
     aiChatHistory: Array.isArray(data?.aiChatHistory) ? data.aiChatHistory : (base.aiChatHistory || []),
     restartLogs: Array.isArray(data?.restartLogs) ? data.restartLogs : (base.restartLogs || []),
     dailyClosings: Array.isArray(data?.dailyClosings) ? data.dailyClosings : (base.dailyClosings || []),
-    sugarcaneBatches: Array.isArray(data?.sugarcaneBatches) && data.sugarcaneBatches.length > 0
-      ? data.sugarcaneBatches
-      : (base.sugarcaneBatches || []),
+    sugarcaneBatches: (() => {
+      let list = Array.isArray(data?.sugarcaneBatches) && data.sugarcaneBatches.length > 0
+        ? data.sugarcaneBatches
+        : (base.sugarcaneBatches || []);
+      const has50Mia = list.some((b) => b.id === "batch_50_mia_4tr" || b.code === "DOT-50MIA" || String(b.name).includes("50 bó"));
+      if (!has50Mia) {
+        list = [
+          {
+            id: "batch_50_mia_4tr",
+            date: "2026-09-08",
+            code: "DOT-50MIA",
+            name: "Đợt nhập 50 bó mía 12 cây dài (4 triệu)",
+            branch: "Kho Tổng",
+            rawStalkBundles: 50,
+            costPerBundle: 80000,
+            totalCost: 4000000,
+            processedRawBundles: 4,
+            remainingRawBundles: 46,
+            yield10kgBundles: 6,
+            yieldKg: 60,
+            status: "active",
+            history: [
+              { time: "08/09/2026 08:00", rawQty: 4, yieldQty: 6, yieldKg: 60, note: "Bào 4 bó 12 cây ➔ thu 60kg sạch (CN2: 40kg / 4 bó, Quán Nhà: 20kg / 2 bó)" },
+            ],
+          },
+          ...list.filter((b) => b.id !== "batch_default"),
+        ];
+      }
+      return list;
+    })(),
     knowledgeBase: { ...(base.knowledgeBase || {}), ...(data?.knowledgeBase || {}) },
     costDataVersion: NOTEBOOK_VERSION,
     settingsVersion: Number(data?.settingsVersion) || 0,
@@ -1150,8 +1233,8 @@ export function mergeData(data) {
     openingCashByDate: { ...(base.openingCashByDate || {}), ...(data?.openingCashByDate || {}) },
     inventoryStock: (() => {
       const stock = data?.inventoryStock || {};
-      if (!stock["Kho Tổng"] && stock["Quán Nhà (Chính)"]) {
-        stock["Kho Tổng"] = JSON.parse(JSON.stringify(stock["Quán Nhà (Chính)"]));
+      if (!stock["Kho Tổng"]) {
+        stock["Kho Tổng"] = JSON.parse(JSON.stringify(base.inventoryStock["Kho Tổng"] || stock["Quán Nhà (Chính)"] || []));
       }
       const baseStock = base.inventoryStock || {};
       const result = {};
@@ -1170,6 +1253,18 @@ export function mergeData(data) {
           }
         });
         result[b] = Array.from(map.values());
+      }
+      const ktList = result["Kho Tổng"];
+      if (Array.isArray(ktList)) {
+        const item12 = ktList.find((x) => x.id === "mia_cay");
+        const item10 = ktList.find((x) => x.id === "mia_10kg");
+        if (item12 && (item12.stockQty === 20 || item12.stockQty === undefined)) {
+          item12.stockQty = 46;
+          item12.unitCost = 80000;
+        }
+        if (item10 && (item10.stockQty === 10 || item10.stockQty === undefined)) {
+          item10.stockQty = 6;
+        }
       }
       return result;
     })(),
