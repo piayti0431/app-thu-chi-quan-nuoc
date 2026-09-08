@@ -28,6 +28,7 @@ const {
   themGiaoDich,
   xoaGiaoDich,
   nhapKhoNguyenLieu,
+  truKhoNguyenLieu,
   capNhatTonKhoThucTe,
   taoDotNhapMia,
   ghiNhanSoCheDotMia,
@@ -235,3 +236,36 @@ test("Inventory workflow: POS bán nước không tự động trừ lẻ nguyê
   assert.equal(data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === "mia_10kg").stockQty, 10, "Mía sạch không bị trừ lẻ khi bán ly");
   assert.equal(data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === "da_vien").stockQty, 5, "Đá không bị trừ lẻ khi bán ly");
 });
+
+test("Inventory workflow: Trừ kho trực tiếp trên Kho Tổng, đồng bộ chi nhánh và xóa hoàn tác", async () => {
+  localStorage.clear();
+  await capNhatTonKhoThucTe("Kho Tổng", "mia_10kg", 20);
+
+  let data = await docDuLieu();
+  assert.equal(data.inventoryStock["Kho Tổng"].find((x) => x.id === "mia_10kg").stockQty, 20);
+  assert.equal(data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === "mia_10kg").stockQty, 20);
+  assert.equal(data.inventoryStock["Chi nhánh 2"].find((x) => x.id === "mia_10kg").stockQty, 20);
+
+  // 1. Trừ 5 bó mía 10kg khỏi Kho Tổng
+  const res = await truKhoNguyenLieu("Kho Tổng", "mia_10kg", 5, "Xuất quầy bán buổi sáng");
+  assert.equal(res.stockQty, 15);
+
+  data = await docDuLieu();
+  assert.equal(data.inventoryStock["Kho Tổng"].find((x) => x.id === "mia_10kg").stockQty, 15);
+  assert.equal(data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === "mia_10kg").stockQty, 15);
+  assert.equal(data.inventoryStock["Chi nhánh 2"].find((x) => x.id === "mia_10kg").stockQty, 15);
+
+  // Giao dịch xuất dùng được tạo trong ds
+  const lastTx = data.ds[0];
+  assert.equal(lastTx.loai, "xuat_dung");
+  assert.equal(lastTx.soLuong, 5);
+  assert.equal(lastTx.chiNhanh, "Kho Tổng");
+
+  // 2. Xóa giao dịch xuất dùng -> Hoàn trả lại 5 bó thành 20
+  await xoaGiaoDich(lastTx.id);
+  data = await docDuLieu();
+  assert.equal(data.inventoryStock["Kho Tổng"].find((x) => x.id === "mia_10kg").stockQty, 20);
+  assert.equal(data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === "mia_10kg").stockQty, 20);
+  assert.equal(data.inventoryStock["Chi nhánh 2"].find((x) => x.id === "mia_10kg").stockQty, 20);
+});
+

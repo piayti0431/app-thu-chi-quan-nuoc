@@ -1,5 +1,5 @@
 import { $, $$, showToast } from "./ui/components.js";
-import { capNhatTonKhoThucTe, truKhoNguyenLieuTheoDonHang, layDanhSachTonKho, kiemTraCanhBaoTonKho, nhapKhoNguyenLieu } from './logic/inventory.js';
+import { capNhatTonKhoThucTe, truKhoNguyenLieuTheoDonHang, layDanhSachTonKho, kiemTraCanhBaoTonKho, nhapKhoNguyenLieu, truKhoNguyenLieu } from './logic/inventory.js';
 import { tinhBaoCaoThue, tinhBaoCaoPL, xuatToKhaiThue01CNKD } from './logic/tax.js';
 import {
   capNhatCauHinhSync,
@@ -3121,19 +3121,12 @@ function renderBatchReport(batchId = null) {
 let materialsLogFilter = "all";
 
 function renderMaterialsView() {
-  const branchSelect = $("#materialsBranchSelect");
-  let activeBranch = branchSelect?.value || (state.currentBranch && state.currentBranch !== "all" ? state.currentBranch : "Quán Nhà (Chính)");
+  const activeBranch = "Kho Tổng";
 
-  if (branchSelect && state.branches && state.branches.length) {
-    const currentVal = branchSelect.value;
-    branchSelect.innerHTML = state.branches.map(b => `<option value="${b.name}" ${b.name === (currentVal || activeBranch) ? 'selected' : ''}>${matchBranch(b.name, 'Quán Nhà (Chính)') ? '🏠' : '🏪'} ${b.name}</option>`).join("");
-    activeBranch = branchSelect.value;
-  }
-
-  // 1. Stock map for active branch
+  // 1. Stock map for central warehouse
   const stockMap = {};
   let lowStockCount = 0;
-  const items = (state.inventoryStock && state.inventoryStock[activeBranch]) || [];
+  const items = (state.inventoryStock && (state.inventoryStock["Kho Tổng"] || state.inventoryStock["Quán Nhà (Chính)"])) || [];
   items.forEach(it => {
     stockMap[it.id] = Number(it.stockQty) || 0;
     if (it.minQty && (Number(it.stockQty) || 0) <= Number(it.minQty)) {
@@ -3159,7 +3152,7 @@ function renderMaterialsView() {
 
   // KPI 3: Today used count
   const today = todayKey();
-  const todayUses = (state.ds || []).filter(tx => !tx.deleted && tx.ngay === today && (tx.loai === "xuat_dung" || tx.loai === "xuat_kho") && matchBranch(tx.chiNhanh, activeBranch));
+  const todayUses = (state.ds || []).filter(tx => !tx.deleted && tx.ngay === today && (tx.loai === "xuat_dung" || tx.loai === "xuat_kho"));
   if ($("#matTodayUsedCount")) $("#matTodayUsedCount").textContent = `${todayUses.length} lượt`;
   if ($("#matTodayUsedText")) {
     const totalQtyUsed = todayUses.reduce((sum, tx) => sum + (Number(tx.soLuong) || 0), 0);
@@ -3202,7 +3195,7 @@ function renderMaterialsView() {
     });
   }
 
-  // 3. Render Detailed Inventory Table
+  // 3. Render Detailed Inventory Table with Dedicated [➖ Trừ] Button
   const tableBody = $("#materialsTableBody");
   if (tableBody) {
     tableBody.innerHTML = ingredients
@@ -3241,10 +3234,10 @@ function renderMaterialsView() {
             <span style="font-weight: 700; color: #0284c7;">~${yieldVal} ly</span>
           </td>
           <td style="text-align: center;">
-            <div style="display: flex; gap: 0.35rem; justify-content: center;">
-              <button class="ghost-button mat-row-use-btn" data-id="${item.id}" type="button" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; font-weight: 800; color: #7c3aed; border-color: #ddd6fe; background: #faf5ff;">📦 Xuất</button>
-              <button class="ghost-button mat-row-buy-btn" data-id="${item.id}" type="button" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; font-weight: 800; color: #ea580c; border-color: #fed7aa; background: #fff7ed;">🛒 Mua</button>
-              <button class="ghost-button mat-row-adjust-btn" data-id="${invId}" data-name="${item.name}" data-unit="${item.unit}" type="button" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; font-weight: 800; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;" title="Kiểm kê điều chỉnh số tồn thực tế">⚙️ Kiểm</button>
+            <div style="display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap;">
+              <button class="ghost-button mat-row-deduct-btn" data-id="${item.id}" data-name="${item.name}" data-unit="${item.unit}" type="button" style="padding: 0.22rem 0.55rem; font-size: 0.75rem; font-weight: 800; color: #dc2626; border-color: #fca5a5; background: #fef2f2;" title="Trừ bớt số lượng tồn kho">➖ Trừ</button>
+              <button class="ghost-button mat-row-buy-btn" data-id="${item.id}" type="button" style="padding: 0.22rem 0.55rem; font-size: 0.75rem; font-weight: 800; color: #ea580c; border-color: #fed7aa; background: #fff7ed;" title="Nhập mua thêm NVL">➕ Nhập</button>
+              <button class="ghost-button mat-row-adjust-btn" data-id="${invId}" data-name="${item.name}" data-unit="${item.unit}" type="button" style="padding: 0.22rem 0.45rem; font-size: 0.75rem; font-weight: 800; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;" title="Kiểm kê điều chỉnh số tồn thực tế">⚙️ Đặt lại</button>
             </div>
           </td>
         </tr>
@@ -3252,12 +3245,42 @@ function renderMaterialsView() {
       })
       .join("");
 
-    $$("#materialsTableBody .mat-row-use-btn").forEach((btn) => {
-      btn.onclick = () => {
+    $$("#materialsTableBody .mat-row-deduct-btn").forEach((btn) => {
+      btn.onclick = async () => {
         const id = btn.getAttribute("data-id");
         const item = ingredients.find((ing) => ing.id === id);
         if (!item) return;
-        openQuickIngredientModal(item, "use");
+        const invId = item.inventoryId || item.id;
+        const isMia10kg = invId === "mia_10kg";
+        const isMiaCay = invId === "mia_cay";
+        const currentQty = stockMap[invId] !== undefined ? stockMap[invId] : 0;
+
+        let promptMsg = "";
+        if (isMia10kg) {
+          promptMsg = `Nhập số BÓ mía sạch (1 bó = 10kg) muốn TRỪ khỏi Kho Tổng:\n(Hiện tồn: ${currentQty} bó = ${currentQty * 10} kg)`;
+        } else if (isMiaCay) {
+          promptMsg = `Nhập số BÓ mía 12 cây dài muốn TRỪ khỏi Kho Tổng:\n(Hiện tồn: ${currentQty} bó 12 cây)`;
+        } else {
+          promptMsg = `Nhập số lượng ${item.name} muốn TRỪ khỏi Kho Tổng (${item.unit}):\n(Hiện tồn: ${currentQty} ${item.unit})`;
+        }
+
+        const deductStr = prompt(promptMsg, "1");
+        if (deductStr === null || deductStr.trim() === "") return;
+        const deductQty = Number(deductStr);
+        if (isNaN(deductQty) || deductQty <= 0) {
+          alert("Vui lòng nhập số lượng hợp lệ lớn hơn 0!");
+          return;
+        }
+
+        const note = prompt(`Lý do trừ kho ${item.name} (xuất dùng pha chế quầy, hư hỏng, hao hụt...):`, "Xuất dùng pha chế quầy");
+        if (note === null) return;
+
+        await truKhoNguyenLieu("Kho Tổng", invId, deductQty, note.trim() || "Xuất dùng pha chế quầy");
+        state = await docDuLieu();
+        renderAll();
+        renderMaterialsView();
+        showToast(`Đã trừ ${deductQty} ${item.unit} ${item.name} khỏi Kho Tổng!`);
+        triggerAutoSync();
       };
     });
 
@@ -3282,7 +3305,7 @@ function renderMaterialsView() {
           : `Nhập số tồn kho thực tế cho ${name} (${unit}):`;
         const newQtyStr = prompt(promptMsg, currentQty);
         if (newQtyStr !== null && newQtyStr.trim() !== "" && !isNaN(Number(newQtyStr))) {
-          await capNhatTonKhoThucTe(activeBranch, invId, Number(newQtyStr));
+          await capNhatTonKhoThucTe("Kho Tổng", invId, Number(newQtyStr));
           state = await docDuLieu();
           renderAll();
           renderMaterialsView();
@@ -3296,21 +3319,28 @@ function renderMaterialsView() {
   // 4. Render Activity Log
   const logList = $("#materialsLogList");
   if (logList) {
-    let logs = (state.ds || []).filter(tx => !tx.deleted && matchBranch(tx.chiNhanh, activeBranch));
+    let logs = (state.ds || []).filter(tx => !tx.deleted && (
+      tx.chiNhanh === "Kho Tổng" ||
+      matchBranch(tx.chiNhanh, "Quán Nhà (Chính)") ||
+      matchBranch(tx.chiNhanh, "Chi nhánh 2") ||
+      Boolean(tx.ingredientId) ||
+      tx.loai === "xuat_dung" ||
+      tx.loai === "xuat_kho"
+    ));
     
     if (materialsLogFilter === "use") {
       logs = logs.filter(tx => tx.loai === "xuat_dung" || tx.loai === "xuat_kho");
     } else if (materialsLogFilter === "buy") {
-      logs = logs.filter(tx => tx.loai === "chi");
+      logs = logs.filter(tx => tx.loai === "chi" && (tx.ingredientId || tx.danhMuc?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("nhập")));
     } else {
-      logs = logs.filter(tx => tx.loai === "xuat_dung" || tx.loai === "xuat_kho" || (tx.loai === "chi" && (tx.danhMuc?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("nhập"))));
+      logs = logs.filter(tx => tx.loai === "xuat_dung" || tx.loai === "xuat_kho" || (tx.loai === "chi" && (tx.ingredientId || tx.danhMuc?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("nhập"))));
     }
 
     // Sort newest first
     logs.sort((a, b) => (b.id || 0) - (a.id || 0));
 
     if (!logs.length) {
-      logList.innerHTML = `<p class="empty-state" style="padding: 1.5rem; text-align: center; color: #94a3b8;">Chưa có lịch sử xuất dùng hoặc mua hàng nào gần đây tại ${activeBranch}.</p>`;
+      logList.innerHTML = `<p class="empty-state" style="padding: 1.5rem; text-align: center; color: #94a3b8;">Chưa có lịch sử xuất dùng hoặc mua hàng nào gần đây tại Kho Tổng.</p>`;
     } else {
       logList.innerHTML = logs.slice(0, 30).map(item => {
         const isXuat = item.loai === "xuat_dung" || item.loai === "xuat_kho";

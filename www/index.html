@@ -424,15 +424,18 @@
                 <div>
                   <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span style="font-size: 1.6rem;">📦</span>
-                    <h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">Quản Lý Nguyên Vật Liệu &amp; Xuất Dùng</h2>
+                    <h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">Quản Lý Kho Tổng Nguyên Liệu</h2>
                   </div>
-                  <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: #ccfbf1;">Theo dõi tồn kho thực tế, xuất dùng pha chế trong ca và ghi sổ nhật ký tiêu hao chi tiết.</p>
+                  <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: #ccfbf1;">Kho tổng dùng chung cho toàn bộ điểm bán • Đồng bộ tự động • Quản lý tồn kho thực tế và xuất trừ pha chế.</p>
                 </div>
 
                 <div class="materials-header-controls">
-                  <select id="materialsBranchSelect" class="materials-branch-select" title="Chọn điểm bán xem kho NVL">
-                    <option value="Quán Nhà (Chính)" selected>🏠 Quán Nhà (Chính)</option>
-                    <option value="Chi nhánh 2">🏪 Chi nhánh 2</option>
+                  <div style="display: flex; align-items: center; gap: 0.45rem; background: rgba(255, 255, 255, 0.22); color: #fff; border: 1.5px solid rgba(255, 255, 255, 0.4); padding: 0.45rem 0.85rem; border-radius: 8px; font-weight: 800; font-size: 0.84rem; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <span style="font-size: 1.15rem;">🏢</span>
+                    <span>Kho Tổng Dùng Chung</span>
+                  </div>
+                  <select id="materialsBranchSelect" class="materials-branch-select" style="display: none;" title="Kho Tổng Dùng Chung">
+                    <option value="Kho Tổng" selected>🏢 Kho Tổng</option>
                   </select>
                   <button id="materialsAddStockBtn" type="button" class="materials-action-btn" style="background: linear-gradient(135deg, #ea580c, #c2410c); color: #fff;">
                     <span>🛒</span>
@@ -487,8 +490,8 @@
                   <span style="font-size: 0.7rem; font-weight: 800; background: #d1fae5; color: #065f46; padding: 0.15rem 0.45rem; border-radius: 4px; margin-top: 0.5rem;">[ Bào 4 bó 12 cây ➔ 60kg (6 bó) ]</span>
                 </button>
 
-                <!-- HÀNH ĐỘNG 2: XUẤT MÍA SANG CHI NHÁNH 2 -->
-                <button type="button" class="mia-flow-action-btn" id="miaActionTransferBtn" style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: #ffffff; border: 1.5px solid #fed7aa; border-radius: 12px; padding: 0.85rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s ease;">
+                <!-- HÀNH ĐỘNG 2: XUẤT MÍA SANG CHI NHÁNH 2 (Ẩn vì đã hợp nhất Kho Tổng) -->
+                <button type="button" class="mia-flow-action-btn" id="miaActionTransferBtn" style="display: none; flex-direction: column; align-items: flex-start; text-align: left; background: #ffffff; border: 1.5px solid #fed7aa; border-radius: 12px; padding: 0.85rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s ease;">
                   <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.35rem;">
                     <span style="font-size: 1.35rem;">🚚</span>
                     <strong style="font-size: 0.92rem; color: #9a3412;">2. Xuất Mía Sang Chi Nhánh 2</strong>
@@ -2600,7 +2603,7 @@
             <input type="radio" name="miaOpTab" value="soche" checked>
             <span style="font-size: 0.74rem; font-weight: 800; padding: 0.35rem 0.15rem;">🔄 Bào Mía</span>
           </label>
-          <label style="flex: 1; min-width: 75px; text-align: center;">
+          <label style="flex: 1; min-width: 75px; text-align: center; display: none;">
             <input type="radio" name="miaOpTab" value="transfer">
             <span style="font-size: 0.74rem; font-weight: 800; padding: 0.35rem 0.15rem;">🚚 Xuất CN2</span>
           </label>

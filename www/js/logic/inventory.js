@@ -106,4 +106,4 @@ export function truKhoNguyenLieuTheoDonHang(state, transaction) {
   return state;
 }
 
-export { nhapKhoNguyenLieu, capNhatTonKhoThucTe } from '../db.js';
+export { nhapKhoNguyenLieu, capNhatTonKhoThucTe, truKhoNguyenLieu } from '../db.js';

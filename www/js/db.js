@@ -503,6 +503,22 @@ export const DEFAULT_DATA = {
     },
   ],
   inventoryStock: {
+    "Kho Tổng": [
+      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 10, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
+      { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 20, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)" },
+      { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 10, minQty: 2, unitCost: 30000, yieldPerUnit: 25, note: "1.5kg tắc 45k (30k/kg)" },
+      { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 15, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
+      { id: "thom_dua", name: "Thơm (Dứa) tươi", unit: "trái", stockQty: 10, minQty: 2, unitCost: 15000, yieldPerUnit: 4, note: "4 ly/trái" },
+      { id: "rau_ma", name: "Rau má tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 30000, yieldPerUnit: 12.5, note: "1kg 30k ra 12.5 ly" },
+      { id: "dau_xanh", name: "Đậu xanh chín", unit: "kg", stockQty: 5, minQty: 1, unitCost: 40000, yieldPerUnit: 10, note: "10 ly/kg" },
+      { id: "da_vien", name: "Đá viên sạch", unit: "bao", stockQty: 10, minQty: 2, unitCost: 17000, yieldPerUnit: 30, note: "Đá viên sạch 17.000 đ/bao" },
+      { id: "sua_dac", name: "Sữa đặc lon", unit: "lon", stockQty: 6, minQty: 2, unitCost: 22000, yieldPerUnit: 10, note: "1 lon pha ~10 ly má sữa" },
+      { id: "ly_nhua", name: "Ly nhựa", unit: "cái", stockQty: 2000, minQty: 300, unitCost: 500, yieldPerUnit: 1, note: "2000 cái là 1tr (500đ/cái)" },
+      { id: "mang_ep", name: "Màng ép miệng ly", unit: "ly", stockQty: 2000, minQty: 300, unitCost: 23, yieldPerUnit: 1, note: "1 cuộn 45k ép 2000 ly (22.5đ/ly)" },
+      { id: "ong_hut", name: "Ống hút", unit: "cái", stockQty: 2000, minQty: 300, unitCost: 135, yieldPerUnit: 1, note: "1 bao 10 bịch 270k (27k/bịch)" },
+      { id: "bich_t", name: "Bọc chữ T mang đi", unit: "kg", stockQty: 2, minQty: 1, unitCost: 35000, yieldPerUnit: 300, note: "Bọc 1 ly / 2 ly (~300 cái/kg)" },
+      { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 20, minQty: 5, unitCost: 20000, yieldPerUnit: 25, note: "Đường 20k/kg" },
+    ],
     "Quán Nhà (Chính)": [
       { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 10, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
       { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 20, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)" },
@@ -1134,6 +1150,9 @@ export function mergeData(data) {
     openingCashByDate: { ...(base.openingCashByDate || {}), ...(data?.openingCashByDate || {}) },
     inventoryStock: (() => {
       const stock = data?.inventoryStock || {};
+      if (!stock["Kho Tổng"] && stock["Quán Nhà (Chính)"]) {
+        stock["Kho Tổng"] = JSON.parse(JSON.stringify(stock["Quán Nhà (Chính)"]));
+      }
       const baseStock = base.inventoryStock || {};
       const result = {};
       const branchNames = Object.keys(baseStock);
@@ -1405,6 +1424,16 @@ export function rollbackInventoryOnDelete(data, tx) {
       matched.stockQty = Math.max(0, Math.round(((Number(matched.stockQty) || 0) - qty) * 100) / 100);
       if (tx.batchId && Array.isArray(data.sugarcaneBatches)) {
         data.sugarcaneBatches = data.sugarcaneBatches.filter((b) => b.id !== tx.batchId);
+      }
+    }
+    if (branch === "Kho Tổng") {
+      if (data.inventoryStock["Quán Nhà (Chính)"]) {
+        const itemQn = data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === matched.id);
+        if (itemQn) itemQn.stockQty = matched.stockQty;
+      }
+      if (data.inventoryStock["Chi nhánh 2"]) {
+        const itemCn2 = data.inventoryStock["Chi nhánh 2"].find((x) => x.id === matched.id);
+        if (itemCn2) itemCn2.stockQty = matched.stockQty;
       }
     }
   }
@@ -2025,10 +2054,10 @@ export function truKhoNguyenLieuTheoDonHang(state, transaction) {
 
 export async function nhapKhoNguyenLieu(branchName, ingredientIdOrName, qty, costPrice = 0) {
   const data = await docDuLieu();
-  const branch = branchName || data.currentBranch || "Quán Nhà (Chính)";
+  const branch = branchName || "Kho Tổng";
   if (!data.inventoryStock) data.inventoryStock = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock));
   if (!data.inventoryStock[branch]) {
-    data.inventoryStock[branch] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
+    data.inventoryStock[branch] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Kho Tổng"] || DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
   }
 
   const items = data.inventoryStock[branch];
@@ -2071,6 +2100,23 @@ export async function nhapKhoNguyenLieu(branchName, ingredientIdOrName, qty, cos
       }
     }
     matched.stockQty = newQty;
+
+    if (branch === "Kho Tổng") {
+      if (data.inventoryStock["Quán Nhà (Chính)"]) {
+        const itemQn = data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === matched.id);
+        if (itemQn) {
+          itemQn.stockQty = newQty;
+          if (matched.unitCost) itemQn.unitCost = matched.unitCost;
+        }
+      }
+      if (data.inventoryStock["Chi nhánh 2"]) {
+        const itemCn2 = data.inventoryStock["Chi nhánh 2"].find((x) => x.id === matched.id);
+        if (itemCn2) {
+          itemCn2.stockQty = newQty;
+          if (matched.unitCost) itemCn2.unitCost = matched.unitCost;
+        }
+      }
+    }
   }
 
   data.settingsVersion = Date.now();
@@ -2078,12 +2124,93 @@ export async function nhapKhoNguyenLieu(branchName, ingredientIdOrName, qty, cos
   return { matched, stockQty: matched?.stockQty || 0, unitCost: matched?.unitCost || 0 };
 }
 
-export async function capNhatTonKhoThucTe(branchName, ingredientId, actualQty) {
+export async function truKhoNguyenLieu(branchName, ingredientIdOrName, qty, note = "") {
   const data = await docDuLieu();
-  const branch = branchName || data.currentBranch || "Quán Nhà (Chính)";
+  const branch = branchName || "Kho Tổng";
   if (!data.inventoryStock) data.inventoryStock = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock));
   if (!data.inventoryStock[branch]) {
-    data.inventoryStock[branch] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
+    data.inventoryStock[branch] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Kho Tổng"] || DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
+  }
+
+  const items = data.inventoryStock[branch];
+  const queryNorm = String(ingredientIdOrName).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let matched = items.find((x) => x.id === ingredientIdOrName || x.name.toLowerCase().includes(queryNorm));
+
+  if (!matched) {
+    if (queryNorm.includes("da")) matched = items.find((x) => x.id === "da_vien");
+    else if (queryNorm.includes("mia")) {
+      if (queryNorm.includes("10kg") || queryNorm.includes("10 kg")) matched = items.find((x) => x.id === "mia_10kg");
+      else matched = items.find((x) => x.id === "mia_cay");
+    }
+    else if (queryNorm.includes("tac")) matched = items.find((x) => x.id === "tac_tuoi");
+    else if (queryNorm.includes("cam")) matched = items.find((x) => x.id === "cam_sanh");
+    else if (queryNorm.includes("thom") || queryNorm.includes("dua") || queryNorm.includes("khom")) matched = items.find((x) => x.id === "thom_dua");
+    else if (queryNorm.includes("rau ma")) matched = items.find((x) => x.id === "rau_ma");
+    else if (queryNorm.includes("dau xanh") || queryNorm.includes("dau")) matched = items.find((x) => x.id === "dau_xanh");
+    else if (queryNorm.includes("sua") || queryNorm.includes("dac")) matched = items.find((x) => x.id === "sua_dac");
+    else if (queryNorm.includes("bich") || queryNorm.includes("boc") || queryNorm.includes("chu t")) matched = items.find((x) => x.id === "bich_t");
+    else if (queryNorm.includes("ly")) matched = items.find((x) => x.id === "ly_nhua");
+    else if (queryNorm.includes("ong hut")) matched = items.find((x) => x.id === "ong_hut");
+    else if (queryNorm.includes("mang")) matched = items.find((x) => x.id === "mang_ep");
+    else if (queryNorm.includes("duong")) matched = items.find((x) => x.id === "duong_cat");
+  }
+
+  const deductQty = Math.max(0, Number(qty) || 0);
+  if (matched && deductQty > 0) {
+    const oldQty = Math.max(0, Number(matched.stockQty) || 0);
+    const newQty = Math.max(0, Math.round((oldQty - deductQty) * 100) / 100);
+    matched.stockQty = newQty;
+
+    if (branch === "Kho Tổng") {
+      if (data.inventoryStock["Quán Nhà (Chính)"]) {
+        const itemQn = data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === matched.id);
+        if (itemQn) itemQn.stockQty = newQty;
+      }
+      if (data.inventoryStock["Chi nhánh 2"]) {
+        const itemCn2 = data.inventoryStock["Chi nhánh 2"].find((x) => x.id === matched.id);
+        if (itemCn2) itemCn2.stockQty = newQty;
+      }
+    }
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const billCode = `#XK-${Date.now().toString().slice(-4)}`;
+    const tx = {
+      id: `tx_xuat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      ngay: today,
+      thoiGian: now.toTimeString().slice(0, 5),
+      loai: "xuat_dung",
+      inventoryAction: "xuat",
+      danhMuc: matched.name,
+      tenMon: matched.name,
+      ingredientId: matched.id,
+      soLuong: deductQty,
+      donVi: matched.unit,
+      donViTinh: matched.unit,
+      soTien: 0,
+      phuongThuc: "tien_mat",
+      chiNhanh: branch,
+      ghiChu: note ? `[Trừ kho] ${note} (${billCode})` : `[Trừ kho] Xuất dùng ${matched.name} (${billCode})`,
+      billCode,
+      daSync: false,
+      timestamp: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+    data.ds = data.ds || [];
+    data.ds.unshift(tx);
+  }
+
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return { matched, stockQty: matched?.stockQty || 0 };
+}
+
+export async function capNhatTonKhoThucTe(branchName, ingredientId, actualQty) {
+  const data = await docDuLieu();
+  const branch = branchName || "Kho Tổng";
+  if (!data.inventoryStock) data.inventoryStock = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock));
+  if (!data.inventoryStock[branch]) {
+    data.inventoryStock[branch] = JSON.parse(JSON.stringify(DEFAULT_DATA.inventoryStock["Kho Tổng"] || DEFAULT_DATA.inventoryStock["Quán Nhà (Chính)"]));
   }
 
   const items = data.inventoryStock[branch];
@@ -2094,6 +2221,17 @@ export async function capNhatTonKhoThucTe(branchName, ingredientId, actualQty) {
     const actual = Math.max(0, Number(actualQty) || 0);
     variance = Math.round((actual - oldTheoretical) * 100) / 100;
     matched.stockQty = actual;
+
+    if (branch === "Kho Tổng") {
+      if (data.inventoryStock["Quán Nhà (Chính)"]) {
+        const itemQn = data.inventoryStock["Quán Nhà (Chính)"].find((x) => x.id === ingredientId);
+        if (itemQn) itemQn.stockQty = actual;
+      }
+      if (data.inventoryStock["Chi nhánh 2"]) {
+        const itemCn2 = data.inventoryStock["Chi nhánh 2"].find((x) => x.id === ingredientId);
+        if (itemCn2) itemCn2.stockQty = actual;
+      }
+    }
   }
 
   data.settingsVersion = Date.now();
