@@ -102,6 +102,34 @@ export async function yeuCauQuyenMicro() {
   return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
+export function phatTiengChuongTingTing() {
+  try {
+    if (typeof window === "undefined") return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    const playTone = (freq, startTime, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.3, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    const now = ctx.currentTime;
+    playTone(1046.5, now, 0.25);        // C6 (Ting 1)
+    playTone(1318.51, now + 0.12, 0.35); // E6 (Ting 2)
+  } catch (err) {
+    console.warn("Web Audio Ting Ting error:", err);
+  }
+}
+
 export async function batDauNghe(onKetQua, onLoi) {
   if (isListening) return;
   isListening = true;
@@ -281,13 +309,32 @@ export function chuanHoaLoiNoiTiengViet(rawText) {
   if (!rawText) return "";
   let text = String(rawText);
 
-  // Replace symbols and common short forms
+  // Strip Markdown formatting (bold, italic, headers, bullets, backticks, links)
+  text = text.replace(/\*\*(.*?)\*\*/g, "$1");
+  text = text.replace(/\*(.*?)\*/g, "$1");
+  text = text.replace(/`([^`]+)`/g, "$1");
+  text = text.replace(/#+\s*/g, "");
+  text = text.replace(/^[\s*•\-–—]+\s*/gm, "");
+  text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+  // Strip Emojis and miscellaneous symbols so TTS doesn't stumble or read them
+  text = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/gu, " ");
+  text = text.replace(/[—–]/g, ", ");
+  text = text.replace(/[|•👉💡🚀🎉🛒🏷️💵📲🥤🧊🌾🎋⚠️🔴🟢✅🎯]/gu, " ");
+
+  // Replace common business abbreviations with natural spoken Vietnamese
   text = text.replace(/\+\s*/g, "thu ");
   text = text.replace(/-\s*/g, "chi ");
   text = text.replace(/\b(ck|CK)\b/g, "chuyển khoản");
+  text = text.replace(/\b(momo|MoMo|MOMO)\b/g, "mo mo");
   text = text.replace(/\b(qr|QR)\b/g, "mã quy rờ");
   text = text.replace(/\b(cost|Cost)\b/g, "tiền vốn");
   text = text.replace(/\b(pos|POS)\b/g, "bán hàng");
+  text = text.replace(/\b(ev|EV)\b/g, "E V");
+  text = text.replace(/\b(cn2|CN2|cn 2|CN 2)\b/gi, "chi nhánh hai");
+  text = text.replace(/\b(1l|1L|1 lít)\b/g, "một lít");
+  text = text.replace(/\b10kg\b/gi, "mười ký");
+  text = text.replace(/\b12 cây\b/gi, "mười hai cây");
 
   // Format currency with dots: "582.000 đ", "1.500.000 đồng"
   text = text.replace(/(\d{1,3}(?:\.\d{3})+)\s*(?:đ|dong|đồng)?/gi, (match, p1) => {
@@ -295,7 +342,7 @@ export function chuanHoaLoiNoiTiengViet(rawText) {
     return `${docSoTiengViet(num)} đồng`;
   });
 
-  // Format "500k", "50k", "15k"
+  // Format "500k", "50k", "15k", "7k", "8k"
   text = text.replace(/(\d+)\s*(?:k|K)\b/g, (match, p1) => {
     const num = Number(p1) * 1000;
     return `${docSoTiengViet(num)} đồng`;
@@ -382,18 +429,21 @@ export function getAvailableDeviceVoices() {
   if (typeof window === "undefined" || !window.speechSynthesis) return [];
   const voices = window.speechSynthesis.getVoices() || [];
   return voices.filter((v) => {
-    const lang = (v.lang || "").toLowerCase();
+    const lang = (v.lang || "").toLowerCase().replace(/_/g, "-");
     const name = (v.name || "").toLowerCase();
+    if (lang === "vi-vn" || lang === "vi" || lang.startsWith("vi-")) {
+      if (name.includes("english") || name.includes("david") || name.includes("zira") || name.includes("susan") || name.includes("mark")) {
+        return false;
+      }
+      return true;
+    }
     return (
-      lang.startsWith("vi") ||
+      name.includes("vietnamese") ||
       name.includes("vietnam") ||
       name.includes("tiếng việt") ||
-      name.includes("vietnamese") ||
+      name.includes("tieng viet") ||
       name.includes("hoaimy") ||
-      name.includes("namminh") ||
-      name.includes("linh") ||
-      name.includes("mai") ||
-      name.includes("an")
+      name.includes("namminh")
     );
   });
 }
@@ -412,23 +462,49 @@ export async function phatAmThanhGoogleTTS(text, options = {}) {
   const chunks = tachCauNho(text, 140);
   if (!chunks.length) return false;
 
-  const settings = { ...getVoiceSettings(), ...options };
-  const speedParam = settings.rate > 1.0 ? "0.24" : "1.0"; // Google TTS speed factor
-
   try {
     for (const chunk of chunks) {
-      const url = `/api/tts?text=${encodeURIComponent(chunk)}&voice=${encodeURIComponent(settings.voice)}&speed=${speedParam}`;
-      const audio = new Audio(url);
-      audio.playbackRate = settings.rate || 1.0;
-      currentAudio = audio;
+      const encoded = encodeURIComponent(chunk);
+      // Ưu tiên 1: Serverless proxy /api/tts (chuẩn Google TTS Tiếng Việt tự nhiên 100%, không bao giờ bị CORS hay chặn)
+      // Ưu tiên 2: Gọi trực tiếp Google TTS
+      const audioSources = [
+        `/api/tts?text=${encoded}`,
+        `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encoded}`,
+      ];
 
-      const ok = await new Promise((resolve) => {
-        audio.onended = () => resolve(true);
-        audio.onerror = () => resolve(false);
-        audio.play().catch(() => resolve(false));
-      });
+      let playedOk = false;
+      for (const src of audioSources) {
+        try {
+          const audio = new Audio();
+          currentAudio = audio;
+          audio.src = src;
 
-      if (!ok) return false;
+          const ok = await new Promise((resolve) => {
+            const timeout = setTimeout(() => resolve(false), 8000);
+            audio.onended = () => {
+              clearTimeout(timeout);
+              resolve(true);
+            };
+            audio.onerror = () => {
+              clearTimeout(timeout);
+              resolve(false);
+            };
+            audio.play().catch(() => {
+              clearTimeout(timeout);
+              resolve(false);
+            });
+          });
+
+          if (ok) {
+            playedOk = true;
+            break;
+          }
+        } catch (_) {
+          continue;
+        }
+      }
+
+      if (!playedOk) return false;
     }
     return true;
   } catch (err) {
@@ -444,33 +520,46 @@ function timGiongDocTiengViet(selectedVoiceURI = "") {
   const voices = window.speechSynthesis.getVoices() || [];
   if (!voices.length) return null;
 
-  if (selectedVoiceURI) {
-    const matched = voices.find((v) => v.voiceURI === selectedVoiceURI || v.name === selectedVoiceURI);
+  const isTrulyVietnamese = (v) => {
+    if (!v) return false;
+    const lang = (v.lang || "").toLowerCase().replace(/_/g, "-");
+    const name = (v.name || "").toLowerCase();
+
+    // 1. Phải có mã ngôn ngữ tiếng Việt (vi-VN, vi)
+    if (lang === "vi-vn" || lang === "vi" || lang.startsWith("vi-")) {
+      // Loại trừ các giọng tiếng Anh bị gắn nhầm
+      if (name.includes("english") || name.includes("david") || name.includes("zira") || name.includes("susan") || name.includes("mark")) {
+        return false;
+      }
+      return true;
+    }
+
+    // 2. Hoặc tên chứa rõ ràng từ khóa tiếng Việt
+    if (
+      name.includes("vietnamese") ||
+      name.includes("vietnam") ||
+      name.includes("tiếng việt") ||
+      name.includes("tieng viet") ||
+      name.includes("hoaimy") ||
+      name.includes("namminh")
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  if (selectedVoiceURI && selectedVoiceURI !== "device" && selectedVoiceURI !== "google_vi") {
+    const matched = voices.find((v) => (v.voiceURI === selectedVoiceURI || v.name === selectedVoiceURI) && isTrulyVietnamese(v));
     if (matched) return matched;
   }
 
-  // 1. Ưu tiên giọng vi-VN chuẩn
-  const exactVi = voices.find((v) => v.lang === "vi-VN" || v.lang === "vi_VN");
+  // 1. Ưu tiên giọng vi-VN chuẩn của Google / Microsoft / Apple
+  const exactVi = voices.find((v) => (v.lang === "vi-VN" || v.lang === "vi_VN" || v.lang === "vi") && isTrulyVietnamese(v));
   if (exactVi) return exactVi;
 
-  // 2. Giọng bắt đầu bằng vi
-  const anyVi = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith("vi"));
-  if (anyVi) return anyVi;
-
-  // 3. Tên chứa từ khóa tiếng Việt
-  const nameVi = voices.find((v) => {
-    const n = (v.name || "").toLowerCase();
-    return (
-      n.includes("vietnam") ||
-      n.includes("vietnamese") ||
-      n.includes("tiếng việt") ||
-      n.includes("hoaimy") ||
-      n.includes("namminh") ||
-      n.includes("linh") ||
-      n.includes("mai") ||
-      n.includes("an")
-    );
-  });
+  // 2. Giọng có tên chứa từ khóa Tiếng Việt
+  const nameVi = voices.find(isTrulyVietnamese);
   if (nameVi) return nameVi;
 
   return null;
@@ -487,7 +576,7 @@ export async function docLai(text, customOptions = {}) {
   const settings = { ...getVoiceSettings(), ...customOptions };
   const { TextToSpeech } = nativePlugins();
 
-  // 1. Android Capacitor Native TTS
+  // 1. Android Capacitor Native TTS (nếu có plugin native và hỗ trợ vi-VN)
   if (isNative() && TextToSpeech?.speak) {
     try {
       await TextToSpeech.speak({
@@ -503,13 +592,11 @@ export async function docLai(text, customOptions = {}) {
     }
   }
 
-  // 2. High Definition Neural / Cloud TTS
-  if (settings.voice !== "device") {
-    const played = await phatAmThanhGoogleTTS(spokenText, settings);
-    if (played) return;
-  }
+  // 2. Ưu tiên số 1: Giọng Google Cloud TTS tiếng Việt tự nhiên, trong trẻo, không bao giờ bị lai
+  const played = await phatAmThanhGoogleTTS(spokenText, settings);
+  if (played) return;
 
-  // 3. Device SpeechSynthesis fallback
+  // 3. Fallback: Device SpeechSynthesis CHỈ KHI tìm thấy giọng thuần Tiếng Việt (tuyệt đối không đọc bằng giọng Anh)
   if (typeof window !== "undefined" && window.speechSynthesis && window.SpeechSynthesisUtterance) {
     const vnVoice = timGiongDocTiengViet(settings.deviceVoiceURI || "");
     if (vnVoice) {
@@ -521,47 +608,8 @@ export async function docLai(text, customOptions = {}) {
       utterance.pitch = settings.pitch || 1.0;
       window.speechSynthesis.speak(utterance);
     } else {
-      console.log("No native Vietnamese voice installed on OS; foreign voice fallback suppressed to avoid broken pronunciation.");
+      console.log("Không có giọng đọc thuần Tiếng Việt trên thiết bị; bỏ qua để tránh phát âm tiếng Anh lai tạp.");
     }
-  }
-}
-
-// Phát tiếng chuông báo ngân Ting-Ting chuyên nghiệp như Loa Knote
-export function phatTiengChuongTingTing() {
-  if (typeof window === "undefined") return;
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    if (ctx.state === "suspended") {
-      ctx.resume().catch(() => {});
-    }
-
-    // Note 1: High crisp chime (E6 ~ 1318 Hz)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(1318.51, ctx.currentTime);
-    gain1.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.35);
-
-    // Note 2: Higher pleasant chime (G#6 ~ 1661 Hz) after 120ms
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(1661.22, ctx.currentTime + 0.12);
-    gain2.gain.setValueAtTime(0.4, ctx.currentTime + 0.12);
-    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(ctx.currentTime + 0.12);
-    osc2.stop(ctx.currentTime + 0.6);
-  } catch (err) {
-    console.warn("Could not play chime sound:", err);
   }
 }
 

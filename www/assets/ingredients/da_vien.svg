@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="iceBag" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#bae6fd"/><stop offset="50%" stop-color="#7dd3fc"/><stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="iceCube" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="74" fill="#f0f9ff" stroke="#bae6fd" stroke-width="2"/>
+  <!-- Bag shape -->
+  <path d="M48 42 L112 42 L120 134 C120 142 112 148 102 148 L58 148 C48 148 40 142 40 134 Z" fill="url(#iceBag)" opacity="0.85" stroke="#0284c7" stroke-width="2"/>
+  <!-- Bag crinkles & tie -->
+  <path d="M54 42 Q80 48 106 42 L110 32 L50 32 Z" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
+  <ellipse cx="80" cy="32" rx="16" ry="6" fill="#0284c7"/>
+  <path d="M74 32 L68 18 M86 32 L92 18" stroke="#0284c7" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Ice cubes inside bag -->
+  <rect x="52" y="60" width="24" height="24" rx="4" fill="url(#iceCube)" stroke="#38bdf8" stroke-width="1.5" transform="rotate(12 64 72)"/>
+  <rect x="84" y="58" width="24" height="24" rx="4" fill="url(#iceCube)" stroke="#38bdf8" stroke-width="1.5" transform="rotate(-8 96 70)"/>
+  <rect x="62" y="92" width="26" height="26" rx="4" fill="url(#iceCube)" stroke="#38bdf8" stroke-width="1.5" transform="rotate(5 75 105)"/>
+  <rect x="92" y="96" width="22" height="22" rx="4" fill="url(#iceCube)" stroke="#38bdf8" stroke-width="1.5" transform="rotate(20 103 107)"/>
+
+  <!-- Frost sparkles -->
+  <text x="32" y="56" font-size="16">❄️</text>
+  <text x="114" y="90" font-size="16">✨</text>
+  <!-- Label badge -->
+  <rect x="56" y="74" width="48" height="16" rx="4" fill="#ffffff" opacity="0.9"/>
+  <text x="80" y="86" font-size="9" font-weight="900" fill="#0284c7" text-anchor="middle">ĐÁ VIÊN</text>
+</svg>

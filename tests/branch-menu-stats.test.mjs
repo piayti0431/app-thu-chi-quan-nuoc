@@ -17,12 +17,12 @@ assert.equal(menuMap.get("nuoc_mia_1l")?.price, 15000);
 assert.equal(menuMap.get("nuoc_mia_1l")?.costPrice, 10000);
 assert.equal(menuMap.get("mia_tac")?.price, 10000);
 assert.equal(menuMap.get("mia_tac")?.costPrice, 5000);
-assert.equal(menuMap.get("mia_thom")?.price, 10000);
-assert.equal(menuMap.get("mia_thom")?.costPrice, 5000);
+assert.equal(menuMap.get("mia_thom")?.price, 12000);
+assert.equal(menuMap.get("mia_thom")?.costPrice, 7000);
 assert.equal(menuMap.get("mia_cam")?.price, 17000);
 assert.equal(menuMap.get("mia_cam")?.costPrice, 10000);
 assert.equal(menuMap.get("rau_ma")?.price, 10000);
-assert.equal(menuMap.get("rau_ma")?.costPrice, 4000);
+assert.equal(menuMap.get("rau_ma")?.costPrice, 5000);
 assert.equal(menuMap.get("rau_ma_sua")?.price, 15000);
 assert.equal(menuMap.get("rau_ma_sua")?.costPrice, 6000);
 assert.equal(menuMap.get("rau_ma_dau_xanh")?.price, 15000);
@@ -30,7 +30,7 @@ assert.equal(menuMap.get("rau_ma_dau_xanh")?.costPrice, 6000);
 assert.equal(menuMap.get("tra_tac")?.price, 12000);
 assert.equal(menuMap.get("tra_tac")?.costPrice, 7000);
 assert.equal(menuMap.get("nuoc_cam")?.price, 15000);
-assert.equal(menuMap.get("nuoc_cam")?.costPrice, 7000);
+assert.equal(menuMap.get("nuoc_cam")?.costPrice, 10000);
 
 // Check ingredient expense categories
 assert.ok(DEFAULT_DATA.danhMuc.chi.includes("Mía cây"));
@@ -160,8 +160,8 @@ const userTransactions = [
   taoGiaoDich({ ngay: userDate, loai: "thu", danhMuc: "Nước mía 1 lít", soLuong: 10, soTien: 150000, phuongThuc: "tien_mat" }),
   taoGiaoDich({ ngay: userDate, loai: "thu", danhMuc: "Mía cam", soLuong: 5, soTien: 75000, phuongThuc: "tien_mat" }),
   taoGiaoDich({ ngay: userDate, loai: "thu", danhMuc: "Nước cam", soLuong: 3, soTien: 57000, phuongThuc: "tien_mat" }),
-  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tiền đá", soLuong: 2, donViTinh: "bao", soTien: 51000 }),
-  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tắc tươi (Quất)", soLuong: 4, donViTinh: "kg", soTien: 65000 }),
+  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tiền đá", soLuong: 2, donViTinh: "bao", soTien: 51000, nguonTienChi: "ket_tien" }),
+  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tắc tươi (Quất)", soLuong: 4, donViTinh: "kg", soTien: 65000, nguonTienChi: "ket_tien" }),
 ];
 
 const userReport = dailyReport(userTransactions, userDate, null, userOpeningFloat);
@@ -180,8 +180,8 @@ const userTransactionsWithTransfer = [
   taoGiaoDich({ ngay: userDate, loai: "thu", danhMuc: "Nước mía 1 lít", soLuong: 10, soTien: 150000, phuongThuc: "tien_mat" }),
   taoGiaoDich({ ngay: userDate, loai: "thu", danhMuc: "Mía cam", soLuong: 5, soTien: 75000, phuongThuc: "tien_mat" }),
   taoGiaoDich({ ngay: userDate, loai: "thu", danhMuc: "Nước cam", soLuong: 3, soTien: 57000, phuongThuc: "chuyen_khoan" }),
-  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tiền đá", soLuong: 2, donViTinh: "bao", soTien: 51000 }),
-  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tắc tươi (Quất)", soLuong: 4, donViTinh: "kg", soTien: 65000 }),
+  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tiền đá", soLuong: 2, donViTinh: "bao", soTien: 51000, nguonTienChi: "ket_tien" }),
+  taoGiaoDich({ ngay: userDate, loai: "chi", danhMuc: "Tắc tươi (Quất)", soLuong: 4, donViTinh: "kg", soTien: 65000, nguonTienChi: "ket_tien" }),
 ];
 const userReportWithTransfer = dailyReport(userTransactionsWithTransfer, userDate, null, userOpeningFloat);
 assert.equal(userReportWithTransfer.income, 582000);

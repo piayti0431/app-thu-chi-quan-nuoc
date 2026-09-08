@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="rollGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/><stop offset="40%" stop-color="#fed7aa"/><stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="74" fill="#fff7ed" stroke="#fed7aa" stroke-width="2"/>
+
+  <!-- Roll core spool cylinder -->
+  <ellipse cx="80" cy="45" rx="46" ry="20" fill="#f97316" stroke="#c2410c" stroke-width="2"/>
+  <!-- Film Roll cylinder body -->
+  <path d="M34 45 L126 45 L126 105 L34 105 Z" fill="url(#rollGrad)" stroke="#c2410c" stroke-width="2"/>
+  <ellipse cx="80" cy="105" rx="46" ry="20" fill="#ea580c" stroke="#c2410c" stroke-width="2"/>
+
+  <!-- Inner cardboard core hole -->
+  <ellipse cx="80" cy="45" rx="22" ry="9" fill="#78350f" stroke="#451a03" stroke-width="1.5"/>
+
+  <!-- Unrolled film ribbon strip -->
+  <path d="M126 75 C142 85 142 115 110 135 L70 144 C50 148 40 140 45 130 C50 120 70 125 85 120 Z" fill="#fef08a" stroke="#ca8a04" stroke-width="2"/>
+
+  <!-- Cute pattern icons on the sealing film -->
+  <circle cx="65" cy="75" r="8" fill="#ef4444"/>
+  <circle cx="95" cy="75" r="8" fill="#22c55e"/>
+  <text x="65" y="79" font-size="9" text-anchor="middle" fill="#fff">🥤</text>
+  <text x="95" y="79" font-size="9" text-anchor="middle" fill="#fff">🧃</text>
+  <text x="80" y="100" font-size="9" font-weight="900" fill="#ffffff" text-anchor="middle">2400 LY</text>
+</svg>

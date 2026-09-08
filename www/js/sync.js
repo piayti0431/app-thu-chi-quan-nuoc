@@ -237,6 +237,9 @@ export async function dongBo() {
     if (Array.isArray(finalRemoteSettings.branches) && finalRemoteSettings.branches.length > 0) {
       data.branches = finalRemoteSettings.branches;
     }
+    if (Array.isArray(finalRemoteSettings.quickIngredients) && finalRemoteSettings.quickIngredients.length > 0) {
+      data.quickIngredients = finalRemoteSettings.quickIngredients;
+    }
     if (finalRemoteSettings.overheadConfig) {
       data.overheadConfig = finalRemoteSettings.overheadConfig;
     }
@@ -270,6 +273,12 @@ export async function dongBo() {
     if (finalRemoteSettings.danhMuc) {
       data.danhMuc = finalRemoteSettings.danhMuc;
     }
+    if (Array.isArray(finalRemoteSettings.sugarcaneBatches)) {
+      data.sugarcaneBatches = finalRemoteSettings.sugarcaneBatches;
+    }
+    if (finalRemoteSettings.inventoryStock) {
+      data.inventoryStock = finalRemoteSettings.inventoryStock;
+    }
     data.settingsVersion = remoteVersion || Date.now();
   } else if (!finalRemoteSettings || localSettingsVersion > remoteVersion || localHasUniqueItems) {
     // Local has newer settings OR local has unique menu items not yet in remote -> push to BOTH Supabase Database (giao_dich table) AND User Metadata
@@ -277,6 +286,7 @@ export async function dongBo() {
     const settingsPayload = {
       version: newVersion,
       quickItems: data.quickItems || [],
+      quickIngredients: data.quickIngredients || [],
       branches: data.branches || [],
       overheadConfig: data.overheadConfig || {},
       packagingConfig: data.packagingConfig || {},
@@ -287,6 +297,8 @@ export async function dongBo() {
       aiChatHistory: (data.aiChatHistory || []).slice(-50),
       restartLogs: data.restartLogs || [],
       dailyClosings: data.dailyClosings || [],
+      sugarcaneBatches: data.sugarcaneBatches || [],
+      inventoryStock: data.inventoryStock || {},
       knowledgeBase: data.knowledgeBase || {},
       danhMuc: data.danhMuc || {},
     };
@@ -300,7 +312,7 @@ export async function dongBo() {
         ngay: "2099-12-31",
         gio: "23:59:59",
         loai: "thu",
-        so_tien: 0,
+        so_tien: 1, // Must satisfy check (so_tien > 0)
         danh_muc: "APP_SETTINGS",
         ghi_chu: JSON.stringify(settingsPayload),
         cau_noi_goc: "Cấu hình menu & chi nhánh quán",
@@ -416,6 +428,8 @@ export async function batDauRealtime(onRemoteChange) {
   return { ok: true, message: "Realtime sync sẵn sàng" };
 }
 
-window.addEventListener("online", () => {
-  dongBo().catch((error) => console.warn("Đồng bộ online thất bại", error));
-});
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => {
+    dongBo().catch((error) => console.warn("Đồng bộ online thất bại", error));
+  });
+}

@@ -8,7 +8,7 @@ const report = dailyReport(
   [
     { ngay: "2026-07-15", loai: "thu", soTien: 10000, phuongThuc: "tien_mat" },
     { ngay: "2026-07-15", loai: "thu", soTien: 25000, phuongThuc: "chuyen_khoan" },
-    { ngay: "2026-07-15", loai: "chi", soTien: 5000 },
+    { ngay: "2026-07-15", loai: "chi", soTien: 5000, nguonTienChi: "ket_tien" },
     { ngay: "2026-07-15", loai: "chi", soTien: 9000, deleted: true },
     { ngay: "2026-07-14", loai: "thu", soTien: 999000 },
   ],

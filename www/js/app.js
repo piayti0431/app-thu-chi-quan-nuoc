@@ -1,28 +1,28 @@
+import { $, $$, showToast } from "./ui/components.js";
+import { capNhatTonKhoThucTe, truKhoNguyenLieuTheoDonHang, layDanhSachTonKho, kiemTraCanhBaoTonKho, nhapKhoNguyenLieu } from './logic/inventory.js';
+import { tinhBaoCaoThue, tinhBaoCaoPL, xuatToKhaiThue01CNKD } from './logic/tax.js';
 import {
   capNhatCauHinhSync,
   capNhatCostChoMon,
   capNhatCurrentBranch,
   capNhatGiaNhanh,
   capNhatLaiGiaCostToanBoGiaoDich,
+  chuyenTatCaGiaoDichMua10kgThanhXuatDung,
   datLaiGiaCostChuanSoTay,
   docDuLieu,
   layOverheadChoChiNhanh,
   tinhDiemHoaVonChiNhanh,
   luuOverheadChoChiNhanh,
-  layDanhSachTonKho,
-  kiemTraCanhBaoTonKho,
-  nhapKhoNguyenLieu,
-  capNhatTonKhoThucTe,
-  tinhBaoCaoThue,
-  xuatToKhaiThue01CNKD,
   luuCostFormula,
   luuDanhSachChiNhanh,
   luuDanhSachMenu,
+  luuDanhSachNguyenLieu,
   luuDuLieu,
   luuOverheadConfig,
   luuOverheadVaPackagingConfig,
   luuPackagingConfig,
   luuTienThoiDauNgay,
+  luuTienThoiMacDinh,
   luuKhachQuen,
   luuTinNhanAIChat,
   nhapDuLieuTuJson,
@@ -33,9 +33,15 @@ import {
   xoaTatCaDuLieu,
   xuatDuLieuJson,
   getValidMenuImage,
+  getValidIngredientImage,
+  getItemPrice,
+  taoDotNhapMia,
+  ghiNhanSoCheDotMia,
+  dongDotNhapMia,
+  layDotMiaDangHoatDong,
 } from "./db.js";
 import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
-import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney } from "./report.js";
+import { dailyReport, docSoTienTiengViet, formatReportDate, formatReportMoney, matchBranch, computeFundBalances } from "./report.js";
 import { batDauNghe, docLai, dungNghe, getVoiceSettings, saveVoiceSettings, yeuCauQuyenMicro, phatTiengChuongTingTing } from "./speech.js";
 import { hoiGeminiAI, phanTichTaiChinhNoiBo } from "./ai-assistant.js";
 import {
@@ -51,8 +57,6 @@ import {
 } from "./sync.js";
 import { caiCapNhat, kiemTraCapNhat, layPhienBanHienTai } from "./updater.js";
 
-const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => [...document.querySelectorAll(selector)];
 const isAuthBypassedForTest = () => window.__NUOCMIA_TEST_AUTH__ === true;
 
 const money = new Intl.NumberFormat("vi-VN", {
@@ -70,7 +74,6 @@ let state = await docDuLieu();
 let pendingVoice = null;
 let dailyChart = null;
 let categoryChart = null;
-let toastTimer = null;
 let micListening = false;
 let micStopping = false;
 let authLoggedIn = false;
@@ -88,6 +91,11 @@ let statsDate = todayKey();
 let statsWeekDate = todayKey();
 let statsMonth = todayKey().slice(0, 7);
 
+// History view state
+let historyPeriod = "today"; // "today" | "yesterday" | "last_week" | "this_month" | "all" | "custom"
+let historyStartDate = todayKey();
+let historyEndDate = todayKey();
+
 const UPDATE_DISMISS_KEY = "nuocmia_update_dismissed_version";
 
 function formatMoney(value) {
@@ -102,6 +110,26 @@ function formatDate(value) {
   const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return value || "";
   return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function formatDayHeading(dateString) {
+  const match = String(dateString || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return dateString || "";
+  const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const dayOfWeek = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"][d.getDay()];
+  const formattedDate = `${match[3]}/${match[2]}/${match[1]}`;
+  const today = todayKey();
+  
+  const yDate = new Date();
+  yDate.setDate(yDate.getDate() - 1);
+  const yKey = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, "0")}-${String(yDate.getDate()).padStart(2, "0")}`;
+
+  if (dateString === today) {
+    return `${dayOfWeek}, ${formattedDate} (Hôm nay)`;
+  } else if (dateString === yKey) {
+    return `${dayOfWeek}, ${formattedDate} (Hôm qua)`;
+  }
+  return `${dayOfWeek}, ${formattedDate}`;
 }
 
 function todayKey() {
@@ -146,16 +174,7 @@ function confirmationSpeech(parsed) {
   return `${type} ${formatVoiceMoney(parsed.soTien)}, ${detail}. Đúng không?`;
 }
 
-function showToast(message, isError = false) {
-  const toast = $("#toast");
-  if (!toast) return;
-  toast.textContent = message;
-  toast.className = `toast is-visible${isError ? " is-error" : ""}`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.className = "toast";
-  }, 2600);
-}
+
 
 function setMicState(listening) {
   micListening = listening;
@@ -215,8 +234,145 @@ function renderBranchSelectors() {
     `;
   }
 
+  // Jars branch selector
+  const jarsBranchSelect = $("#jarsBranchSelect");
+  if (jarsBranchSelect) {
+    jarsBranchSelect.innerHTML = `
+      <option value="all" ${current === "all" ? "selected" : ""}>🏢 Tất cả điểm bán</option>
+      ${branches.map((b) => `<option value="${b.name}" ${b.name === current ? "selected" : ""}>📍 ${b.name}</option>`).join("")}
+    `;
+    jarsBranchSelect.onchange = async (e) => {
+      const selected = e.target.value;
+      await capNhatCurrentBranch(selected);
+      state = await docDuLieu();
+      renderAll();
+      const label = selected === "all" ? "Tất cả điểm bán" : selected;
+      showToast(`Đã chuyển sang xem 4 Hũ: ${label}`);
+    };
+  }
+
+  // History branch selector
+  const histBranchSelect = $("#historyBranchSelect");
+  if (histBranchSelect) {
+    const curHistBranch = state.historyBranchFilter || current;
+    histBranchSelect.innerHTML = `
+      <option value="all" ${curHistBranch === "all" ? "selected" : ""}>🏢 Tất cả điểm bán</option>
+      ${branches.map((b) => `<option value="${b.name}" ${b.name === curHistBranch ? "selected" : ""}>📍 ${b.name}</option>`).join("")}
+    `;
+  }
+
   // Settings branch manager
   renderBranchManager();
+}
+
+let activePosBill = []; // Mảng chứa các món trong Bill tạm thời [{ item, qty }]
+
+function renderPosBillBar() {
+  const bar = $("#fastPosBillBar");
+  if (!bar) return;
+
+  const activeBranch = (state.currentBranch && state.currentBranch !== "all") ? state.currentBranch : "Quán Nhà (Chính)";
+  const totalCups = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1), 0);
+  const totalAmount = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1) * (getItemPrice(entry.item, activeBranch) || 0), 0);
+
+  if (totalCups > 0) {
+    bar.style.display = "flex";
+    const countEl = $("#posBillItemCount");
+    const totalEl = $("#posBillTotalAmount");
+    if (countEl) countEl.textContent = totalCups;
+    if (totalEl) totalEl.textContent = formatMoney(totalAmount);
+  } else {
+    bar.style.display = "none";
+  }
+}
+
+function renderFastCheckoutModal() {
+  const listEl = $("#fastCheckoutItemList");
+  const totalEl = $("#fastCheckoutTotalAmount");
+  const branchEl = $("#fastCheckoutBranchLabel");
+  if (!listEl || !totalEl) return;
+
+  const activeBranch = (state.currentBranch && state.currentBranch !== "all")
+    ? state.currentBranch
+    : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
+
+  if (branchEl) branchEl.textContent = `Điểm bán: ${activeBranch}`;
+
+  const totalAmount = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1) * (getItemPrice(entry.item, activeBranch) || 0), 0);
+  totalEl.textContent = formatMoney(totalAmount);
+
+  if (!activePosBill.length) {
+    listEl.innerHTML = `<p style="margin: 0.5rem 0; font-size: 0.85rem; color: var(--muted); text-align: center;">Chưa có món nào trong Bill</p>`;
+    return;
+  }
+
+  listEl.innerHTML = activePosBill
+    .map((entry, idx) => {
+      const itemPrice = getItemPrice(entry.item, activeBranch);
+      const lineTotal = entry.qty * itemPrice;
+      return `
+        <div class="fast-bill-item-row">
+          <div class="fast-bill-item-info">
+            <strong class="fast-bill-item-name">${entry.item.name}</strong>
+            <small class="fast-bill-item-sub">${formatMoney(itemPrice)} / ${entry.item.voiceUnit || "ly"}</small>
+          </div>
+          <div class="fast-bill-item-controls">
+            <button class="fast-bill-btn-action fast-bill-qty-btn" data-action="dec" data-idx="${idx}" type="button" aria-label="Giảm 1">-</button>
+            <strong class="fast-bill-item-qty">${entry.qty}</strong>
+            <button class="fast-bill-btn-action fast-bill-qty-btn" data-action="inc" data-idx="${idx}" type="button" aria-label="Tăng 1">+</button>
+            <strong class="fast-bill-item-line-total">${formatMoney(lineTotal)}</strong>
+            <button class="fast-bill-btn-action fast-bill-btn-del fast-bill-qty-btn" data-action="del" data-idx="${idx}" type="button" aria-label="Xóa món">✕</button>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  // Attach quantity modify buttons in checkout modal
+  listEl.querySelectorAll(".fast-bill-qty-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const idx = Number(btn.getAttribute("data-idx"));
+      const action = btn.getAttribute("data-action");
+      if (idx < 0 || idx >= activePosBill.length) return;
+
+      if (action === "inc") {
+        activePosBill[idx].qty += 1;
+      } else if (action === "dec") {
+        activePosBill[idx].qty -= 1;
+        if (activePosBill[idx].qty <= 0) {
+          activePosBill.splice(idx, 1);
+        }
+      } else if (action === "del") {
+        activePosBill.splice(idx, 1);
+      }
+
+      renderPosBillBar();
+      renderQuickButtons();
+      renderFastCheckoutModal();
+      updateFastCheckoutChange();
+    };
+  });
+
+  // Default tendered = exact amount
+  const tenderInput = $("#fastCheckoutTenderedInput");
+  if (tenderInput && (!tenderInput.value || tenderInput.value === "0 đ")) {
+    tenderInput.value = formatMoney(totalAmount);
+  }
+  updateFastCheckoutChange();
+}
+
+function updateFastCheckoutChange() {
+  const tenderInput = $("#fastCheckoutTenderedInput");
+  const changeEl = $("#fastCheckoutChangeDisplay");
+  if (!tenderInput || !changeEl) return;
+
+  const activeBranch = (state.currentBranch && state.currentBranch !== "all") ? state.currentBranch : "Quán Nhà (Chính)";
+  const totalAmount = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1) * (getItemPrice(entry.item, activeBranch) || 0), 0);
+  const tendered = Number(tenderInput.value.replace(/[^0-9]/g, "")) || 0;
+  const change = Math.max(0, tendered - totalAmount);
+
+  changeEl.textContent = formatMoney(change);
+  changeEl.style.color = tendered >= totalAmount ? "#059669" : "#dc2626";
 }
 
 function renderQuickButtons() {
@@ -224,55 +380,225 @@ function renderQuickButtons() {
   if (!container) return;
 
   const quickItems = state.quickItems || [];
+  const activeBranch = (state.currentBranch && state.currentBranch !== "all") ? state.currentBranch : "Quán Nhà (Chính)";
+
   container.innerHTML = quickItems
     .map((item) => {
       const imgSrc = getValidMenuImage(item);
-      const shortPrice = Number(item.price) >= 1000
-        ? `${Math.round(item.price / 1000)}k`
-        : formatMoney(item.price);
+      const itemPrice = getItemPrice(item, activeBranch);
+      const shortPrice = Number(itemPrice) >= 1000
+        ? `${Math.round(itemPrice / 1000)}k`
+        : formatMoney(itemPrice);
+
+      // Check how many of this item is in the active POS bill
+      const inBill = activePosBill.find((b) => b.item.id === item.id);
+      const billBadge = inBill && inBill.qty > 0
+        ? `<span class="quick-btn-item-count">x${inBill.qty}</span>`
+        : "";
 
       return `
-      <button class="quick-btn theme-${item.icon || "cane"}" data-id="${item.id}" type="button" aria-label="Bán nhanh ${item.name} (${formatMoney(item.price)})">
+      <button class="quick-btn theme-${item.icon || "cane"}" data-id="${item.id}" type="button" aria-label="Bấm món ${item.name} (${formatMoney(itemPrice)})">
+        ${billBadge}
         <span class="quick-btn-badge">${shortPrice}</span>
         <div class="quick-btn-img-box">
           ${imgSrc ? `<img class="quick-btn-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />` : ""}
           <span class="drink-icon" style="${imgSrc ? "display:none;" : ""}">${getDrinkIconSvg(item.icon)}</span>
         </div>
-        <strong class="quick-btn-name">+1 ${item.shortName || item.name}</strong>
+        <strong class="quick-btn-name">${item.shortName || item.name}</strong>
       </button>
     `;
     })
     .join("");
 
   $$("#quickButtons .quick-btn").forEach((btn) => {
-    btn.onclick = async () => {
+    btn.onclick = () => {
       const id = btn.getAttribute("data-id");
       const item = quickItems.find((q) => q.id === id);
       if (!item) return;
 
-      const activeBranch = (state.currentBranch && state.currentBranch !== "all")
-        ? state.currentBranch
-        : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
+      const existing = activePosBill.find((b) => b.item.id === item.id);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        activePosBill.push({ item, qty: 1 });
+      }
 
-      const tx = await themGiaoDich({
-        loai: "thu",
-        soTien: item.price,
-        soLuong: 1,
-        giaCostDonVi: item.costPrice || 0,
-        tongGiaCost: item.costPrice || 0,
-        danhMuc: item.category || item.name,
-        ghiChu: item.note || `Bán 1 ${item.name}`,
-        cauNoiGoc: `Bán 1 ${item.name}`,
-        daSuaTay: false,
-        chiNhanh: activeBranch,
-      });
-
-      state = await docDuLieu();
-      renderAll();
-      showToast(`+1 ${item.name} (${formatMoney(item.price)}) - ${activeBranch}`);
-      triggerAutoSync();
+      renderPosBillBar();
+      renderQuickButtons();
     };
   });
+
+  renderPosBillBar();
+}
+
+let activeIngredientItem = null;
+
+function renderQuickIngredients() {
+  const container = $("#quickIngredientButtons");
+  if (!container) return;
+
+  const ingredients = state.quickIngredients || [];
+  const activeBranch = (state.currentBranch && state.currentBranch !== "all")
+    ? state.currentBranch
+    : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
+
+  const stockMap = {};
+  if (state.inventoryStock && state.inventoryStock[activeBranch]) {
+    state.inventoryStock[activeBranch].forEach((s) => {
+      stockMap[s.id] = s.stockQty;
+    });
+  }
+
+  container.innerHTML = ingredients
+    .map((item) => {
+      const imgSrc = getValidIngredientImage(item);
+      const shortCost = Number(item.unitCost) >= 1000
+        ? `${Math.round(item.unitCost / 1000)}k`
+        : formatMoney(item.unitCost);
+
+      const invId = item.inventoryId || item.id;
+      const currentStock = stockMap[invId] !== undefined ? stockMap[invId] : null;
+      const isLow = currentStock !== null && currentStock <= 2;
+      const stockBadge = currentStock !== null
+        ? `<span class="ing-stock-badge ${isLow ? 'is-low' : ''}" style="position: absolute; bottom: 0.35rem; right: 0.35rem; font-size: 0.7rem; font-weight: 800; background: ${isLow ? '#fee2e2' : 'rgba(241, 245, 249, 0.94)'}; color: ${isLow ? '#b91c1c' : '#334155'}; padding: 0.12rem 0.4rem; border-radius: 4px; border: 1px solid ${isLow ? '#fca5a5' : '#cbd5e1'}; backdrop-filter: blur(4px);">Tồn: ${currentStock} ${item.unit || ""}</span>`
+        : '';
+
+      return `
+      <button class="quick-btn ingredient-card theme-${item.icon || "cane_bundle"}" data-id="${item.id}" type="button" aria-label="Xuất dùng / Nhập ${item.name} (${shortCost}/${item.unit})" style="position: relative;">
+        <span class="quick-btn-badge ing-cost-badge">${shortCost}/${item.unit}</span>
+        <div class="quick-btn-img-box ing-img-box">
+          <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" />
+        </div>
+        <strong class="quick-btn-name">${item.shortName || item.name}</strong>
+        ${stockBadge}
+      </button>
+    `;
+    })
+    .join("");
+
+  $$("#quickIngredientButtons .ingredient-card").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.getAttribute("data-id");
+      const item = ingredients.find((ing) => ing.id === id);
+      if (!item) return;
+      // Khi bấm vào thẻ nguyên liệu ở màn hình bán hàng, mặc định vào ngay chế độ "🛒 Mua hàng (Ghi chi)"
+      openQuickIngredientModal(item, "buy");
+    };
+  });
+}
+
+function openQuickIngredientModal(item, defaultTab = "buy") {
+  activeIngredientItem = item;
+  const modal = $("#quickIngredientDialog");
+  if (!modal) return;
+
+  const isMaterialsView = $("#view-materials")?.classList.contains("is-active");
+  const materialsBranch = $("#materialsBranchSelect")?.value;
+  const activeBranch = (isMaterialsView && materialsBranch)
+    ? materialsBranch
+    : ((state.currentBranch && state.currentBranch !== "all")
+      ? state.currentBranch
+      : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)"));
+
+  let currentStock = 0;
+  if (state.inventoryStock && state.inventoryStock[activeBranch]) {
+    const invItem = state.inventoryStock[activeBranch].find(x => x.id === item.inventoryId || x.id === item.id);
+    if (invItem) currentStock = invItem.stockQty || 0;
+  }
+
+  const defaultQty = item.defaultQty || 1;
+  const unitCost = Number(item.unitCost) || 0;
+  const totalCost = defaultQty * unitCost;
+
+  const imgEl = $("#ingModalImage");
+  const nameEl = $("#ingModalItemName");
+  const unitCostEl = $("#ingModalUnitCost");
+  const noteEl = $("#ingModalNote");
+  const unitLabelEl = $("#ingModalUnitLabel");
+  const qtyInput = $("#ingQtyInput");
+  const totalCostInput = $("#ingTotalCostInput");
+  const stockBadgeEl = $("#ingModalStockBadge");
+  const buyNoteInput = $("#ingBuyNoteInput");
+  const useNoteInput = $("#ingUseNoteInput");
+
+  if (imgEl) imgEl.src = getValidIngredientImage(item);
+  if (nameEl) nameEl.textContent = item.name;
+  if (unitCostEl) unitCostEl.textContent = `${formatMoney(unitCost)} / ${item.unit}`;
+  if (noteEl) noteEl.textContent = item.note || `Định mức ~${item.yieldPerUnit || 1} ly / ${item.unit}`;
+  if (unitLabelEl) unitLabelEl.textContent = item.unit;
+  if (qtyInput) qtyInput.value = defaultQty;
+  if (totalCostInput) totalCostInput.value = formatMoney(totalCost);
+
+  if (stockBadgeEl) {
+    const isMia10kg = item.inventoryId === "mia_10kg" || item.id === "mia_10kg" || item.id === "ing_mia_bo_10kg";
+    stockBadgeEl.textContent = isMia10kg ? `Tồn: ${currentStock * 10} kg (${currentStock} bó)` : `Tồn: ${currentStock} ${item.unit}`;
+    if (currentStock <= 2) {
+      stockBadgeEl.style.background = "#fee2e2";
+      stockBadgeEl.style.color = "#991b1b";
+      stockBadgeEl.style.borderColor = "#fca5a5";
+    } else {
+      stockBadgeEl.style.background = "#e0f2fe";
+      stockBadgeEl.style.color = "#0369a1";
+      stockBadgeEl.style.borderColor = "#bae6fd";
+    }
+  }
+
+  if (buyNoteInput) buyNoteInput.value = "";
+  if (useNoteInput) useNoteInput.value = `[Pha chế bán hàng] Lấy ${defaultQty} ${item.unit} ${item.name} ra quầy phục vụ`;
+
+  // Thiết lập tab mặc định: "use" (Xuất Dùng) hoặc "buy" (Mua Hàng)
+  const tabRadio = $(`#ingActionTabGroup input[value='${defaultTab}']`);
+  if (tabRadio) tabRadio.checked = true;
+  switchIngModalTab(defaultTab);
+
+  updateIngModalCost();
+  modal.showModal();
+}
+
+function switchIngModalTab(tabValue) {
+  const buySec = $("#ingBuySection");
+  const useSec = $("#ingUseSection");
+  const header = $("#ingModalHeader");
+  const icon = $("#ingModalIcon");
+  const title = $("#ingModalTitle");
+  const subtitle = $("#ingModalSubtitle");
+
+  if (tabValue === "buy") {
+    if (buySec) buySec.style.display = "block";
+    if (useSec) useSec.style.display = "none";
+    if (header) header.style.background = "linear-gradient(135deg, #ea580c 0%, #d97706 100%)";
+    if (icon) icon.textContent = "🛒";
+    if (title) title.textContent = "Chi Tiền Mua Hàng (Nhập Kho)";
+    if (subtitle) subtitle.textContent = "Ghi sổ chi phí tiền mặt & Tăng số lượng tồn kho";
+  } else {
+    if (buySec) buySec.style.display = "none";
+    if (useSec) useSec.style.display = "block";
+    if (header) header.style.background = "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)";
+    if (icon) icon.textContent = "📦";
+    if (title) title.textContent = "Xuất Dùng Nguyên Liệu (Pha Chế)";
+    if (subtitle) subtitle.textContent = "Trừ tồn kho & Lưu nhật ký sử dụng quầy (0 đ phát sinh)";
+  }
+  updateIngModalCost();
+}
+
+function updateIngModalCost() {
+  if (!activeIngredientItem) return;
+  const qtyInput = $("#ingQtyInput");
+  const totalCostInput = $("#ingTotalCostInput");
+  const yieldEl = $("#ingEstimatedYield");
+  if (!qtyInput) return;
+
+  const qty = Math.max(1, Number(qtyInput.value) || 1);
+  const unitCost = Number(activeIngredientItem.unitCost) || 0;
+  if (totalCostInput) totalCostInput.value = formatMoney(qty * unitCost);
+
+  const yieldPerUnit = Number(activeIngredientItem.yieldPerUnit) || 1;
+  if (yieldEl) yieldEl.textContent = `~${qty * yieldPerUnit} ly nước`;
+
+  const useNote = $("#ingUseNoteInput");
+  if (useNote && (!useNote.value || useNote.value.startsWith("[Pha chế bán hàng]"))) {
+    useNote.value = `[Pha chế bán hàng] Lấy ${qty} ${activeIngredientItem.unit} ${activeIngredientItem.name} ra quầy phục vụ`;
+  }
 }
 
 function renderCategoryDatalist() {
@@ -283,13 +609,21 @@ function renderCategoryDatalist() {
   datalist.innerHTML = list.map((cat) => `<option value="${cat}"></option>`).join("");
 }
 
+function renderFundsWidget() {
+  const funds = computeFundBalances(state);
+  if ($("#fundWalletBalance")) $("#fundWalletBalance").textContent = formatMoney(funds.capitalWallet);
+  if ($("#fundRentBalance")) $("#fundRentBalance").textContent = formatMoney(funds.rentFund);
+  if ($("#fundProfitBalance")) $("#fundProfitBalance").textContent = formatMoney(funds.profitFund);
+}
+
 function renderToday() {
   const today = todayKey();
   const selectedBranch = state.currentBranch || "all";
   const isAll = selectedBranch === "all";
+  const isMainBranch = matchBranch(selectedBranch, "Quán Nhà (Chính)") && !isAll;
 
   const items = (state.ds || []).filter(
-    (item) => !item.deleted && item.ngay === today && (isAll || item.chiNhanh === selectedBranch),
+    (item) => !item.deleted && item.ngay === today && matchBranch(item.chiNhanh, selectedBranch) && item.loai !== 'chuyen_quy' && item.loai !== 'dieu_chinh_quy',
   );
 
   const income = items.filter((item) => item.loai === "thu").reduce((sum, item) => sum + Number(item.soTien || 0), 0);
@@ -302,6 +636,7 @@ function renderToday() {
   if ($("#todayOpeningCashDisplay")) {
     $("#todayOpeningCashDisplay").textContent = formatMoney(getTodayOpeningCash(selectedBranch));
   }
+  renderDailyRoutineBanner();
 
   // Calculate Dynamic Break-Even Target for Today according to selected branch
   const branchOverhead = layOverheadChoChiNhanh(state, selectedBranch);
@@ -341,6 +676,81 @@ function renderToday() {
     }
   }
 
+  // 4 Mini Jars Update on Dashboard (Đồng bộ chuẩn xác với Tab 4 Hũ Tiền)
+  const miniCost = totalCostOfSales;
+  let targetRent = 0;
+  if (isMainBranch) {
+    targetRent = 0;
+  } else if (isAll) {
+    const ov2 = layOverheadChoChiNhanh(state, "Chi nhánh 2");
+    const monthlyOverhead = ov2 ? (Number(ov2.rentMonthly) || 6000000) : 6000000;
+    targetRent = Math.max(200000, Math.round(monthlyOverhead / 30));
+  } else {
+    const ov = layOverheadChoChiNhanh(state, selectedBranch);
+    const monthlyOverhead = ov ? (Number(ov.rentMonthly) || 6000000) : 6000000;
+    targetRent = Math.max(200000, Math.round(monthlyOverhead / 30));
+  }
+
+  const grossAfterBOM = Math.max(0, income - miniCost);
+  const collectedRent = Math.min(grossAfterBOM, targetRent);
+  const surplus = Math.max(0, grossAfterBOM - targetRent);
+  const reserve = isMainBranch
+    ? Math.round(grossAfterBOM * 0.10)
+    : Math.round(surplus * 0.10);
+
+  let miniProfit = 0;
+  if (income > 0) {
+    if (isMainBranch) {
+      miniProfit = grossAfterBOM - reserve;
+    } else if (grossAfterBOM >= targetRent) {
+      miniProfit = surplus - reserve;
+    } else {
+      miniProfit = grossAfterBOM - targetRent;
+    }
+  }
+
+  const openingCashVal = getTodayOpeningCash(selectedBranch);
+
+  // Dynamic Labels & Percentages based on real daily data
+  const costPct = income > 0 ? Math.round((miniCost / income) * 100) : 0;
+  const rentPct = targetRent > 0 ? Math.min(100, Math.round((collectedRent / targetRent) * 100)) : 100;
+  
+  if ($("#miniJarCostLabel")) $("#miniJarCostLabel").textContent = income > 0 ? `🧊 Vốn (${costPct}%)` : `🧊 Hũ 1: Vốn BOM`;
+  if ($("#miniJarRentLabel")) $("#miniJarRentLabel").textContent = isMainBranch ? `🏠 Nhà (0đ)` : (income > 0 ? `🏢 MB (${rentPct}%)` : `🏢 Hũ 2: Mặt Bằng`);
+  if ($("#miniJarCashLabel")) $("#miniJarCashLabel").textContent = `💵 Hũ 3: Tiền Két`;
+  if ($("#miniJarProfitLabel")) $("#miniJarProfitLabel").textContent = miniProfit >= 0 ? `💰 Hũ 4: Lời Sạch` : `🔴 Hũ 4: Bù Mặt Bằng`;
+
+  if ($("#miniJarCost")) $("#miniJarCost").textContent = formatMoney(miniCost);
+  if ($("#miniJarRent")) $("#miniJarRent").textContent = isMainBranch ? `0 đ (Nhà)` : `${formatMoney(targetRent)}`;
+  if ($("#miniJarCash")) $("#miniJarCash").textContent = formatMoney(openingCashVal);
+  if ($("#miniJarProfit")) {
+    if (income === 0) {
+      $("#miniJarProfit").textContent = "0 đ";
+      $("#miniJarProfit").style.color = "#64748b";
+    } else if (miniProfit >= 0) {
+      $("#miniJarProfit").textContent = `+${formatMoney(miniProfit)}`;
+      $("#miniJarProfit").style.color = "#059669";
+    } else {
+      $("#miniJarProfit").textContent = `-${formatMoney(Math.abs(miniProfit))}`;
+      $("#miniJarProfit").style.color = "#dc2626";
+    }
+  }
+
+  // Card Background / Border adjustments
+  const profitCard = $("#miniJarProfitCard");
+  if (profitCard) {
+    if (income === 0) {
+      profitCard.style.background = "rgba(100, 116, 139, 0.08)";
+      profitCard.style.borderColor = "rgba(100, 116, 139, 0.2)";
+    } else if (miniProfit >= 0) {
+      profitCard.style.background = "rgba(5, 150, 105, 0.08)";
+      profitCard.style.borderColor = "rgba(5, 150, 105, 0.2)";
+    } else {
+      profitCard.style.background = "rgba(220, 38, 38, 0.08)";
+      profitCard.style.borderColor = "rgba(220, 38, 38, 0.2)";
+    }
+  }
+
   const list = $("#todayList");
   if (!list) return;
 
@@ -357,14 +767,21 @@ function renderToday() {
         const methodBadge = item.loai === "thu"
           ? `<button class="method-toggle-btn" data-id="${item.id}" type="button" title="Bấm để đổi Tiền mặt / Chuyển khoản" style="border: 1px solid ${isTransfer ? '#bae6fd' : '#bbf7d0'}; cursor: pointer; background: ${isTransfer ? 'rgba(14, 165, 233, 0.15)' : 'rgba(16, 185, 129, 0.15)'}; color: ${isTransfer ? '#0284c7' : '#059669'}; padding: 0.12rem 0.4rem; border-radius: 0.3rem; font-size: 0.72rem; font-weight: 800;">${isTransfer ? '📱 CK' : '💵 TM'}</button>`
           : "";
+        const billCode = item.billCode || (item.loai === "thu" ? `#BILL-${String(item.id).slice(-4)}` : `#PO-${String(item.id).slice(-4)}`);
+        const billBadge = `<span class="tx-bill-badge" style="background: ${item.loai === 'thu' ? '#ecfdf5' : '#fef3c7'}; color: ${item.loai === 'thu' ? '#047857' : '#b45309'}; font-weight: 800; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 0.3rem; border: 1px solid ${item.loai === 'thu' ? '#a7f3d0' : '#fde68a'}; letter-spacing: 0.02em;">${billCode}</span>`;
+        const branchName = item.chiNhanh || "Quán Nhà (Chính)";
+        const isMain = matchBranch(branchName, "Quán Nhà (Chính)");
+        const branchBadgeClass = isMain ? "main-branch" : "branch-2";
+
         return `
       <div class="transaction-item ${item.loai}">
         <div class="tx-main">
           <div class="tx-title-row">
+            ${billBadge}
             <span class="tx-title">${item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi")}</span>
             ${methodBadge}
             <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || (item.loai === "thu" ? "ly" : "kg")}` : ""}</span>
-            <span class="tx-branch-badge">${item.chiNhanh || "Quán Nhà"}</span>
+            <span class="tx-branch-badge ${branchBadgeClass}">${branchName}</span>
           </div>
           <p class="tx-note">${item.ghiChu || item.cauNoiGoc || "Không có ghi chú"}</p>
           <div class="tx-meta">
@@ -384,7 +801,8 @@ function renderToday() {
 
   $$("#todayList .delete-btn").forEach((btn) => {
     btn.onclick = async () => {
-      const id = Number(btn.getAttribute("data-id"));
+      const rawId = btn.getAttribute("data-id");
+      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
       if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) return;
       await xoaGiaoDich(id);
       state = await docDuLieu();
@@ -397,7 +815,8 @@ function renderToday() {
   $$("#todayList .method-toggle-btn").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
-      const id = Number(btn.getAttribute("data-id"));
+      const rawId = btn.getAttribute("data-id");
+      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
       const tx = (state.ds || []).find((t) => t.id === id);
       if (!tx) return;
       const newMethod = tx.phuongThuc === "chuyen_khoan" ? "tien_mat" : "chuyen_khoan";
@@ -417,51 +836,186 @@ function renderHistory() {
   const list = $("#historyList");
   if (!list) return;
 
-  const selectedBranch = state.currentBranch || "all";
+  const selectedBranch = state.historyBranchFilter || state.currentBranch || "all";
   const isAll = selectedBranch === "all";
 
-  const items = (state.ds || []).filter((item) => !item.deleted && (isAll || item.chiNhanh === selectedBranch));
-  if (!items.length) {
-    list.innerHTML = `<p class="empty-state">Lịch sử giao dịch trống tại <strong>${isAll ? "tất cả điểm bán" : selectedBranch}</strong>.</p>`;
+  // Sync pill UI
+  $$(".history-pill-btn").forEach((btn) => {
+    if (btn.getAttribute("data-period") === historyPeriod) {
+      btn.classList.add("is-active");
+    } else {
+      btn.classList.remove("is-active");
+    }
+  });
+
+  const customRange = $("#historyCustomRange");
+  if (customRange) {
+    customRange.style.display = historyPeriod === "custom" ? "flex" : "none";
+    if (historyPeriod === "custom") {
+      if ($("#historyStartDate") && !$("#historyStartDate").value) $("#historyStartDate").value = historyStartDate;
+      if ($("#historyEndDate") && !$("#historyEndDate").value) $("#historyEndDate").value = historyEndDate;
+    }
+  }
+
+  // Filter transactions by branch
+  const allItems = (state.ds || []).filter((item) => !item.deleted && matchBranch(item.chiNhanh, selectedBranch) && item.loai !== "chuyen_quy" && item.loai !== "dieu_chinh_quy");
+
+  // Date filters
+  const today = todayKey();
+  const yDate = new Date();
+  yDate.setDate(yDate.getDate() - 1);
+  const yesterdayKey = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, "0")}-${String(yDate.getDate()).padStart(2, "0")}`;
+  const thisMonthPrefix = today.slice(0, 7);
+
+  const filtered = allItems.filter((it) => {
+    if (!it.ngay) return false;
+    if (historyPeriod === "today") return it.ngay === today;
+    if (historyPeriod === "yesterday") return it.ngay === yesterdayKey;
+    if (historyPeriod === "last_week") {
+      const todayMs = new Date(today).getTime();
+      const itemMs = new Date(it.ngay).getTime();
+      const diffDays = Math.round((todayMs - itemMs) / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 7;
+    }
+    if (historyPeriod === "this_month") return it.ngay.startsWith(thisMonthPrefix);
+    if (historyPeriod === "custom") {
+      const start = $("#historyStartDate")?.value || historyStartDate;
+      const end = $("#historyEndDate")?.value || historyEndDate;
+      return it.ngay >= start && it.ngay <= end;
+    }
+    return true; // "all"
+  });
+
+  // Calculate summary counters
+  let totalCount = filtered.length;
+  let totalIncome = 0;
+  let totalExpense = 0;
+  filtered.forEach((it) => {
+    if (it.loai === "thu") totalIncome += Number(it.soTien || 0);
+    else if (it.loai === "chi") totalExpense += Number(it.soTien || 0);
+  });
+  const balance = totalIncome - totalExpense;
+
+  if ($("#historySumCount")) $("#historySumCount").textContent = `${totalCount} giao dịch`;
+  if ($("#historySumIncome")) $("#historySumIncome").textContent = `+${formatMoney(totalIncome)}`;
+  if ($("#historySumExpense")) $("#historySumExpense").textContent = `-${formatMoney(totalExpense)}`;
+  if ($("#historySumBalance")) {
+    $("#historySumBalance").textContent = balance >= 0 ? `+${formatMoney(balance)}` : `-${formatMoney(Math.abs(balance))}`;
+    $("#historySumBalance").style.color = balance >= 0 ? "#67e8f9" : "#f87171";
+  }
+
+  if (!filtered.length) {
+    const periodLabelMap = {
+      today: "hôm nay",
+      yesterday: "hôm qua",
+      last_week: "7 ngày qua",
+      this_month: "tháng này",
+      all: "tất cả thời gian",
+      custom: "khoảng ngày đã chọn",
+    };
+    list.innerHTML = `<p class="empty-state" style="text-align: center; color: #94a3b8; padding: 2.5rem 0;">Không có giao dịch nào trong <strong>${periodLabelMap[historyPeriod] || ""}</strong> tại <strong>${isAll ? "tất cả điểm bán" : selectedBranch}</strong>.</p>`;
     return;
   }
 
-  list.innerHTML = items
-    .slice(0, 100)
-    .map(
-      (item) => {
-        const isTransfer = item.loai === "thu" && item.phuongThuc === "chuyen_khoan";
-        const methodBadge = item.loai === "thu"
-          ? `<button class="method-toggle-btn" data-id="${item.id}" type="button" title="Bấm để đổi Tiền mặt / Chuyển khoản" style="border: 1px solid ${isTransfer ? '#bae6fd' : '#bbf7d0'}; cursor: pointer; background: ${isTransfer ? 'rgba(14, 165, 233, 0.15)' : 'rgba(16, 185, 129, 0.15)'}; color: ${isTransfer ? '#0284c7' : '#059669'}; padding: 0.12rem 0.4rem; border-radius: 0.3rem; font-size: 0.72rem; font-weight: 800;">${isTransfer ? '📱 CK' : '💵 TM'}</button>`
-          : "";
-        return `
-      <div class="transaction-item ${item.loai}">
-        <div class="tx-main">
-          <div class="tx-title-row">
-            <span class="tx-title">${item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi")}</span>
-            ${methodBadge}
-            <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || (item.loai === "thu" ? "ly" : "kg")}` : ""}</span>
-            <span class="tx-branch-badge">${item.chiNhanh || "Quán Nhà"}</span>
+  // Group by date (sorted newest date first)
+  const groupedMap = new Map();
+  filtered.forEach((it) => {
+    const d = it.ngay;
+    if (!groupedMap.has(d)) {
+      groupedMap.set(d, {
+        date: d,
+        items: [],
+        dayIncome: 0,
+        dayExpense: 0,
+        dayCups: 0,
+      });
+    }
+    const g = groupedMap.get(d);
+    g.items.push(it);
+    if (it.loai === "thu") {
+      g.dayIncome += Number(it.soTien || 0);
+      g.dayCups += Number(it.soLuong || 1);
+    } else if (it.loai === "chi") {
+      g.dayExpense += Number(it.soTien || 0);
+    }
+  });
+
+  const sortedDates = [...groupedMap.keys()].sort().reverse();
+
+  list.innerHTML = sortedDates
+    .map((dateKey) => {
+      const g = groupedMap.get(dateKey);
+      // Sort items within day: newest time or ID first
+      g.items.sort((a, b) => (b.id || 0) - (a.id || 0));
+
+      const dayHeaderHtml = `
+        <div class="history-day-header">
+          <div class="history-day-title">
+            <span style="font-size: 1.15rem;">📅</span>
+            <strong>${formatDayHeading(dateKey)}</strong>
+            <span class="day-count-badge">${g.items.length} đơn ${g.dayCups > 0 ? `(${g.dayCups} ly)` : ""}</span>
           </div>
-          <p class="tx-note">${item.ghiChu || item.cauNoiGoc || ""}</p>
-          <div class="tx-meta">
-            <span>${formatDate(item.ngay)} ${item.gio || ""}</span>
+          <div class="history-day-totals">
+            <span class="day-income">+${formatMoney(g.dayIncome)}</span>
+            ${g.dayExpense > 0 ? `<span class="day-expense">−${formatMoney(g.dayExpense)}</span>` : ""}
           </div>
         </div>
-        <div class="tx-right">
-          <strong class="tx-amount ${item.loai}">${item.loai === "thu" ? "+" : "-"}${formatMoney(item.soTien)}</strong>
-          <button class="delete-btn" data-id="${item.id}" type="button" aria-label="Xóa">✕</button>
+      `;
+
+      const dayItemsHtml = g.items
+        .map((item) => {
+          const isTransfer = item.loai === "thu" && item.phuongThuc === "chuyen_khoan";
+          const methodBadge = item.loai === "thu"
+            ? `<button class="method-toggle-btn" data-id="${item.id}" type="button" title="Bấm để đổi Tiền mặt / Chuyển khoản" style="border: 1px solid ${isTransfer ? '#bae6fd' : '#bbf7d0'}; cursor: pointer; background: ${isTransfer ? 'rgba(14, 165, 233, 0.15)' : 'rgba(16, 185, 129, 0.15)'}; color: ${isTransfer ? '#0284c7' : '#059669'}; padding: 0.12rem 0.4rem; border-radius: 0.3rem; font-size: 0.72rem; font-weight: 800;">${isTransfer ? '📱 CK' : '💵 TM'}</button>`
+            : "";
+          const billCode = item.billCode || (item.loai === "thu" ? `#BILL-${String(item.id).slice(-4)}` : `#PO-${String(item.id).slice(-4)}`);
+          const billBadge = `<span class="tx-bill-badge" style="background: ${item.loai === 'thu' ? '#ecfdf5' : '#fef3c7'}; color: ${item.loai === 'thu' ? '#047857' : '#b45309'}; font-weight: 800; font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 0.3rem; border: 1px solid ${item.loai === 'thu' ? '#a7f3d0' : '#fde68a'}; letter-spacing: 0.02em;">${billCode}</span>`;
+          const branchName = item.chiNhanh || "Quán Nhà (Chính)";
+          const isMain = matchBranch(branchName, "Quán Nhà (Chính)");
+          const branchBadgeClass = isMain ? "main-branch" : "branch-2";
+
+          return `
+            <div class="transaction-item ${item.loai}">
+              <div class="tx-main">
+                <div class="tx-title-row">
+                  ${billBadge}
+                  <span class="tx-title">${item.danhMuc || (item.loai === "thu" ? "Thu" : "Chi")}</span>
+                  ${methodBadge}
+                  <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || (item.loai === "thu" ? "ly" : "kg")}` : ""}</span>
+                  <span class="tx-branch-badge ${branchBadgeClass}">${branchName}</span>
+                </div>
+                <p class="tx-note">${item.ghiChu || item.cauNoiGoc || ""}</p>
+                <div class="tx-meta">
+                  <span>${item.gio || ""}</span>
+                  ${item.giaCostDonVi > 0 ? `<span>Vốn: ${formatMoney(item.tongGiaCost || item.giaCostDonVi * (item.soLuong || 1))}</span>` : ""}
+                </div>
+              </div>
+              <div class="tx-right">
+                <strong class="tx-amount ${item.loai}">${item.loai === "thu" ? "+" : "-"}${formatMoney(item.soTien)}</strong>
+                <button class="delete-btn" data-id="${item.id}" type="button" aria-label="Xóa">✕</button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      return `
+        <div class="history-day-section">
+          ${dayHeaderHtml}
+          <div class="history-day-items">
+            ${dayItemsHtml}
+          </div>
         </div>
-      </div>
-    `;
-      },
-    )
+      `;
+    })
     .join("");
 
+  // Attach button event listeners
   $$("#historyList .delete-btn").forEach((btn) => {
     btn.onclick = async () => {
-      const id = Number(btn.getAttribute("data-id"));
-      if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này?")) return;
+      const rawId = btn.getAttribute("data-id");
+      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
+      if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này khỏi lịch sử?")) return;
       await xoaGiaoDich(id);
       state = await docDuLieu();
       renderAll();
@@ -473,7 +1027,8 @@ function renderHistory() {
   $$("#historyList .method-toggle-btn").forEach((btn) => {
     btn.onclick = async (e) => {
       e.stopPropagation();
-      const id = Number(btn.getAttribute("data-id"));
+      const rawId = btn.getAttribute("data-id");
+      const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
       const tx = (state.ds || []).find((t) => t.id === id);
       if (!tx) return;
       const newMethod = tx.phuongThuc === "chuyen_khoan" ? "tien_mat" : "chuyen_khoan";
@@ -490,43 +1045,280 @@ function renderHistory() {
 }
 
 // ----------------------------------------------------
-// DAILY CLOSING DIALOG (PHIẾU TỔNG KẾT NGÀY)
+// SMART DAILY FINANCIAL ROUTINE ASSISTANT (SÁNG / TRƯA / TỐI)
 // ----------------------------------------------------
 
-function getTodayOpeningCash(branchParam = null) {
-  const today = todayKey();
+function getTodayOpeningCash(branchParam = null, dateParam = null) {
+  const dateKey = dateParam || todayKey();
   const targetBranch = branchParam !== null ? branchParam : (state.currentBranch || "all");
   const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
 
   if (targetBranch === "all") {
     return branches.reduce((sum, b) => {
-      const key = `${today}_${b.name}`;
+      const key = `${dateKey}_${b.name}`;
       const val = state.openingCashByDate && state.openingCashByDate[key] !== undefined
         ? Number(state.openingCashByDate[key])
-        : (Number(state.defaultOpeningCash) >= 0 ? Number(state.defaultOpeningCash) : 500000);
+        : (Number(state.defaultOpeningCash) >= 0 ? Number(state.defaultOpeningCash) : 50000);
       return sum + val;
     }, 0);
   }
 
-  const key = `${today}_${targetBranch}`;
+  const key = `${dateKey}_${targetBranch}`;
   if (state.openingCashByDate && state.openingCashByDate[key] !== undefined) {
     return Number(state.openingCashByDate[key]);
   }
-  return Number(state.defaultOpeningCash) >= 0 ? Number(state.defaultOpeningCash) : 500000;
+  return Number(state.defaultOpeningCash) >= 0 ? Number(state.defaultOpeningCash) : 50000;
 }
 
-function openDailyClosingModal() {
+function getDailyRoutinePeriod() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 11.5) return "morning";
+  if (hour >= 11.5 && hour < 16.5) return "midday";
+  return "evening";
+}
+
+function renderDailyRoutineBanner() {
+  const banner = $("#dailyRoutineBanner");
+  if (!banner) return;
+
+  const period = getDailyRoutinePeriod();
+  const today = todayKey();
+  const selectedBranch = state.currentBranch || "Quán Nhà (Chính)";
+  const isAll = selectedBranch === "all" || !selectedBranch;
+  const openingCash = getTodayOpeningCash(selectedBranch);
+
+  const items = (state.ds || []).filter(
+    (it) => !it.deleted && it.ngay === today && (isAll || it.chiNhanh === selectedBranch)
+  );
+
+  const cashIncome = items.filter((it) => it.loai === "thu" && it.phuongThuc !== "chuyen_khoan").reduce((s, it) => s + (Number(it.soTien) || 0), 0);
+  const transferIncome = items.filter((it) => it.loai === "thu" && it.phuongThuc === "chuyen_khoan").reduce((s, it) => s + (Number(it.soTien) || 0), 0);
+  const cashExpense = items.filter((it) => it.loai === "chi" && it.phuongThuc !== "chuyen_khoan").reduce((s, it) => s + (Number(it.soTien) || 0), 0);
+  const totalCost = items.filter((it) => it.loai === "thu").reduce((s, it) => s + (Number(it.tongGiaCost) || ((Number(it.giaCostDonVi) || 0) * (Number(it.soLuong) || 1))), 0);
+
+  const branchOverhead = layOverheadChoChiNhanh(state, selectedBranch);
+  const dailyFixed = branchOverhead ? Math.round(((branchOverhead.rentMonthly || 0) + (branchOverhead.electricityMonthly || 0) + (branchOverhead.waterMonthly || 0) + (branchOverhead.trashMonthly || 0) + (branchOverhead.depreciationMonthly || 0)) / 30) : 0;
+
+  const drawerCashExpected = openingCash + cashIncome - cashExpense;
+  const netProfit = (cashIncome + transferIncome) - totalCost - dailyFixed;
+
+  banner.classList.remove("theme-morning", "theme-midday", "theme-evening");
+
+  const iconElem = $("#routineBannerIcon");
+  const titleElem = $("#routineBannerTitle");
+  const badgeElem = $("#routineBannerBadge");
+  const descElem = $("#routineBannerDesc");
+  const btnElem = $("#routineBannerActionBtn");
+
+  if (period === "morning") {
+    banner.classList.add("theme-morning");
+    if (iconElem) iconElem.textContent = "🌅";
+    if (titleElem) titleElem.textContent = "Khởi Động Ca Sáng";
+    if (badgeElem) badgeElem.textContent = "Mở Két";
+    if (descElem) descElem.textContent = `Kiểm tra tiền thối đầu ngày (hiện tại: ${formatMoney(openingCash)}).`;
+    if (btnElem) btnElem.textContent = "Đổi số tiền";
+  } else if (period === "midday") {
+    banner.classList.add("theme-midday");
+    if (iconElem) iconElem.textContent = "☀️";
+    if (titleElem) titleElem.textContent = "Nhắc Nhở Ca Trưa";
+    if (badgeElem) badgeElem.textContent = "Đá & Mía";
+    if (descElem) descElem.textContent = "Kiểm tra lượng đá viên & mía. Nếu có nhập hàng nhớ chạm ghi nhận ngay nhé!";
+    if (btnElem) btnElem.textContent = "Nhập hàng";
+  } else {
+    banner.classList.add("theme-evening");
+    if (iconElem) iconElem.textContent = "🌙";
+    if (titleElem) titleElem.textContent = "Tổng Kết & Chốt Két";
+    if (badgeElem) badgeElem.textContent = "Kiểm Két";
+    if (descElem) descElem.textContent = `Tiền mặt két phải có: ${formatMoney(drawerCashExpected)} | Lời ròng: +${formatMoney(Math.max(0, netProfit))}.`;
+    if (btnElem) btnElem.textContent = "Chốt két";
+  }
+
+  banner.style.display = "flex";
+}
+
+function openDailyRoutineModal(forcedPeriod = null) {
+  const modal = $("#dailyRoutineModal");
+  if (!modal) return;
+
+  const period = forcedPeriod || getDailyRoutinePeriod();
+  const today = todayKey();
+  const selectedBranch = state.currentBranch || "Quán Nhà (Chính)";
+  const isAll = selectedBranch === "all" || !selectedBranch;
+  const openingCash = getTodayOpeningCash(selectedBranch);
+
+  const items = (state.ds || []).filter(
+    (it) => !it.deleted && it.ngay === today && (isAll || it.chiNhanh === selectedBranch)
+  );
+
+  const cashIncome = items.filter((it) => it.loai === "thu" && it.phuongThuc !== "chuyen_khoan").reduce((s, it) => s + (Number(it.soTien) || 0), 0);
+  const transferIncome = items.filter((it) => it.loai === "thu" && it.phuongThuc === "chuyen_khoan").reduce((s, it) => s + (Number(it.soTien) || 0), 0);
+  const cashExpense = items.filter((it) => it.loai === "chi" && it.phuongThuc !== "chuyen_khoan").reduce((s, it) => s + (Number(it.soTien) || 0), 0);
+  const totalCost = items.filter((it) => it.loai === "thu").reduce((s, it) => s + (Number(it.tongGiaCost) || ((Number(it.giaCostDonVi) || 0) * (Number(it.soLuong) || 1))), 0);
+
+  const branchOverhead = layOverheadChoChiNhanh(state, selectedBranch);
+  const dailyFixed = branchOverhead ? Math.round(((branchOverhead.rentMonthly || 0) + (branchOverhead.electricityMonthly || 0) + (branchOverhead.waterMonthly || 0) + (branchOverhead.trashMonthly || 0) + (branchOverhead.depreciationMonthly || 0)) / 30) : 0;
+
+  const drawerCashExpected = openingCash + cashIncome - cashExpense;
+  const netProfit = (cashIncome + transferIncome) - totalCost - dailyFixed;
+
+  const iconBadge = $("#routineModalIconBadge");
+  const titleElem = $("#routineModalTitle");
+  const subElem = $("#routineModalSubtitle");
+  const bodyElem = $("#routineModalBody");
+  const submitBtn = $("#submitRoutineModalBtn");
+
+  if (!bodyElem) return;
+
+  if (period === "morning") {
+    if (iconBadge) iconBadge.textContent = "🌅";
+    if (titleElem) titleElem.textContent = "Khởi Động Ca Sáng: Tiền Thối Đầu Ngày";
+    if (subElem) subElem.textContent = "Nhập số tiền lẻ bạn bỏ vào két sáng nay để thối cho khách";
+    if (submitBtn) submitBtn.textContent = "🚀 Xác Nhận Mở Két Bán Hàng";
+
+    bodyElem.innerHTML = `
+      <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
+        <p style="margin: 0; font-size: 0.88rem; color: #1e3a8a; font-weight: 700;">
+          💡 <strong>Chào ngày mới!</strong> Chúc quán hôm nay bán đắt hàng, bội thu đơn nước mía!
+        </p>
+      </div>
+      <label style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 0.4rem; color: #334155;">
+        💵 Số tiền lẻ bỏ két sáng nay (đ):
+        <input id="routineOpeningCashInput" inputmode="numeric" value="${openingCash || 50000}" style="width: 100%; font-size: 1.25rem; font-weight: 900; color: #0f172a; padding: 0.65rem; border-radius: var(--radius-sm); border: 2px solid #0d9488; margin-top: 0.35rem; text-align: center;">
+      </label>
+      <div class="routine-preset-grid">
+        <button class="routine-preset-btn ${openingCash === 50000 ? 'is-selected' : ''}" type="button" data-val="50000">50k (Mặc định)</button>
+        <button class="routine-preset-btn ${openingCash === 100000 ? 'is-selected' : ''}" type="button" data-val="100000">100k</button>
+        <button class="routine-preset-btn ${openingCash === 200000 ? 'is-selected' : ''}" type="button" data-val="200000">200k</button>
+        <button class="routine-preset-btn ${openingCash === 500000 ? 'is-selected' : ''}" type="button" data-val="500000">500k</button>
+      </div>
+    `;
+
+    bodyElem.querySelectorAll(".routine-preset-btn").forEach((btn) => {
+      btn.onclick = () => {
+        bodyElem.querySelectorAll(".routine-preset-btn").forEach((b) => b.classList.remove("is-selected"));
+        btn.classList.add("is-selected");
+        const val = Number(btn.getAttribute("data-val")) || 50000;
+        const input = $("#routineOpeningCashInput");
+        if (input) input.value = val;
+      };
+    });
+  } else if (period === "midday") {
+    if (iconBadge) iconBadge.textContent = "☀️";
+    if (titleElem) titleElem.textContent = "Nhắc Nhở Ca Trưa: Kiểm Tra Đá & Mía";
+    if (subElem) subElem.textContent = "Bổ sung nguyên liệu để phục vụ ca trưa & chiều suôn sẻ";
+    if (submitBtn) submitBtn.textContent = "✅ Đã Đủ Đồ Bán";
+
+    const iceUnitCost = selectedBranch === "Chi nhánh 2" ? 21000 : 17000;
+
+    bodyElem.innerHTML = `
+      <div style="background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
+        <p style="margin: 0; font-size: 0.88rem; color: #9a3412; font-weight: 700;">
+          ☀️ <strong>Ca trưa cao điểm!</strong> Nếu vừa chi tiền mua thêm đá viên hay mía, hãy chạm nút bên dưới để ghi nhận ngay nhé:
+        </p>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.85rem;">
+        <button id="routineBuyIceBtn" type="button" style="padding: 0.75rem; border-radius: var(--radius-md); border: 1.5px solid #bae6fd; background: #f0f9ff; color: #0369a1; font-weight: 800; font-size: 0.88rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;">
+          <span style="font-size: 1.4rem;">🧊</span>
+          <span>+1 Bao Đá (${formatMoney(iceUnitCost)})</span>
+        </button>
+        <button id="routineBuyCaneBtn" type="button" style="padding: 0.75rem; border-radius: var(--radius-md); border: 1.5px solid #bbf7d0; background: #f0fdf4; color: #15803d; font-weight: 800; font-size: 0.88rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;">
+          <span style="font-size: 1.4rem;">🎋</span>
+          <span>+1 Bó Mía 10kg (70k)</span>
+        </button>
+      </div>
+    `;
+
+    $("#routineBuyIceBtn")?.addEventListener("click", async () => {
+      await themGiaoDich({
+        loai: "chi",
+        soTien: iceUnitCost,
+        soLuong: 1,
+        donViTinh: "bao",
+        phuongThuc: "tien_mat",
+        danhMuc: "Mua đá viên",
+        ghiChu: "Mua đá viên sạch",
+        cauNoiGoc: "Mua 1 bao đá",
+        chiNhanh: selectedBranch === "all" ? "Quán Nhà (Chính)" : selectedBranch,
+      });
+      state = await docDuLieu();
+      renderAll();
+      modal.close();
+      showToast(`✅ Đã ghi nhận chi mua 1 bao đá (${formatMoney(iceUnitCost)})!`);
+    });
+
+    $("#routineBuyCaneBtn")?.addEventListener("click", async () => {
+      await themGiaoDich({
+        loai: "chi",
+        soTien: 70000,
+        soLuong: 1,
+        donViTinh: "bó",
+        phuongThuc: "tien_mat",
+        danhMuc: "Mua mía cây",
+        ghiChu: "Mua 1 bó mía 10kg đã bào sạch",
+        cauNoiGoc: "Mua 1 bó mía 10kg",
+        chiNhanh: selectedBranch === "all" ? "Quán Nhà (Chính)" : selectedBranch,
+      });
+      state = await docDuLieu();
+      renderAll();
+      modal.close();
+      showToast(`✅ Đã ghi nhận chi mua 1 bó mía 10kg (70.000 đ)!`);
+    });
+  } else {
+    if (iconBadge) iconBadge.textContent = "🌙";
+    if (titleElem) titleElem.textContent = "Chốt Ca & Kiểm Két Đóng Quán";
+    if (subElem) subElem.textContent = "Đối soát tiền mặt trong két và doanh thu hôm nay";
+    if (submitBtn) submitBtn.textContent = "💵 Mở Báo Cáo Chốt Sổ Chi Tiết";
+
+    bodyElem.innerHTML = `
+      <div class="routine-metric-card">
+        <div class="routine-metric-row">
+          <span>💵 Tiền thối buổi sáng (A):</span>
+          <strong>${formatMoney(openingCash)}</strong>
+        </div>
+        <div class="routine-metric-row">
+          <span>📈 Thu tiền mặt trong ngày (+B):</span>
+          <strong style="color: #059669;">+${formatMoney(cashIncome)}</strong>
+        </div>
+        <div class="routine-metric-row">
+          <span>🛒 Chi tiền mặt trong ngày (-C):</span>
+          <strong style="color: #dc2626;">-${formatMoney(cashExpense)}</strong>
+        </div>
+        <div class="routine-metric-row is-total">
+          <span style="color: #1e293b;">👉 TIỀN KÉT PHẢI CÓ (A+B-C):</span>
+          <strong style="color: #2563eb; font-size: 1.15rem;">${formatMoney(drawerCashExpected)}</strong>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem;">
+        <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: var(--radius-sm); padding: 0.6rem; text-align: center;">
+          <span style="font-size: 0.76rem; color: #6d28d9; font-weight: 700; display: block;">📲 Thu Chuyển Khoản / MoMo</span>
+          <strong style="font-size: 0.98rem; color: #5b21b6;">${formatMoney(transferIncome)}</strong>
+        </div>
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: var(--radius-sm); padding: 0.6rem; text-align: center;">
+          <span style="font-size: 0.76rem; color: #047857; font-weight: 700; display: block;">🟢 Lợi Nhuận Ròng Hôm Nay</span>
+          <strong style="font-size: 0.98rem; color: #065f46;">+${formatMoney(Math.max(0, netProfit))}</strong>
+        </div>
+      </div>
+    `;
+  }
+
+  modal.showModal();
+}
+
+function openDailyClosingModal(specificDate = null, specificBranch = null) {
   const dialog = $("#dailyClosingDialog");
   if (!dialog) return;
 
-  const today = todayKey();
-  const currentBranch = state.currentBranch || "all";
+  const targetDate = specificDate || todayKey();
+  const currentBranch = specificBranch || state.currentBranch || "all";
+  state.activeClosingTarget = { date: targetDate, branch: currentBranch };
+
   const isAll = currentBranch === "all";
-  const openingCash = getTodayOpeningCash(currentBranch);
-  const report = dailyReport(state.ds || [], today, isAll ? null : currentBranch, openingCash);
+  const openingCash = getTodayOpeningCash(currentBranch, targetDate);
+  const report = dailyReport(state.ds || [], targetDate, isAll ? null : currentBranch, openingCash);
 
   $("#closingBranchLabel").textContent = isAll ? "Điểm bán: Tất cả điểm bán (Toàn hệ thống)" : `Điểm bán: ${currentBranch}`;
-  $("#closingDateHeader").textContent = `📋 Phiếu Tổng Kết Ngày ${formatDate(today)}`;
+  $("#closingDateHeader").textContent = `📋 Phiếu Tổng Kết Ngày ${formatDate(targetDate)}`;
 
   $("#closingIncome").textContent = formatMoney(report.income);
   $("#closingCashIncome").textContent = formatMoney(report.cashIncome);
@@ -535,14 +1327,253 @@ function openDailyClosingModal() {
   $("#closingCost").textContent = formatMoney(report.cost);
   $("#closingGrossProfit").textContent = formatMoney(report.grossProfit);
   $("#closingExpense").textContent = formatMoney(report.expense);
-  $("#closingNetProfit").textContent = formatMoney(report.balance);
+
+  // Overhead calculation for active branch
+  const isMainBranch = matchBranch(currentBranch, "Quán Nhà (Chính)") && !isAll;
+  let dailyOverhead = 0;
+  if (isMainBranch) {
+    dailyOverhead = 0;
+  } else if (isAll) {
+    const ov2 = layOverheadChoChiNhanh(state, "Chi nhánh 2");
+    const monthlyOverhead = ov2 ? (Number(ov2.rentMonthly) || 6000000) : 6000000;
+    dailyOverhead = Math.max(200000, Math.round(monthlyOverhead / 30));
+  } else {
+    const ov = layOverheadChoChiNhanh(state, currentBranch);
+    const monthlyOverhead = ov ? (Number(ov.rentMonthly) || 6000000) : 6000000;
+    dailyOverhead = Math.max(200000, Math.round(monthlyOverhead / 30));
+  }
+
+  const targetRent = dailyOverhead;
+  const jar1Cost = report.cost;
+  const grossAfterBOM = Math.max(0, report.income - jar1Cost);
+  const jarRentCollected = Math.min(grossAfterBOM, targetRent);
+  const rentShortfall = Math.max(0, targetRent - jarRentCollected);
+  const rentProgress = targetRent > 0 ? Math.min(100, Math.round((jarRentCollected / targetRent) * 100)) : 100;
+  
+  const surplusAfterRent = Math.max(0, grossAfterBOM - targetRent);
+  const jar3Reserve = isMainBranch 
+    ? Math.round(grossAfterBOM * 0.10) 
+    : Math.round(surplusAfterRent * 0.10);
+
+  let jar4Profit = 0;
+  if (report.income > 0) {
+    if (isMainBranch) {
+      jar4Profit = grossAfterBOM - jar3Reserve;
+    } else if (grossAfterBOM >= targetRent) {
+      jar4Profit = surplusAfterRent - jar3Reserve;
+    } else {
+      jar4Profit = grossAfterBOM - targetRent;
+    }
+  }
+
+  const trueNetProfit = jar4Profit;
+  if ($("#closingNetProfit")) {
+    if (trueNetProfit > 0) {
+      $("#closingNetProfit").textContent = `+${formatMoney(trueNetProfit)}`;
+      $("#closingNetProfit").style.color = "#ffffff";
+    } else if (trueNetProfit < 0) {
+      $("#closingNetProfit").textContent = `-${formatMoney(Math.abs(trueNetProfit))}`;
+      $("#closingNetProfit").style.color = "#fecaca";
+    } else {
+      $("#closingNetProfit").textContent = "0 đ";
+      $("#closingNetProfit").style.color = "#ffffff";
+    }
+  }
+
+  if ($("#jarCost")) $("#jarCost").textContent = formatMoney(jar1Cost);
+  if ($("#jarRent")) $("#jarRent").textContent = isMainBranch ? "0 đ (Mặt bằng nhà)" : `${formatMoney(jarRentCollected)} / ${formatMoney(targetRent)} (${rentProgress}%)`;
+  if ($("#jarOpeningCash")) $("#jarOpeningCash").textContent = `${formatMoney(jar3Reserve)} (Quỹ 10%)`;
+  if ($("#jarNetProfit")) {
+    if (jar4Profit > 0) {
+      $("#jarNetProfit").textContent = `+${formatMoney(jar4Profit)}`;
+      $("#jarNetProfit").style.color = "#059669";
+    } else if (jar4Profit < 0) {
+      $("#jarNetProfit").textContent = `-${formatMoney(Math.abs(jar4Profit))}`;
+      $("#jarNetProfit").style.color = "#dc2626";
+    } else {
+      $("#jarNetProfit").textContent = "0 đ";
+      $("#jarNetProfit").style.color = "#64748b";
+    }
+  }
+  if ($("#jarNetProfitHint")) {
+    if (isMainBranch) {
+      $("#jarNetProfitHint").textContent = `🏠 Quán Nhà (0đ MB): Lời sạch nhận trọn +${formatMoney(jar4Profit)}`;
+      $("#jarNetProfitHint").style.color = "#065f46";
+    } else if (jar4Profit > 0) {
+      $("#jarNetProfitHint").textContent = `🎉 Gom đủ 100% mặt bằng! Lời sạch: +${formatMoney(jar4Profit)}`;
+      $("#jarNetProfitHint").style.color = "#065f46";
+    } else if (report.income === 0) {
+      $("#jarNetProfitHint").textContent = `Chưa có doanh thu hôm nay`;
+      $("#jarNetProfitHint").style.color = "#64748b";
+    } else {
+      $("#jarNetProfitHint").textContent = `⚠️ Đã dồn ${formatMoney(jarRentCollected)}/${formatMoney(targetRent)} vào tiền nhà. Cần bù -${formatMoney(Math.abs(jar4Profit))}`;
+      $("#jarNetProfitHint").style.color = "#dc2626";
+    }
+  }
 
   // Cash Reconcile values
   if ($("#closingOpeningCash")) $("#closingOpeningCash").textContent = formatMoney(report.openingCash);
   if ($("#closingCashIncomeReconcile")) $("#closingCashIncomeReconcile").textContent = `+${formatMoney(report.cashIncome)}`;
-  if ($("#closingExpenseReconcile")) $("#closingExpenseReconcile").textContent = `−${formatMoney(report.expense)}`;
+  if ($("#closingExpenseReconcile")) $("#closingExpenseReconcile").textContent = `−${formatMoney(report.cashDrawerExpense || 0)}`;
   if ($("#closingExpectedCash")) $("#closingExpectedCash").textContent = formatMoney(report.expectedCashInDrawer);
   if ($("#closingTransferHint")) $("#closingTransferHint").textContent = formatMoney(report.transferIncome);
+
+  // 📋 SAO KÊ KÉT TIỀN CHI TIẾT (Line-by-line cash flow statement)
+  const cashFlowBody = $("#cashFlowDetailBody");
+  if (cashFlowBody) {
+    // Separate cash sales and expenses
+    const cashSales = report.items.filter(it => it.loai === "thu" && it.phuongThuc !== "chuyen_khoan");
+    const transferSales = report.items.filter(it => it.loai === "thu" && it.phuongThuc === "chuyen_khoan");
+    const drawerExpenses = report.items.filter(it => {
+      if (it.loai !== "chi") return false;
+      if (!it.nguonTienChi) {
+        const itemDateStr = it.ngay || "";
+        if (itemDateStr < "2026-09-01") {
+          const name = (it.danhMuc || "").toLowerCase();
+          if (name.includes("đá") && Number(it.soTien) === 21000) return true;
+          return false;
+        }
+      }
+      return it.nguonTienChi !== "tien_von";
+    });
+
+    const walletExpenses = report.items.filter(it => {
+      if (it.loai !== "chi") return false;
+      if (!it.nguonTienChi) {
+        const itemDateStr = it.ngay || "";
+        if (itemDateStr < "2026-09-01") {
+          const name = (it.danhMuc || "").toLowerCase();
+          if (name.includes("đá") && Number(it.soTien) === 21000) return false;
+          return true;
+        }
+      }
+      return it.nguonTienChi === "tien_von";
+    });
+
+    // Group cash sales by drink name for cleaner display
+    const cashSalesGrouped = new Map();
+    cashSales.forEach(it => {
+      const name = it.danhMuc || "Nước mía thường";
+      const existing = cashSalesGrouped.get(name) || { count: 0, amount: 0 };
+      existing.count += Number(it.soLuong || 1);
+      existing.amount += Number(it.soTien || 0);
+      cashSalesGrouped.set(name, existing);
+    });
+
+    let runningBalance = report.openingCash;
+    let html = `<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.4rem 0.55rem; margin-bottom: 0.5rem;">
+      <strong style="color: #166534; font-size: 0.8rem;">💰 SỐ DƯ ĐẦU NGÀY TRONG KÉT</strong>
+    </div>`;
+
+    // Opening Cash row
+    html += `<div style="display: flex; justify-content: space-between; padding: 0.25rem 0.35rem; border-bottom: 1px solid #f1f5f9; background: #fefce8;">
+      <span>🟡 Tiền thối bỏ sẵn trong két sáng nay</span>
+      <strong style="color: #854d0e;">+${formatMoney(report.openingCash)}</strong>
+    </div>`;
+    html += `<div style="text-align: right; padding: 0.15rem 0.35rem; font-size: 0.72rem; color: #94a3b8;">Số dư: ${formatMoney(runningBalance)}</div>`;
+
+    // Cash Income Section
+    if (cashSalesGrouped.size > 0) {
+      html += `<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.4rem 0.55rem; margin: 0.4rem 0 0.25rem;">
+        <strong style="color: #166534; font-size: 0.8rem;">🟢 TIỀN MẶT KHÁCH TRẢ VÀO KÉT (+${formatMoney(report.cashIncome)})</strong>
+      </div>`;
+      for (const [name, data] of cashSalesGrouped) {
+        runningBalance += data.amount;
+        html += `<div style="display: flex; justify-content: space-between; padding: 0.25rem 0.35rem; border-bottom: 1px solid #f1f5f9;">
+          <span>🧃 ${name} × ${data.count} ly</span>
+          <strong style="color: #059669;">+${formatMoney(data.amount)}</strong>
+        </div>`;
+        html += `<div style="text-align: right; padding: 0.15rem 0.35rem; font-size: 0.72rem; color: #94a3b8;">Số dư: ${formatMoney(runningBalance)}</div>`;
+      }
+    }
+
+    // Transfer notice (not in cash drawer)
+    if (transferSales.length > 0) {
+      html += `<div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 0.4rem 0.55rem; margin: 0.4rem 0 0.25rem;">
+        <strong style="color: #0369a1; font-size: 0.8rem;">📲 CHUYỂN KHOẢN / QR (${formatMoney(report.transferIncome)}) — Không vào két</strong>
+      </div>`;
+      const transferGrouped = new Map();
+      transferSales.forEach(it => {
+        const name = it.danhMuc || "Nước mía thường";
+        const existing = transferGrouped.get(name) || { count: 0, amount: 0 };
+        existing.count += Number(it.soLuong || 1);
+        existing.amount += Number(it.soTien || 0);
+        transferGrouped.set(name, existing);
+      });
+      for (const [name, data] of transferGrouped) {
+        html += `<div style="display: flex; justify-content: space-between; padding: 0.25rem 0.35rem; border-bottom: 1px solid #f1f5f9; color: #64748b; font-style: italic;">
+          <span>📲 ${name} × ${data.count} ly (CK)</span>
+          <span>${formatMoney(data.amount)} → Ngân hàng</span>
+        </div>`;
+      }
+      html += `<div style="text-align: right; padding: 0.15rem 0.35rem; font-size: 0.72rem; color: #94a3b8;">Số dư két: ${formatMoney(runningBalance)} (không đổi vì CK vào tài khoản)</div>`;
+    }
+
+    // Cash Out Section (Expenses FROM DRAWER)
+    if (drawerExpenses.length > 0) {
+      html += `<div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.4rem 0.55rem; margin: 0.4rem 0 0.25rem;">
+        <strong style="color: #991b1b; font-size: 0.8rem;">🔴 RÚT TIỀN KÉT MUA HÀNG (−${formatMoney(report.cashDrawerExpense || 0)})</strong>
+      </div>`;
+      drawerExpenses.forEach(it => {
+        const name = it.danhMuc || "Chi khác";
+        const qty = Number(it.soLuong) || 1;
+        const unit = it.donViTinh || "";
+        const amount = Number(it.soTien || 0);
+        runningBalance -= amount;
+        const qtyText = unit ? `${qty} ${unit}` : `${qty} lần`;
+        html += `<div style="display: flex; justify-content: space-between; padding: 0.25rem 0.35rem; border-bottom: 1px solid #f1f5f9;">
+          <span>🛒 ${name} (${qtyText})</span>
+          <strong style="color: #dc2626;">−${formatMoney(amount)}</strong>
+        </div>`;
+        html += `<div style="text-align: right; padding: 0.15rem 0.35rem; font-size: 0.72rem; color: #94a3b8;">Số dư: ${formatMoney(runningBalance)}</div>`;
+      });
+    }
+
+    // Wallet Expenses (Not from drawer)
+    if (walletExpenses.length > 0) {
+      html += `<div style="background: #fdf4ff; border: 1px solid #f8c1cc; border-radius: 6px; padding: 0.4rem 0.55rem; margin: 0.4rem 0 0.25rem;">
+        <strong style="color: #a21caf; font-size: 0.8rem;">👛 LẤY TIỀN VÍ CÁ NHÂN MUA HÀNG (${formatMoney(report.walletExpense || 0)}) — Không trừ vào két</strong>
+      </div>`;
+      walletExpenses.forEach(it => {
+        const name = it.danhMuc || "Chi khác";
+        const qty = Number(it.soLuong) || 1;
+        const unit = it.donViTinh || "";
+        const amount = Number(it.soTien || 0);
+        const qtyText = unit ? `${qty} ${unit}` : `${qty} lần`;
+        html += `<div style="display: flex; justify-content: space-between; padding: 0.25rem 0.35rem; border-bottom: 1px solid #f1f5f9; color: #6b7280; font-style: italic;">
+          <span>🛒 ${name} (${qtyText})</span>
+          <span>${formatMoney(amount)} (Tiền vốn)</span>
+        </div>`;
+      });
+      html += `<div style="text-align: right; padding: 0.15rem 0.35rem; font-size: 0.72rem; color: #94a3b8;">Số dư két: ${formatMoney(runningBalance)} (chưa rút trả lại ví)</div>`;
+    }
+
+    // Final Summary
+    html += `<div style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 2px solid #3b82f6; border-radius: 8px; padding: 0.55rem 0.65rem; margin-top: 0.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <strong style="color: #1e40af; font-size: 0.85rem;">🎯 KÉT PHẢI CÒN ĐÚNG:</strong>
+        <strong style="color: #1d4ed8; font-size: 1.1rem;">${formatMoney(report.expectedCashInDrawer)}</strong>
+      </div>
+      <div style="font-size: 0.72rem; color: #3b82f6; margin-top: 0.25rem;">
+        = ${formatMoney(report.openingCash)} (thối sáng) + ${formatMoney(report.cashIncome)} (thu mặt) − ${formatMoney(report.cashDrawerExpense || 0)} (rút két)
+      </div>`;
+      
+    html += `</div>`;
+
+    cashFlowBody.innerHTML = html;
+  }
+  
+  state.pendingClosingFunds = {
+    bom: jar1Cost,
+    rent: jarRentCollected,
+    profit: jar4Profit
+  };
+
+  // Populate Action Plan
+  if ($("#actionKeepBase")) $("#actionKeepBase").textContent = formatMoney(report.openingCash);
+  if ($("#actionExtractBOM")) $("#actionExtractBOM").textContent = formatMoney(jar1Cost);
+  if ($("#actionExtractRent")) $("#actionExtractRent").textContent = formatMoney(jarRentCollected);
+  if ($("#actionExtractProfit")) $("#actionExtractProfit").textContent = formatMoney(jar4Profit);
 
   // Drinks breakdown table
   const drinksMap = new Map();
@@ -616,45 +1647,205 @@ function openDailyClosingModal() {
     }
   }
 
-  // Cash reconcile
+  const transferCount = report.items.filter((it) => it.loai === "thu" && it.phuongThuc === "chuyen_khoan").length;
+  if ($("#closingTransferCountHint")) $("#closingTransferCountHint").textContent = `${transferCount} bill`;
+
+  // Dual-channel reconciliation (Cash & Bank/MoMo)
   const cashInput = $("#closingCashActual");
   const cashResult = $("#closingCashResult");
-  if (cashInput) cashInput.value = "";
-  if (cashResult) {
-    cashResult.hidden = true;
-    cashResult.className = "reconcile-result";
-  }
+  const bankInput = $("#closingBankActual");
+  const bankResult = $("#closingBankResult");
+  const overallBox = $("#closingOverallBox");
+  const overallTitle = $("#closingOverallTitle");
+  const overallDetail = $("#closingOverallDetail");
 
-  if (cashInput && cashResult) {
-    cashInput.oninput = () => {
+  if (cashInput) cashInput.value = "";
+  if (bankInput) bankInput.value = "";
+  if (cashResult) cashResult.innerHTML = "";
+  if (bankResult) bankResult.innerHTML = "";
+  if (overallBox) overallBox.style.display = "none";
+
+  const updateDualReconcile = () => {
+    let hasCashInput = false;
+    let hasBankInput = false;
+    let cashMatch = false;
+    let bankMatch = false;
+
+    // Check Cash
+    if (cashInput && cashResult && cashInput.value.trim() !== "") {
+      hasCashInput = true;
       const val = Number(cashInput.value.replace(/[^0-9]/g, ""));
-      if (!val && val !== 0) {
-        cashResult.hidden = true;
-        return;
-      }
-      cashResult.hidden = false;
       const expected = report.expectedCashInDrawer;
       const diff = val - expected;
 
       if (diff === 0) {
-        cashResult.className = "reconcile-result is-match";
-        cashResult.textContent = `✅ Khớp tiền mặt 100%! Đúng ${formatMoney(val)} tiền mặt cần có trong két.`;
+        cashMatch = true;
+        cashResult.innerHTML = `<span style="color: #16a34a; font-weight: 800;">✅ Khớp tiền mặt 100%!</span> Đúng ${formatMoney(val)} cần có trong két.`;
       } else if (diff > 0) {
-        cashResult.className = "reconcile-result is-diff";
-        cashResult.textContent = `⚠️ Dư tiền mặt: +${formatMoney(diff)} (Đếm được: ${formatMoney(val)}, Cần có trong két: ${formatMoney(expected)}).`;
+        cashResult.innerHTML = `<span style="color: #ea580c; font-weight: 800;">🟢 Dư tiền mặt: +${formatMoney(diff)}</span> (Đếm được: ${formatMoney(val)} / Cần có: ${formatMoney(expected)}).`;
       } else {
-        cashResult.className = "reconcile-result is-diff";
-        cashResult.textContent = `⚠️ Thiếu tiền mặt: -${formatMoney(Math.abs(diff))} (Đếm được: ${formatMoney(val)}, Cần có trong két: ${formatMoney(expected)}).`;
+        cashResult.innerHTML = `<span style="color: #dc2626; font-weight: 800;">🔴 Thiếu tiền mặt: -${formatMoney(Math.abs(diff))}</span> (Đếm được: ${formatMoney(val)} / Cần có: ${formatMoney(expected)}).`;
       }
+
+      // 💡 Gợi ý nguyên nhân dư/thiếu tiền
+      const hintsBox = $("#cashDiscrepancyHints");
+      if (hintsBox) {
+        if (diff === 0) {
+          hintsBox.style.display = "none";
+        } else if (diff > 0) {
+          hintsBox.style.display = "block";
+          hintsBox.style.background = "#fefce8";
+          hintsBox.style.border = "1px solid #fde68a";
+          hintsBox.style.color = "#854d0e";
+          hintsBox.innerHTML = `
+            <strong>💡 Két dư +${formatMoney(diff)} — Tại sao?</strong><br>
+            <div style="margin-top: 0.3rem;">
+              Tiền thật trong két <strong>nhiều hơn</strong> sổ sách ${formatMoney(diff)}. Có thể do:<br>
+              <div style="margin-top: 0.25rem; padding-left: 0.5rem;">
+                ① <strong>Bán ly chưa bấm ghi sổ</strong> — VD: bán ${Math.ceil(diff / 8000)} ly nước (≈${formatMoney(diff)}) mà quên bấm nút ghi → tiền mặt vào két nhưng app không biết.<br>
+                ② <strong>Khách trả dư / tip</strong> — VD: ly 8k khách đưa 10k không thối → dư 2k mỗi lần, tích lũy nhiều lần = ${formatMoney(diff)}.<br>
+                ③ <strong>Tiền thối sáng thực tế > ${formatMoney(report.openingCash)}</strong> — Nếu hôm qua chốt ca xong mà quên lấy bớt tiền ra, sáng nay két đã có sẵn nhiều hơn ${formatMoney(report.openingCash)}.<br>
+                ④ <strong>Ai đó bỏ thêm tiền vào két</strong> — Người nhà / cộng sự đổi tiền lẻ hoặc bỏ tiền riêng vào mà chưa nói.
+              </div>
+              <div style="margin-top: 0.4rem; padding: 0.35rem 0.5rem; background: #fff7ed; border: 1px dashed #f59e0b; border-radius: 4px;">
+                <strong>👉 Cách xử lý:</strong> Kiểm tra lại số ly thực bán (đếm ly/cốc đã dùng), đối chiếu hóa đơn. Nếu chắc chắn đã ghi đủ → tiền dư là tip/làm tròn → có thể bỏ vào hũ dự phòng.
+              </div>
+            </div>`;
+        } else {
+          hintsBox.style.display = "block";
+          hintsBox.style.background = "#fef2f2";
+          hintsBox.style.border = "1px solid #fecaca";
+          hintsBox.style.color = "#991b1b";
+          hintsBox.innerHTML = `
+            <strong>⚠️ Két thiếu −${formatMoney(Math.abs(diff))} — Tại sao?</strong><br>
+            <div style="margin-top: 0.3rem;">
+              Tiền thật trong két <strong>ít hơn</strong> sổ sách ${formatMoney(Math.abs(diff))}. Có thể do:<br>
+              <div style="margin-top: 0.25rem; padding-left: 0.5rem;">
+                ① <strong>Thối dư cho khách</strong> — VD: tính nhầm tiền thối, trả lại nhiều hơn mức cần.<br>
+                ② <strong>Lấy tiền két chi xài chưa ghi</strong> — Mua đồ lặt vặt (bịch ny-lon, ống hút...) mà quên note vào chi phí.<br>
+                ③ <strong>Ghi sai giá bán</strong> — Bán 8k nhưng app ghi 10k → sổ sách cao hơn thực tế.<br>
+                ④ <strong>Đếm thiếu / rơi tiền</strong> — Kiểm tra lại trong két, ngăn kéo, túi áo.
+              </div>
+              <div style="margin-top: 0.4rem; padding: 0.35rem 0.5rem; background: #fff1f2; border: 1px dashed #f87171; border-radius: 4px;">
+                <strong>👉 Cách xử lý:</strong> Đếm lại thật kỹ, kiểm tra ngăn kéo két. Nếu chênh lệch nhỏ (< 10k) có thể do thối tiền lẻ tích lũy. Nếu lớn → rà lại các khoản chi trong ngày.
+              </div>
+            </div>`;
+        }
+      }
+
+    } else if (cashResult) {
+      cashResult.innerHTML = "";
+      const hintsBox = $("#cashDiscrepancyHints");
+      if (hintsBox) hintsBox.style.display = "none";
+    }
+
+    // Check Bank / MoMo
+    if (bankInput && bankResult && bankInput.value.trim() !== "") {
+      hasBankInput = true;
+      const val = Number(bankInput.value.replace(/[^0-9]/g, ""));
+      const expected = report.transferIncome;
+      const diff = val - expected;
+
+      if (diff === 0) {
+        bankMatch = true;
+        bankResult.innerHTML = `<span style="color: #0284c7; font-weight: 800;">✅ Khớp chuyển khoản 100%!</span> Đúng ${formatMoney(val)} trên App Ngân Hàng/MoMo.`;
+      } else if (diff > 0) {
+        bankResult.innerHTML = `<span style="color: #0284c7; font-weight: 800;">🟢 Dư chuyển khoản: +${formatMoney(diff)}</span> (Xem được: ${formatMoney(val)} / Sổ tính: ${formatMoney(expected)}).`;
+      } else {
+        bankResult.innerHTML = `<span style="color: #dc2626; font-weight: 800;">🔴 Thiếu chuyển khoản: -${formatMoney(Math.abs(diff))}</span> (Xem được: ${formatMoney(val)} / Sổ tính: ${formatMoney(expected)}).`;
+      }
+    } else if (bankResult) {
+      bankResult.innerHTML = "";
+    }
+
+    // Overall verdict
+    if (overallBox && (hasCashInput || hasBankInput)) {
+      overallBox.style.display = "block";
+      if (hasCashInput && hasBankInput) {
+        if (cashMatch && bankMatch) {
+          overallBox.style.background = "#f0fdf4";
+          overallBox.style.borderColor = "#86efac";
+          if (overallTitle) {
+            overallTitle.textContent = "🎉 KẾT QUẢ ĐỐI SOÁT: HOÀN TOÀN KHỚP 100%!";
+            overallTitle.style.color = "#166534";
+          }
+          if (overallDetail) {
+            overallDetail.textContent = "Cả tiền mặt trong két và tiền tài khoản ngân hàng/MoMo đều khớp từng đồng với sổ sách.";
+            overallDetail.style.color = "#15803d";
+          }
+        } else {
+          overallBox.style.background = "#fff7ed";
+          overallBox.style.borderColor = "#fed7aa";
+          if (overallTitle) {
+            overallTitle.textContent = "⚠️ KẾT QUẢ ĐỐI SOÁT CÓ CHÊNH LỆCH!";
+            overallTitle.style.color = "#9a3412";
+          }
+          if (overallDetail) {
+            overallDetail.textContent = "Hãy kiểm tra lại xem có bill bán khách chưa thanh toán hoặc khoản chi nào chưa ghi sổ không nhé.";
+            overallDetail.style.color = "#c2410c";
+          }
+        }
+      } else {
+        overallBox.style.background = "#f8fafc";
+        overallBox.style.borderColor = "#cbd5e1";
+        if (overallTitle) {
+          overallTitle.textContent = "🔍 Đang đối soát số liệu...";
+          overallTitle.style.color = "#334155";
+        }
+        if (overallDetail) {
+          overallDetail.textContent = "Nhập đủ cả tiền mặt và tiền chuyển khoản để hoàn tất đối soát 2 kênh.";
+          overallDetail.style.color = "#64748b";
+        }
+      }
+    } else if (overallBox) {
+      overallBox.style.display = "none";
+    }
+  };
+
+  const setupMoneyInputFormat = (inputEl) => {
+    if (!inputEl) return;
+    inputEl.oninput = () => {
+      const raw = inputEl.value.replace(/[^0-9]/g, "");
+      if (raw) {
+        const num = Number(raw);
+        inputEl.value = num.toLocaleString("vi-VN");
+      } else {
+        inputEl.value = "";
+      }
+      updateDualReconcile();
     };
+  };
+
+  setupMoneyInputFormat(cashInput);
+  setupMoneyInputFormat(bankInput);
+
+  // Check existing shift closing record
+  const existingRecord = getClosedShiftRecord(targetDate, currentBranch);
+  const confirmBtn = $("#confirmDailyClosingBtn");
+  if (confirmBtn) {
+    if (existingRecord) {
+      confirmBtn.innerHTML = `🔄 Chốt Lại Ngày ${formatDate(targetDate)}`;
+    } else {
+      confirmBtn.innerHTML = `✅ Xác Nhận Chốt Ca Ngày ${formatDate(targetDate)}`;
+    }
+  }
+
+  if (existingRecord) {
+    if (cashInput && existingRecord.actualCash) {
+      cashInput.value = existingRecord.actualCash;
+    }
+    if (bankInput && existingRecord.actualBank) {
+      bankInput.value = existingRecord.actualBank;
+    }
+    updateDualReconcile();
   }
 
   // Voice speech button in closing modal
   const speechBtn = $("#readClosingSpeechBtn");
   if (speechBtn) {
     speechBtn.onclick = () => {
-      docLai(report.detailedText);
-      showToast("Đang phát loa đọc tổng kết ngày...");
+      docLai(report.detailedText || report.text);
+      showToast(`Đang phát loa đọc tổng kết ngày ${formatDate(targetDate)}...`);
     };
   }
 
@@ -662,7 +1853,7 @@ function openDailyClosingModal() {
   const copyBtn = $("#copyClosingSummaryBtn");
   if (copyBtn) {
     copyBtn.onclick = () => {
-      const summaryText = `📋 TỔNG KẾT QUÁN (${formatDate(today)} - ${currentBranch}):
+      const summaryText = `📋 TỔNG KẾT QUÁN (${formatDate(targetDate)} - ${currentBranch === "all" ? "Tất cả điểm bán" : currentBranch}):
 - Bán ra: ${report.totalDrinks} ly
 - Doanh thu: ${formatMoney(report.income)} (Mặt: ${formatMoney(report.cashIncome)}, CK: ${formatMoney(report.transferIncome)})
 - Tiền vốn: ${formatMoney(report.cost)}
@@ -671,7 +1862,18 @@ function openDailyClosingModal() {
 - Tiền mặt trong két: ${formatMoney(report.cashBalance)}
 => TIỀN LỜI THỰC TẾ: ${formatMoney(report.balance)}`;
       navigator.clipboard?.writeText(summaryText);
-      showToast("Đã sao chép báo cáo vào bộ nhớ tạm");
+      showToast(`Đã sao chép báo cáo ngày ${formatDate(targetDate)} vào bộ nhớ tạm`);
+    };
+  }
+
+  const uncloseBtn = $("#uncloseDailyClosingBtn");
+  if (uncloseBtn) {
+    uncloseBtn.style.display = existingRecord ? "inline-flex" : "none";
+    uncloseBtn.onclick = () => {
+      deleteClosedShiftRecord(targetDate, currentBranch);
+      showToast(`🔓 Đã chuyển ca ngày ${formatDate(targetDate)} (${currentBranch === "all" ? "Toàn hệ thống" : currentBranch}) về trạng thái Chưa chốt ca!`);
+      dialog.close();
+      renderAll();
     };
   }
 
@@ -683,10 +1885,10 @@ function openDailyClosingModal() {
 // ----------------------------------------------------
 
 function renderStats() {
-  const allItems = (state.ds || []).filter((item) => !item.deleted);
+  const allItems = (state.ds || []).filter((item) => !item.deleted && item.loai !== "chuyen_quy" && item.loai !== "dieu_chinh_quy");
   
   // Filter by branch
-  const branchItems = statsBranch === "all" ? allItems : allItems.filter((it) => it.chiNhanh === statsBranch);
+  const branchItems = allItems.filter((it) => matchBranch(it.chiNhanh, statsBranch));
 
   let filtered = [];
   let periodLabel = "";
@@ -937,9 +2139,40 @@ function renderCharts(filtered) {
 // SETTINGS: MENU & BRANCH MANAGERS
 // ----------------------------------------------------
 
-function renderMenuManager() {
+let menuAutoSaveTimer = null;
+async function autoSaveMenuDebounced() {
+  clearTimeout(menuAutoSaveTimer);
+  menuAutoSaveTimer = setTimeout(async () => {
+    try {
+      await luuDanhSachMenu(state.quickItems || []);
+      console.log("⚡ Auto-saved menu items!");
+    } catch (e) {
+      console.warn("Auto save menu failed:", e);
+    }
+  }, 400);
+}
+
+let ingAutoSaveTimer = null;
+async function autoSaveIngredientsDebounced() {
+  clearTimeout(ingAutoSaveTimer);
+  ingAutoSaveTimer = setTimeout(async () => {
+    try {
+      await luuDanhSachNguyenLieu(state.quickIngredients || []);
+      console.log("⚡ Auto-saved ingredients!");
+    } catch (e) {
+      console.warn("Auto save ingredients failed:", e);
+    }
+  }, 400);
+}
+
+function renderMenuManager(force = false) {
   const container = $("#menuItemsEditor");
   if (!container) return;
+
+  // Do not destroy DOM if user is currently typing/focusing in menu editor unless forced
+  if (!force && document.activeElement && container.contains(document.activeElement)) {
+    return;
+  }
 
   const quickItems = state.quickItems || [];
   const tableHtml = `
@@ -947,35 +2180,40 @@ function renderMenuManager() {
       <table class="menu-editor-table">
         <thead>
           <tr>
-            <th style="width: 28%;">🏷️ Tên món nước</th>
-            <th style="width: 22%;">💵 Giá bán (đ)</th>
-            <th style="width: 28%;">🟡 Giá vốn (Cost đ)</th>
-            <th style="width: 16%;">💰 Lời / 1 ly</th>
+            <th style="width: 24%;">🏷️ Tên món</th>
+            <th style="width: 18%;">🏠 Giá Quán Nhà</th>
+            <th style="width: 18%;">🏢 Giá CN 2</th>
+            <th style="width: 20%;">🟡 Giá vốn (Cost)</th>
+            <th style="width: 14%;">💰 Lời / ly</th>
             <th style="width: 6%;"></th>
           </tr>
         </thead>
         <tbody>
           ${quickItems
             .map((item, index) => {
-              const price = Number(item.price) || 0;
+              const priceMain = item.priceByBranch?.["Quán Nhà (Chính)"] || Number(item.price) || 8000;
+              const priceBranch2 = item.priceByBranch?.["Chi nhánh 2"] || (priceMain + 2000);
               const cost = Number(item.costPrice) || 0;
-              const profit = price - cost;
+              const profitMain = priceMain - cost;
               return `
               <tr class="menu-item-row" data-index="${index}" data-id="${item.id}">
                 <td>
                   <input class="menu-item-name" value="${item.name || ""}" placeholder="Ví dụ: Nước mía" title="Tên món nước" required>
                 </td>
                 <td>
-                  <input class="menu-item-price" type="number" value="${price}" placeholder="8000" title="Giá bán ra cho khách (đ)" required>
+                  <input class="menu-item-price-main" type="number" inputmode="numeric" value="${priceMain}" placeholder="8000" title="Giá bán tại Quán Nhà (đ)" required>
+                </td>
+                <td>
+                  <input class="menu-item-price-cn2" type="number" inputmode="numeric" value="${priceBranch2}" placeholder="10000" title="Giá bán tại Chi nhánh 2 (đ)" required>
                 </td>
                 <td>
                   <div style="display: flex; gap: 0.25rem; align-items: center;">
-                    <input class="menu-item-cost" type="number" value="${cost}" placeholder="3000" title="Chi phí nguyên liệu 1 ly (Cost đ)" style="flex: 1;">
+                    <input class="menu-item-cost" type="number" inputmode="numeric" value="${cost}" placeholder="3000" title="Chi phí nguyên liệu 1 ly (Cost đ)" style="flex: 1;">
                     <button class="ghost-button row-calc-cost-btn" data-id="${item.id}" type="button" title="Mở bảng tính chi tiết cost và mặt bằng cho món này" style="padding: 0.25rem 0.4rem; font-size: 0.72rem; min-height: unset; color: #0284c7; border-color: #bae6fd;">🧮</button>
                   </div>
                 </td>
                 <td>
-                  <span class="profit-badge">+${formatMoney(profit)}</span>
+                  <span class="profit-badge">+${formatMoney(profitMain)}</span>
                 </td>
                 <td>
                   <button class="icon-btn-del" type="button" aria-label="Xóa món">✕</button>
@@ -991,16 +2229,33 @@ function renderMenuManager() {
 
   container.innerHTML = tableHtml;
 
-  // Live profit calculation on input
+  // Live state sync & profit calculation on input
   $$("#menuItemsEditor .menu-item-row").forEach((row) => {
-    const priceInput = row.querySelector(".menu-item-price");
+    const index = Number(row.getAttribute("data-index"));
+    const nameInput = row.querySelector(".menu-item-name");
+    const priceMainInput = row.querySelector(".menu-item-price-main");
+    const priceCn2Input = row.querySelector(".menu-item-price-cn2");
     const costInput = row.querySelector(".menu-item-cost");
     const profitBadge = row.querySelector(".profit-badge");
 
-    const updateProfit = () => {
-      const p = Number(priceInput?.value) || 0;
-      const c = Number(costInput?.value) || 0;
-      const prof = p - c;
+    const syncItemFromRow = () => {
+      const name = nameInput?.value?.trim() || "Món nước";
+      const priceMain = Number(priceMainInput?.value) || 0;
+      const priceCn2 = Number(priceCn2Input?.value) || 0;
+      const cost = Number(costInput?.value) || 0;
+      const prof = priceMain - cost;
+
+      if (state.quickItems && state.quickItems[index]) {
+        state.quickItems[index].name = name;
+        state.quickItems[index].shortName = name;
+        state.quickItems[index].price = priceMain;
+        state.quickItems[index].priceByBranch = {
+          "Quán Nhà (Chính)": priceMain,
+          "Chi nhánh 2": priceCn2,
+        };
+        state.quickItems[index].costPrice = cost;
+      }
+
       if (profitBadge) {
         profitBadge.textContent = prof >= 0 ? `+${formatMoney(prof)}` : `-${formatMoney(Math.abs(prof))}`;
         profitBadge.style.background = prof >= 0 ? "#ecfdf5" : "#fff1f2";
@@ -1008,8 +2263,15 @@ function renderMenuManager() {
       }
     };
 
-    priceInput?.addEventListener("input", updateProfit);
-    costInput?.addEventListener("input", updateProfit);
+    nameInput?.addEventListener("input", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
+    priceMainInput?.addEventListener("input", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
+    priceCn2Input?.addEventListener("input", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
+    costInput?.addEventListener("input", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
+
+    nameInput?.addEventListener("change", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
+    priceMainInput?.addEventListener("change", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
+    priceCn2Input?.addEventListener("change", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
+    costInput?.addEventListener("change", () => { syncItemFromRow(); autoSaveMenuDebounced(); });
   });
 
   $$("#menuItemsEditor .row-calc-cost-btn").forEach((btn) => {
@@ -1020,7 +2282,7 @@ function renderMenuManager() {
   });
 
   $$("#menuItemsEditor .icon-btn-del").forEach((btn) => {
-    btn.onclick = () => {
+    btn.onclick = async () => {
       const row = btn.closest(".menu-item-row");
       const index = Number(row?.getAttribute("data-index"));
       if (quickItems.length <= 1) {
@@ -1028,7 +2290,129 @@ function renderMenuManager() {
         return;
       }
       quickItems.splice(index, 1);
-      renderMenuManager();
+      await autoSaveMenuDebounced();
+      renderMenuManager(true);
+    };
+  });
+}
+
+function renderIngredientManager(force = false) {
+  const container = $("#ingredientItemsEditor");
+  if (!container) return;
+
+  // Do not destroy DOM if user is currently typing/focusing in ingredient editor unless forced
+  if (!force && document.activeElement && container.contains(document.activeElement)) {
+    return;
+  }
+
+  const quickIngredients = state.quickIngredients || [];
+  const tableHtml = `
+    <div class="menu-table-container">
+      <table class="menu-editor-table">
+        <thead>
+          <tr>
+            <th style="width: 8%;">Ảnh</th>
+            <th style="width: 25%;">🏷️ Tên nguyên liệu</th>
+            <th style="width: 14%;">📏 ĐVT</th>
+            <th style="width: 20%;">💵 Giá nhập chuẩn (đ)</th>
+            <th style="width: 14%;">🔢 SL mặc định</th>
+            <th style="width: 13%;">🥤 Định mức (ly)</th>
+            <th style="width: 6%;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${quickIngredients
+            .map((item, index) => {
+              const cost = Number(item.unitCost) || 0;
+              const defaultQty = Number(item.defaultQty) || 1;
+              const yieldVal = Number(item.yieldPerUnit) || 1;
+              const imgSrc = getValidIngredientImage(item);
+              return `
+              <tr class="ingredient-item-row" data-index="${index}" data-id="${item.id}">
+                <td style="text-align: center;">
+                  <div style="width: 2.2rem; height: 2.2rem; border-radius: 6px; overflow: hidden; margin: 0 auto; border: 1px solid #cbd5e1; background: #fff;">
+                    <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='./assets/ingredients/bo_mia.jpg';" />
+                  </div>
+                </td>
+                <td>
+                  <input class="ing-item-name" value="${item.name || ""}" placeholder="Ví dụ: Bó mía cây" title="Tên nguyên liệu" required style="font-weight: 700;">
+                </td>
+                <td>
+                  <input class="ing-item-unit" value="${item.unit || "kg"}" placeholder="bó, bao, kg..." title="Đơn vị tính" style="text-align: center;">
+                </td>
+                <td>
+                  <input class="ing-item-cost" type="number" inputmode="numeric" value="${cost}" placeholder="90000" title="Đơn giá nhập chuẩn (đ)" required style="font-weight: 800; color: #c2410c;">
+                </td>
+                <td>
+                  <input class="ing-item-qty" type="number" inputmode="numeric" value="${defaultQty}" placeholder="1" title="Số lượng mặc định" style="text-align: center;">
+                </td>
+                <td>
+                  <input class="ing-item-yield" type="number" inputmode="numeric" value="${yieldVal}" placeholder="45" title="Định mức ly làm ra / 1 đơn vị" style="text-align: center;">
+                </td>
+                <td>
+                  <button class="icon-btn-del del-ingredient-row-btn" type="button" aria-label="Xóa nguyên liệu">✕</button>
+                </td>
+              </tr>
+            `;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  container.innerHTML = tableHtml;
+
+  // Live state sync & auto-save on input/change
+  $$("#ingredientItemsEditor .ingredient-item-row").forEach((row) => {
+    const index = Number(row.getAttribute("data-index"));
+    const nameInput = row.querySelector(".ing-item-name");
+    const unitInput = row.querySelector(".ing-item-unit");
+    const costInput = row.querySelector(".ing-item-cost");
+    const qtyInput = row.querySelector(".ing-item-qty");
+    const yieldInput = row.querySelector(".ing-item-yield");
+
+    const syncIngFromRow = () => {
+      const name = nameInput?.value?.trim() || "Nguyên liệu";
+      const unit = unitInput?.value?.trim() || "kg";
+      const unitCost = Number(costInput?.value) || 0;
+      const defaultQty = Number(qtyInput?.value) || 1;
+      const yieldPerUnit = Number(yieldInput?.value) || 1;
+
+      if (state.quickIngredients && state.quickIngredients[index]) {
+        state.quickIngredients[index].name = name;
+        state.quickIngredients[index].shortName = name;
+        state.quickIngredients[index].unit = unit;
+        state.quickIngredients[index].unitCost = unitCost;
+        state.quickIngredients[index].defaultQty = defaultQty;
+        state.quickIngredients[index].yieldPerUnit = yieldPerUnit;
+      }
+    };
+
+    nameInput?.addEventListener("input", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    unitInput?.addEventListener("input", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    costInput?.addEventListener("input", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    qtyInput?.addEventListener("input", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    yieldInput?.addEventListener("input", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+
+    nameInput?.addEventListener("change", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    unitInput?.addEventListener("change", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    costInput?.addEventListener("change", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    qtyInput?.addEventListener("change", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+    yieldInput?.addEventListener("change", () => { syncIngFromRow(); autoSaveIngredientsDebounced(); });
+  });
+
+  $$("#ingredientItemsEditor .del-ingredient-row-btn").forEach((btn) => {
+    btn.onclick = async () => {
+      const row = btn.closest(".ingredient-item-row");
+      const index = Number(row?.getAttribute("data-index"));
+      if (quickIngredients.length <= 1) {
+        showToast("Phải có ít nhất 1 nguyên liệu", true);
+        return;
+      }
+      quickIngredients.splice(index, 1);
+      await autoSaveIngredientsDebounced();
+      renderIngredientManager(true);
     };
   });
 }
@@ -1417,23 +2801,1353 @@ function renderBranchManager() {
   });
 }
 
-function renderAll() {
-  renderBranchSelectors();
-  renderQuickButtons();
-  renderCategoryDatalist();
-  renderToday();
-  renderHistory();
-  renderStats();
-  renderMenuManager();
-  renderOverheadAndPackagingManager();
-  renderBranchManager();
-  renderAIChatHistory();
-  updateAudioAlertButtonUI();
+function renderAll(options = {}) {
+  try { renderBranchSelectors(); } catch (e) { console.warn("renderBranchSelectors error:", e); }
+  try { renderQuickButtons(); } catch (e) { console.warn("renderQuickButtons error:", e); }
+  try { renderQuickIngredients(); } catch (e) { console.warn("renderQuickIngredients error:", e); }
+  try { renderCategoryDatalist(); } catch (e) { console.warn("renderCategoryDatalist error:", e); }
+  try { renderFundsWidget(); } catch (e) { console.warn("renderFundsWidget error:", e); }
+  try { renderToday(); } catch (e) { console.warn("renderToday error:", e); }
+  try { renderHistory(); } catch (e) { console.warn("renderHistory error:", e); }
+  try { renderStats(); } catch (e) { console.warn("renderStats error:", e); }
+  try { renderJarsView(); } catch (e) { console.warn("renderJarsView error:", e); }
+  try { renderClosingsView(); } catch (e) { console.warn("renderClosingsView error:", e); }
+  try { renderMaterialsView(); } catch (e) { console.warn("renderMaterialsView error:", e); }
+
+  const isEditingSettings = document.activeElement && (
+    document.querySelector("#menuItemsEditor")?.contains(document.activeElement) ||
+    document.querySelector("#ingredientItemsEditor")?.contains(document.activeElement) ||
+    document.querySelector("#costSettingsCard")?.contains(document.activeElement) ||
+    document.querySelector("#branchListEditor")?.contains(document.activeElement)
+  );
+
+  if (!isEditingSettings || options.forceSettings) {
+    try { renderMenuManager(options.forceSettings); } catch (e) { console.warn("renderMenuManager error:", e); }
+    try { renderIngredientManager(options.forceSettings); } catch (e) { console.warn("renderIngredientManager error:", e); }
+    try { renderOverheadAndPackagingManager(); } catch (e) { console.warn("renderOverheadAndPackagingManager error:", e); }
+    try { renderBranchManager(); } catch (e) { console.warn("renderBranchManager error:", e); }
+  }
+
+  try { renderAIChatHistory(); } catch (e) { console.warn("renderAIChatHistory error:", e); }
+  try { updateAudioAlertButtonUI(); } catch (e) { console.warn("updateAudioAlertButtonUI error:", e); }
 
   const defaultCashInput = $("#defaultOpeningCashInput");
-  if (defaultCashInput) {
+  if (defaultCashInput && document.activeElement !== defaultCashInput) {
     defaultCashInput.value = state.defaultOpeningCash || 500000;
   }
+}
+
+// ----------------------------------------------------
+// QUẢN LÝ NGUYÊN VẬT LIỆU, XUẤT DÙNG & TỒN KHO
+// ----------------------------------------------------
+
+// ----------------------------------------------------
+// VẬN HÀNH SƠ CHẾ & ĐIỀU CHUYỂN MÍA (MODULE-LEVEL SCOPE)
+// ----------------------------------------------------
+
+function renderSugarcaneBatchDashboard() {
+  const batches = state.sugarcaneBatches || [];
+  const activeBatch = batches.find(b => b.status === "active") || batches[0];
+  if (!activeBatch) return;
+
+  const titleEl = $("#batchCurrentTitle");
+  const statusBadge = $("#batchCurrentStatusBadge");
+  const rawTotalEl = $("#batchRawTotalVal");
+  const processedEl = $("#batchProcessedVal");
+  const yieldTotalEl = $("#batchYieldTotalVal");
+  const ratioEl = $("#batchRatioVal");
+
+  if (titleEl) titleEl.textContent = `ĐỢT MÍA: ${activeBatch.name}`;
+  if (statusBadge) {
+    if (activeBatch.status === "active") {
+      statusBadge.textContent = "Đang Bào";
+      statusBadge.style.background = "#d1fae5";
+      statusBadge.style.color = "#065f46";
+      statusBadge.style.borderColor = "#10b981";
+    } else {
+      statusBadge.textContent = "Đã Tổng Kết";
+      statusBadge.style.background = "#f1f5f9";
+      statusBadge.style.color = "#475569";
+      statusBadge.style.borderColor = "#cbd5e1";
+    }
+  }
+
+  const rawTotal = Number(activeBatch.rawStalkBundles) || 0;
+  const processed = Number(activeBatch.processedRawBundles) || 0;
+  const remaining = Math.max(0, rawTotal - processed);
+  const yield10kg = Number(activeBatch.yield10kgBundles) || 0;
+  const ratio = processed > 0 ? (Math.round((yield10kg / processed) * 10) / 10) : 0;
+
+  if (rawTotalEl) rawTotalEl.textContent = `${rawTotal} bó 12 cây`;
+  if (processedEl) processedEl.textContent = `${processed} / ${remaining} bó thô`;
+  if (yieldTotalEl) yieldTotalEl.textContent = `${yield10kg * 10} kg (${yield10kg} bó)`;
+  if (ratioEl) ratioEl.textContent = ratio > 0 ? `1 bó ➔ ${ratio * 10} kg` : "Chưa bào";
+}
+
+function openMiaOperationsModal(tab = "soche") {
+  const dialog = $("#miaOperationsDialog");
+  if (!dialog) return;
+
+  const qnStock12 = (state.inventoryStock?.["Quán Nhà (Chính)"]?.find(x => x.id === "mia_cay")?.stockQty) ?? 20;
+  const qnStock10 = (state.inventoryStock?.["Quán Nhà (Chính)"]?.find(x => x.id === "mia_10kg")?.stockQty) ?? 10;
+  
+  const socheStockInfo = $("#socheStockInfo");
+  if (socheStockInfo) socheStockInfo.textContent = `Kho thô: ${qnStock12} bó 12 cây`;
+
+  const transferStockInfo = $("#transferStockInfo");
+  if (transferStockInfo) transferStockInfo.textContent = `Kho Quán Nhà còn: ${qnStock10 * 10} kg (${qnStock10} bó)`;
+
+  const tabRadio = $(`#miaOpTabGroup input[value='${tab}']`);
+  if (tabRadio) tabRadio.checked = true;
+  switchMiaOpTab(tab);
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  }
+}
+
+function switchMiaOpTab(tab) {
+  const pSoche = $("#miaOpPanelSoche");
+  const pTransfer = $("#miaOpPanelTransfer");
+  const pRemaining = $("#miaOpPanelRemaining");
+  const pReport = $("#miaOpPanelReport");
+  const pNewBatch = $("#miaOpPanelNewBatch");
+  const header = $("#miaOpModalHeader");
+  const title = $("#miaOpModalTitle");
+  const subtitle = $("#miaOpModalSubtitle");
+  const icon = $("#miaOpModalIcon");
+
+  if (pSoche) pSoche.style.display = tab === "soche" ? "block" : "none";
+  if (pTransfer) pTransfer.style.display = tab === "transfer" ? "block" : "none";
+  if (pRemaining) pRemaining.style.display = tab === "remaining" ? "block" : "none";
+  if (pReport) pReport.style.display = tab === "report" ? "block" : "none";
+  if (pNewBatch) pNewBatch.style.display = tab === "new_batch" ? "block" : "none";
+
+  if (tab === "soche") {
+    if (header) header.style.background = "linear-gradient(135deg, #059669 0%, #047857 100%)";
+    if (icon) icon.textContent = "🔄";
+    if (title) title.textContent = "Bào Mía Sơ Chế (1 Bó = 10kg Thành Phẩm)";
+    if (subtitle) subtitle.textContent = "Bào X bó 12 cây dài ➔ Y kg (1 bó = 10kg) sạch cất kho mát";
+    updateSocheNotes();
+  } else if (tab === "transfer") {
+    if (header) header.style.background = "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)";
+    if (icon) icon.textContent = "🚚";
+    if (title) title.textContent = "Xuất Mía Sang Chi Nhánh 2";
+    if (subtitle) subtitle.textContent = "Xuất X bó 10kg từ Quán Nhà sang bán ở Chi nhánh 2";
+    updateTransferNotes();
+  } else if (tab === "remaining") {
+    if (header) header.style.background = "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)";
+    if (icon) icon.textContent = "🌙";
+    if (title) title.textContent = "Kiểm Kê Mía Dư Cuối Ngày";
+    if (subtitle) subtitle.textContent = "Hôm nay chưa bán hết mía, còn dư khoảng ... ly / ký";
+    updateRemainingNotes();
+  } else if (tab === "report") {
+    if (header) header.style.background = "linear-gradient(135deg, #059669 0%, #047857 100%)";
+    if (icon) icon.textContent = "📊";
+    if (title) title.textContent = "Báo Cáo Tổng Kết Đợt Nhập Mía";
+    if (subtitle) subtitle.textContent = "Tổng kết đợt nhập: bao nhiêu bó 12 cây ra bao nhiêu bó 10kg";
+    renderBatchReport();
+  } else if (tab === "new_batch") {
+    if (header) header.style.background = "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)";
+    if (icon) icon.textContent = "➕";
+    if (title) title.textContent = "Khai Báo Đợt Nhập Mía Mới";
+    if (subtitle) subtitle.textContent = "Mua mía thô 12 cây từ vựa về kho & mở lô theo dõi";
+    const dateInput = $("#newBatchDateInput");
+    if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+    updateNewBatchTotal();
+  }
+}
+
+function updateSocheNotes() {
+  const raw = Number($("#socheRawQtyInput")?.value) || 0;
+  const yieldKg = Number($("#socheYieldKgInput")?.value) || 0;
+  const yieldQty = Math.round((yieldKg / 10) * 10) / 10;
+  const yieldQtyInput = $("#socheYieldQtyInput");
+  if (yieldQtyInput) yieldQtyInput.value = yieldQty;
+
+  const yieldText = $("#socheYieldBundlesText");
+  if (yieldText) {
+    yieldText.textContent = `= ${yieldQty} bó (1 bó = 10kg)`;
+  }
+
+  const noteInput = $("#socheNoteInput");
+  if (noteInput) {
+    noteInput.value = `[Sơ chế nhập kho] Bào vỏ ${raw} bó mía 12 cây dài -> Thu được ${yieldKg} kg (${yieldQty} bó 10kg thành phẩm)`;
+  }
+}
+
+function updateTransferNotes() {
+  const qty = Number($("#transferQtyInput")?.value) || 2;
+  const targetBranch = $("#transferTargetBranch")?.value || "Chi nhánh 2";
+  const noteInput = $("#transferNoteInput");
+  if (noteInput) {
+    noteInput.value = `[Điều chuyển] Xuất ${qty} bó mía 10kg để bán ở ${targetBranch}`;
+  }
+  const yieldText = $("#transferYieldText");
+  if (yieldText) {
+    yieldText.textContent = `~${qty * 25}-${qty * 30} ly tại ${targetBranch}`;
+  }
+}
+
+function updateRemainingNotes() {
+  const branch = $("#remainingBranchSelect")?.value || "Chi nhánh 2";
+  const amount = Number($("#remainingAmountInput")?.value) || 0;
+  const unitType = $("#miaOpPanelRemaining input[name='remainingUnitType']:checked")?.value || "ly";
+  const unitText = unitType === "ly" ? "ly nước" : "kg mía";
+  const label = $("#remainingUnitLabel");
+  if (label) label.textContent = unitText;
+  const noteInput = $("#remainingNoteInput");
+  if (noteInput) {
+    noteInput.value = `[Mía dư cuối ngày] ${branch} hôm nay chưa bán hết mía, còn dư khoảng ${amount} ${unitText} chuyển sang mai bán tiếp`;
+  }
+}
+
+function updateNewBatchTotal() {
+  const qty = Math.max(1, Number($("#newBatchQtyInput")?.value) || 20);
+  const price = Number($("#newBatchPriceInput")?.value.replace(/[^0-9]/g, "")) || 90000;
+  const total = qty * price;
+  const totalEl = $("#newBatchTotalCostText");
+  if (totalEl) totalEl.textContent = formatMoney(total);
+}
+
+function renderBatchReport(batchId = null) {
+  const batches = state.sugarcaneBatches || [];
+  const select = $("#reportBatchSelect");
+  if (!select) return;
+
+  if (batches.length === 0) {
+    select.innerHTML = '<option value="">Chưa có đợt mía nào</option>';
+    const card = $("#batchReportDetailCard");
+    if (card) card.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:1rem;">Chưa có đợt mía nào được tạo.</div>';
+    return;
+  }
+
+  const currentId = batchId || select.value || (batches.find(b => b.status === "active")?.id) || batches[0]?.id;
+  select.innerHTML = batches.map(b => `
+    <option value="${b.id}" ${b.id === currentId ? 'selected' : ''}>
+      ${b.status === 'active' ? '🟢' : '⚪'} ${b.name} (${b.status === 'active' ? 'Đang bào' : 'Đã tổng kết'})
+    </option>
+  `).join("");
+
+  const batch = batches.find(b => b.id === currentId) || batches[0];
+  if (!batch) return;
+
+  const card = $("#batchReportDetailCard");
+  const historyWrap = $("#batchHistoryTableWrap");
+  const closeBtn = $("#closeActiveBatchBtn");
+
+  const rawTotal = Number(batch.rawStalkBundles) || 0;
+  const processed = Number(batch.processedRawBundles) || 0;
+  const remaining = Math.max(0, rawTotal - processed);
+  const yield10kg = Number(batch.yield10kgBundles) || 0;
+  const ratio = processed > 0 ? (Math.round((yield10kg / processed) * 10) / 10) : 0;
+  const totalCost = Number(batch.totalCost) || (rawTotal * 90000);
+  const costPer10kg = yield10kg > 0 ? Math.round(totalCost / yield10kg) : 0;
+  const estCups = Math.round(yield10kg * 27.5);
+
+  if (card) {
+    card.innerHTML = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.6rem;">
+        <div>
+          <span style="font-size: 0.72rem; color: #64748b;">Tổng nhập ban đầu:</span>
+          <strong style="display: block; font-size: 0.95rem; color: #0f172a;">${rawTotal} bó 12 cây dài</strong>
+          <small style="font-size: 0.7rem; color: #ea580c;">Chi phí: ${formatMoney(totalCost)}</small>
+        </div>
+        <div>
+          <span style="font-size: 0.72rem; color: #64748b;">Tiến độ sơ chế:</span>
+          <strong style="display: block; font-size: 0.95rem; color: ${remaining === 0 ? '#059669' : '#d97706'};">
+            Đã bào ${processed}/${rawTotal} bó ${remaining === 0 ? '✓ (Hết đợt)' : `(Còn ${remaining} bó thô)`}
+          </strong>
+        </div>
+      </div>
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.6rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+        <div>
+          <span style="font-size: 0.72rem; color: #047857;">Tổng mía 10kg thu được:</span>
+          <strong style="display: block; font-size: 1.15rem; color: #065f46;">${yield10kg} bó 10kg sạch</strong>
+          <small style="font-size: 0.7rem; color: #059669;">Ép được ~${estCups} ly nước mía</small>
+        </div>
+        <div>
+          <span style="font-size: 0.72rem; color: #047857;">Tỷ lệ thực tế:</span>
+          <strong style="display: block; font-size: 1.15rem; color: #065f46;">1 ➔ ${ratio} bó 10kg</strong>
+          <small style="font-size: 0.7rem; color: #059669;">Giá vốn: ~${formatMoney(costPer10kg)} / bó 10kg</small>
+        </div>
+      </div>
+    `;
+  }
+
+  if (historyWrap) {
+    const hist = Array.isArray(batch.history) ? batch.history : [];
+    if (hist.length === 0) {
+      historyWrap.innerHTML = `<div style="padding: 0.85rem; text-align: center; color: #94a3b8;">Chưa có lượt bào nào trong đợt này.</div>`;
+    } else {
+      historyWrap.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead>
+            <tr style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-size: 0.7rem; color: #475569;">
+              <th style="padding: 0.35rem 0.5rem;">Thời gian</th>
+              <th style="padding: 0.35rem 0.5rem; text-align: center;">Bào thô</th>
+              <th style="padding: 0.35rem 0.5rem; text-align: center;">Thu được</th>
+              <th style="padding: 0.35rem 0.5rem;">Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${hist.map(h => `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 0.35rem 0.5rem; color: #64748b;">${h.time}</td>
+                <td style="padding: 0.35rem 0.5rem; text-align: center; font-weight: 700; color: #9a3412;">${h.rawQty} bó</td>
+                <td style="padding: 0.35rem 0.5rem; text-align: center; font-weight: 800; color: #059669;">+${h.yieldQty} bó</td>
+                <td style="padding: 0.35rem 0.5rem; color: #334155;">${h.note || '-'}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+  }
+
+  if (closeBtn) {
+    if (batch.status === "completed") {
+      closeBtn.disabled = true;
+      closeBtn.style.opacity = "0.5";
+      closeBtn.querySelector("span").textContent = "✓ Đợt Mía Này Đã Đóng";
+    } else {
+      closeBtn.disabled = false;
+      closeBtn.style.opacity = "1";
+      closeBtn.querySelector("span").textContent = "🏁 Đóng & Tổng Kết Đợt Mía Này";
+    }
+  }
+}
+
+let materialsLogFilter = "all";
+
+function renderMaterialsView() {
+  const branchSelect = $("#materialsBranchSelect");
+  let activeBranch = branchSelect?.value || (state.currentBranch && state.currentBranch !== "all" ? state.currentBranch : "Quán Nhà (Chính)");
+
+  if (branchSelect && state.branches && state.branches.length) {
+    const currentVal = branchSelect.value;
+    branchSelect.innerHTML = state.branches.map(b => `<option value="${b.name}" ${b.name === (currentVal || activeBranch) ? 'selected' : ''}>${matchBranch(b.name, 'Quán Nhà (Chính)') ? '🏠' : '🏪'} ${b.name}</option>`).join("");
+    activeBranch = branchSelect.value;
+  }
+
+  // 1. Stock map for active branch
+  const stockMap = {};
+  let lowStockCount = 0;
+  const items = (state.inventoryStock && state.inventoryStock[activeBranch]) || [];
+  items.forEach(it => {
+    stockMap[it.id] = Number(it.stockQty) || 0;
+    if (it.minQty && (Number(it.stockQty) || 0) <= Number(it.minQty)) {
+      lowStockCount++;
+    }
+  });
+
+  // Batch Dashboard
+  renderSugarcaneBatchDashboard();
+
+  // KPI 1: Total NVL
+  const ingredients = state.quickIngredients || [];
+  if ($("#matTotalItemsCount")) $("#matTotalItemsCount").textContent = `${ingredients.length} loại`;
+
+  // KPI 2: Low stock warning
+  if ($("#matLowStockCount")) {
+    $("#matLowStockCount").textContent = `${lowStockCount} loại`;
+    $("#matLowStockCount").style.color = lowStockCount > 0 ? "#fca5a5" : "#fef08a";
+  }
+  if ($("#matLowStockText")) {
+    $("#matLowStockText").textContent = lowStockCount > 0 ? "Có nguyên liệu sắp hết!" : "Tồn kho đang ở mức an toàn";
+  }
+
+  // KPI 3: Today used count
+  const today = todayKey();
+  const todayUses = (state.ds || []).filter(tx => !tx.deleted && tx.ngay === today && (tx.loai === "xuat_dung" || tx.loai === "xuat_kho") && matchBranch(tx.chiNhanh, activeBranch));
+  if ($("#matTodayUsedCount")) $("#matTodayUsedCount").textContent = `${todayUses.length} lượt`;
+  if ($("#matTodayUsedText")) {
+    const totalQtyUsed = todayUses.reduce((sum, tx) => sum + (Number(tx.soLuong) || 0), 0);
+    $("#matTodayUsedText").textContent = todayUses.length > 0 ? `Tổng cộng ${totalQtyUsed} phần NVL` : "Chưa có lượt xuất dùng nào";
+  }
+
+  // 2. Render Quick Usage Grid (1 Chạm)
+  const quickContainer = $("#materialsQuickButtons");
+  if (quickContainer) {
+    quickContainer.innerHTML = ingredients
+      .map((item) => {
+        const imgSrc = getValidIngredientImage(item);
+        const invId = item.inventoryId || item.id;
+        const currentStock = stockMap[invId] !== undefined ? stockMap[invId] : (stockMap[item.id] !== undefined ? stockMap[item.id] : 0);
+        const isLow = currentStock <= 2;
+        const yieldVal = item.yieldPerUnit || 1;
+        const isMia10kg = invId === "mia_10kg";
+        const stockBadgeText = isMia10kg ? `${currentStock * 10}kg (${currentStock} bó)` : `${currentStock} ${item.unit || ""}`;
+
+        return `
+        <button class="quick-btn ingredient-card theme-${item.icon || "cane_bundle"}" data-id="${item.id}" type="button" style="position: relative;">
+          <span class="quick-btn-badge ing-cost-badge" style="background: #7c3aed !important; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.35) !important;">~${yieldVal} ly</span>
+          <div class="quick-btn-img-box ing-img-box">
+            <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" />
+          </div>
+          <strong class="quick-btn-name">${item.shortName || item.name}</strong>
+          <span class="ing-stock-badge ${isLow ? 'is-low' : ''}" style="position: absolute; bottom: 0.35rem; right: 0.35rem; font-size: 0.7rem; font-weight: 800; background: ${isLow ? '#fee2e2' : 'rgba(241, 245, 249, 0.94)'}; color: ${isLow ? '#b91c1c' : '#334155'}; padding: 0.12rem 0.4rem; border-radius: 4px; border: 1px solid ${isLow ? '#fca5a5' : '#cbd5e1'}; backdrop-filter: blur(4px);">Tồn: ${stockBadgeText}</span>
+        </button>
+      `;
+      })
+      .join("");
+
+    $$("#materialsQuickButtons .ingredient-card").forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.getAttribute("data-id");
+        const item = ingredients.find((ing) => ing.id === id);
+        if (!item) return;
+        openQuickIngredientModal(item, "use");
+      };
+    });
+  }
+
+  // 3. Render Detailed Inventory Table
+  const tableBody = $("#materialsTableBody");
+  if (tableBody) {
+    tableBody.innerHTML = ingredients
+      .map((item) => {
+        const imgSrc = getValidIngredientImage(item);
+        const invId = item.inventoryId || item.id;
+        const currentStock = stockMap[invId] !== undefined ? stockMap[invId] : 0;
+        const isLow = currentStock <= 2;
+        const unitCost = Number(item.unitCost) || 0;
+        const yieldVal = item.yieldPerUnit || 1;
+        const isMia10kg = invId === "mia_10kg";
+        const stockText = isMia10kg ? `${currentStock * 10} kg (${currentStock} bó)` : `${currentStock} ${item.unit}`;
+        const unitDisplay = isMia10kg ? "bó (10kg)" : item.unit;
+
+        return `
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <div style="width: 2.3rem; height: 2.3rem; border-radius: 6px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; flex-shrink: 0;">
+                <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" />
+              </div>
+              <div>
+                <strong style="display: block; font-size: 0.88rem; color: #0f172a;">${item.name}</strong>
+                <small style="color: #64748b; font-size: 0.73rem;">${formatMoney(unitCost)}/${item.unit}</small>
+              </div>
+            </div>
+          </td>
+          <td style="text-align: center;">
+            <span style="background: #f1f5f9; padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700; font-size: 0.78rem; color: #475569;">${unitDisplay}</span>
+          </td>
+          <td style="text-align: right;">
+            <strong style="font-size: 0.95rem; color: ${isLow ? '#b91c1c' : '#047857'};">${stockText}</strong>
+            ${isLow ? `<span style="display: block; font-size: 0.68rem; color: #ef4444; font-weight: 700;">⚠️ Sắp hết</span>` : ''}
+          </td>
+          <td style="text-align: right;">
+            <span style="font-weight: 700; color: #0284c7;">~${yieldVal} ly</span>
+          </td>
+          <td style="text-align: center;">
+            <div style="display: flex; gap: 0.35rem; justify-content: center;">
+              <button class="ghost-button mat-row-use-btn" data-id="${item.id}" type="button" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; font-weight: 800; color: #7c3aed; border-color: #ddd6fe; background: #faf5ff;">📦 Xuất</button>
+              <button class="ghost-button mat-row-buy-btn" data-id="${item.id}" type="button" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; font-weight: 800; color: #ea580c; border-color: #fed7aa; background: #fff7ed;">🛒 Mua</button>
+              <button class="ghost-button mat-row-adjust-btn" data-id="${invId}" data-name="${item.name}" data-unit="${item.unit}" type="button" style="padding: 0.2rem 0.45rem; font-size: 0.75rem; font-weight: 800; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;" title="Kiểm kê điều chỉnh số tồn thực tế">⚙️ Kiểm</button>
+            </div>
+          </td>
+        </tr>
+      `;
+      })
+      .join("");
+
+    $$("#materialsTableBody .mat-row-use-btn").forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.getAttribute("data-id");
+        const item = ingredients.find((ing) => ing.id === id);
+        if (!item) return;
+        openQuickIngredientModal(item, "use");
+      };
+    });
+
+    $$("#materialsTableBody .mat-row-buy-btn").forEach((btn) => {
+      btn.onclick = () => {
+        const id = btn.getAttribute("data-id");
+        const item = ingredients.find((ing) => ing.id === id);
+        if (!item) return;
+        openQuickIngredientModal(item, "buy");
+      };
+    });
+
+    $$("#materialsTableBody .mat-row-adjust-btn").forEach((btn) => {
+      btn.onclick = async () => {
+        const invId = btn.getAttribute("data-id");
+        const name = btn.getAttribute("data-name");
+        const unit = btn.getAttribute("data-unit");
+        const isMia10kg = invId === "mia_10kg";
+        const currentQty = stockMap[invId] !== undefined ? stockMap[invId] : 0;
+        const promptMsg = isMia10kg
+          ? `Nhập số tồn kho thực tế cho ${name} theo số BÓ (1 bó = 10kg):\n(Hiện tại: ${currentQty} bó = ${currentQty * 10} kg)`
+          : `Nhập số tồn kho thực tế cho ${name} (${unit}):`;
+        const newQtyStr = prompt(promptMsg, currentQty);
+        if (newQtyStr !== null && newQtyStr.trim() !== "" && !isNaN(Number(newQtyStr))) {
+          await capNhatTonKhoThucTe(activeBranch, invId, Number(newQtyStr));
+          state = await docDuLieu();
+          renderAll();
+          renderMaterialsView();
+          showToast(`Đã điều chỉnh tồn kho ${name} thành ${newQtyStr} ${unit}!`);
+          triggerAutoSync();
+        }
+      };
+    });
+  }
+
+  // 4. Render Activity Log
+  const logList = $("#materialsLogList");
+  if (logList) {
+    let logs = (state.ds || []).filter(tx => !tx.deleted && matchBranch(tx.chiNhanh, activeBranch));
+    
+    if (materialsLogFilter === "use") {
+      logs = logs.filter(tx => tx.loai === "xuat_dung" || tx.loai === "xuat_kho");
+    } else if (materialsLogFilter === "buy") {
+      logs = logs.filter(tx => tx.loai === "chi");
+    } else {
+      logs = logs.filter(tx => tx.loai === "xuat_dung" || tx.loai === "xuat_kho" || (tx.loai === "chi" && (tx.danhMuc?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("mua") || tx.ghiChu?.toLowerCase().includes("nhập"))));
+    }
+
+    // Sort newest first
+    logs.sort((a, b) => (b.id || 0) - (a.id || 0));
+
+    if (!logs.length) {
+      logList.innerHTML = `<p class="empty-state" style="padding: 1.5rem; text-align: center; color: #94a3b8;">Chưa có lịch sử xuất dùng hoặc mua hàng nào gần đây tại ${activeBranch}.</p>`;
+    } else {
+      logList.innerHTML = logs.slice(0, 30).map(item => {
+        const isXuat = item.loai === "xuat_dung" || item.loai === "xuat_kho";
+        const billCode = item.billCode || (isXuat ? `#XK-${String(item.id).slice(-4)}` : `#PO-${String(item.id).slice(-4)}`);
+        const badgeColor = isXuat ? "background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe;" : "background: #fff7ed; color: #ea580c; border-color: #fed7aa;";
+        const tagLabel = isXuat ? "📦 Xuất dùng" : "🛒 Mua hàng";
+
+        return `
+          <div class="transaction-item ${item.loai}" style="padding: 0.65rem 0.85rem; border-radius: var(--radius-sm);">
+            <div class="tx-main">
+              <div class="tx-title-row">
+                <span class="tx-bill-badge" style="${badgeColor}">${billCode}</span>
+                <span style="font-size: 0.72rem; font-weight: 800; padding: 0.1rem 0.4rem; border-radius: 4px; ${badgeColor}">${tagLabel}</span>
+                <strong class="tx-title" style="color: ${isXuat ? '#5b21b6' : '#9a3412'};">${item.danhMuc}</strong>
+                <span class="tx-qty">${item.soLuong ? `x${item.soLuong} ${item.donViTinh || "kg"}` : ""}</span>
+              </div>
+              <p class="tx-note" style="margin: 0.2rem 0 0; font-size: 0.82rem; color: #475569;">${item.ghiChu || item.cauNoiGoc || "Không có ghi chú chi tiết"}</p>
+              <div class="tx-meta" style="margin-top: 0.25rem;">
+                <span>📅 ${formatDate(item.ngay)} ${item.gio || ""}</span>
+                ${!isXuat && item.soTien > 0 ? `<span style="color: #ea580c; font-weight: 700;">Chi: ${formatMoney(item.soTien)}</span>` : ""}
+              </div>
+            </div>
+            <div class="tx-right">
+              ${isXuat 
+                ? `<strong class="tx-amount xuat_dung" style="color: #7c3aed; font-size: 0.95rem;">-${item.soLuong} ${item.donViTinh || ""}</strong>` 
+                : `<strong class="tx-amount chi">-${formatMoney(item.soTien)}</strong>`}
+              <button class="delete-btn" data-id="${item.id}" type="button" aria-label="Xóa">✕</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      $$("#materialsLogList .delete-btn").forEach((btn) => {
+        btn.onclick = async () => {
+          const rawId = btn.getAttribute("data-id");
+          const id = isNaN(Number(rawId)) ? rawId : Number(rawId);
+          if (!confirm("Bạn có chắc chắn muốn xóa giao dịch này? Hệ thống sẽ tự động hoàn trả / trừ lại tồn kho nguyên liệu tương ứng.")) return;
+          await xoaGiaoDich(id);
+          state = await docDuLieu();
+          renderAll();
+          renderMaterialsView();
+          showToast("Đã xóa giao dịch và hoàn kho thành công!");
+          triggerAutoSync();
+        };
+      });
+    }
+  }
+}
+
+// ----------------------------------------------------
+// QUẢN LÝ & THEO DÕI 4 HŨ TIỀN QUẢN TRỊ DÒNG TIỀN
+// ----------------------------------------------------
+
+function renderJarsView(selectedPeriod = null) {
+  const periodSelect = $("#jarsPeriodSelect");
+  const period = selectedPeriod || periodSelect?.value || "today";
+
+  const currentBranch = state.currentBranch || "all";
+  const isAll = currentBranch === "all";
+  const today = todayKey();
+
+  // Helper date offset using local time without UTC offset bugs
+  const getOffsetDate = (daysAgo) => {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const yesterday = getOffsetDate(1);
+
+  // Filter transactions with matchBranch
+  let items = (state.ds || []).filter((item) => !item.deleted && matchBranch(item.chiNhanh, currentBranch));
+
+  let numDays = 1;
+  let periodLabel = "Hôm nay";
+  if (period === "today") {
+    items = items.filter((it) => it.ngay === today);
+    numDays = 1;
+    periodLabel = `Hôm nay (${formatDate(today)})`;
+  } else if (period === "yesterday") {
+    items = items.filter((it) => it.ngay === yesterday);
+    numDays = 1;
+    periodLabel = `Hôm qua (${formatDate(yesterday)})`;
+  } else if (period === "7days") {
+    const d7Str = getOffsetDate(6);
+    items = items.filter((it) => it.ngay >= d7Str && it.ngay <= today);
+    numDays = 7;
+    periodLabel = `7 ngày qua (${formatDate(d7Str)} - ${formatDate(today)})`;
+  } else if (period === "30days") {
+    const d30Str = getOffsetDate(29);
+    items = items.filter((it) => it.ngay >= d30Str && it.ngay <= today);
+    numDays = 30;
+    periodLabel = `30 ngày qua (${formatDate(d30Str)} - ${formatDate(today)})`;
+  } else if (period === "this_month") {
+    const curMonth = today.slice(0, 7);
+    items = items.filter((it) => it.ngay && it.ngay.startsWith(curMonth));
+    const nowDay = new Date().getDate();
+    numDays = Math.max(1, nowDay);
+    periodLabel = `Tháng ${Number(today.slice(5, 7))}/${today.slice(0, 4)}`;
+  } else if (period === "custom") {
+    const start = $("#jarsStartDate")?.value || today;
+    const end = $("#jarsEndDate")?.value || today;
+    items = items.filter((it) => it.ngay >= start && it.ngay <= end);
+    const msDiff = Math.max(0, new Date(end).getTime() - new Date(start).getTime());
+    numDays = Math.max(1, Math.round(msDiff / (1000 * 60 * 60 * 24)) + 1);
+    periodLabel = `${formatDate(start)} ➔ ${formatDate(end)}`;
+  }
+
+  const income = items
+    .filter((it) => it.loai === "thu")
+    .reduce((sum, it) => sum + Number(it.soTien || 0), 0);
+  const cashIncome = items
+    .filter((it) => it.loai === "thu" && it.phuongThuc !== "chuyen_khoan")
+    .reduce((sum, it) => sum + Number(it.soTien || 0), 0);
+  const bankIncome = items
+    .filter((it) => it.loai === "thu" && it.phuongThuc === "chuyen_khoan")
+    .reduce((sum, it) => sum + Number(it.soTien || 0), 0);
+  const totalDrinks = items
+    .filter((it) => it.loai === "thu")
+    .reduce((sum, it) => sum + Number(it.soLuong || 1), 0);
+  const totalCost = items
+    .filter((it) => it.loai === "thu")
+    .reduce((sum, it) => sum + Number(it.tongGiaCost || (it.giaCostDonVi * (it.soLuong || 1)) || 0), 0);
+
+  // Determine reference month and exact days in that month (e.g., Aug = 31 days, Sep = 30 days)
+  const refDate = (period === "yesterday" ? yesterday : today);
+  const activeYear = Number(refDate.slice(0, 4)) || new Date().getFullYear();
+  const activeMonth = Number(refDate.slice(5, 7)) || (new Date().getMonth() + 1);
+  const daysInActiveMonth = new Date(activeYear, activeMonth, 0).getDate(); // 28, 29, 30, or 31
+
+  // Monthly & Daily overhead for branch (Chi nhánh 2 mặc định ít nhất 200.000 đ/ngày)
+  let dailyOverhead = 0;
+  let monthlyOverhead = 0;
+  const isMainBranch = matchBranch(currentBranch, "Quán Nhà (Chính)") && !isAll;
+  
+  if (isMainBranch) {
+    // Chi nhánh chính là nhà ở của gia đình, tiền thuê mặt bằng = 0 đ
+    dailyOverhead = 0;
+    monthlyOverhead = 0;
+  } else if (isAll) {
+    // Toàn hệ thống: Cố định ít nhất 200.000 đ/ngày cho mặt bằng thuê CN2
+    const ov2 = layOverheadChoChiNhanh(state, "Chi nhánh 2");
+    monthlyOverhead = ov2 ? (Number(ov2.rentMonthly) || 6000000) : 6000000;
+    dailyOverhead = Math.max(200000, Math.round(monthlyOverhead / 30));
+  } else {
+    // Chi nhánh 2: Cố định ít nhất 200.000 đ/ngày
+    const ov = layOverheadChoChiNhanh(state, currentBranch);
+    monthlyOverhead = ov ? (Number(ov.rentMonthly) || 6000000) : 6000000;
+    dailyOverhead = Math.max(200000, Math.round(monthlyOverhead / 30));
+  }
+
+  const targetRent = (period === "this_month" || (period === "30days" && numDays >= 30)) 
+    ? (isMainBranch ? 0 : monthlyOverhead) 
+    : Math.round(dailyOverhead * numDays);
+
+  // 1. LẤY ĐÚNG 100% TIỀN VỐN THỰC TẾ (BOM) ĐÃ TIÊU HAO ĐỂ HOÀN VỐN MUA HÀNG
+  const jar1Cost = totalCost; // Giá vốn thực tế chính xác của các ly đã bán
+  
+  // 2. DOANH THU SAU KHI ĐÃ HOÀN ĐỦ TIỀN VỐN BOM (LÃI GỘP)
+  const grossAfterBOM = Math.max(0, income - jar1Cost);
+
+  // 3. ƯU TIÊN SỐ 1 SAU BOM: DỒN HẾT DOANH THU VÀO HŨ 2 (QUỸ MẶT BẰNG) CHO ĐẾN KHI ĐẠT ĐỦ TARGET (200K/NGÀY)
+  const jar2Rent = Math.min(grossAfterBOM, targetRent);
+  const rentProgress = targetRent > 0 ? Math.min(100, Math.round((jar2Rent / targetRent) * 100)) : 100;
+  const rentShortfall = Math.max(0, targetRent - jar2Rent);
+
+  // 4. CHỈ KHI DOANH THU SAU BOM VƯỢT NGƯỠNG MẶT BẰNG (grossAfterBOM > targetRent) MỚI BẮT ĐẦU CHIA CHO HŨ 3 VÀ HŨ 4
+  const surplusAfterRent = Math.max(0, grossAfterBOM - targetRent);
+
+  // - HŨ 3 (QUỸ XOAY VÒNG & PHÁT SINH): Trích 10% của phần thặng dư dôi ra sau khi đã gom đủ mặt bằng
+  //   (Nếu là Quán Nhà mặt bằng = 0đ thì trích 10% của toàn bộ lãi gộp)
+  const jar3Reserve = isMainBranch 
+    ? Math.round(grossAfterBOM * 0.10) 
+    : Math.round(surplusAfterRent * 0.10);
+
+  // - HŨ 4 (TIỀN LỜI RÒNG BỎ TÚI): Toàn bộ phần thặng dư còn lại sau khi đã gom đủ mặt bằng & trích quỹ
+  //   (Nếu chưa đủ mặt bằng thì hiển thị âm số tiền thiếu để bù tiền nhà)
+  let jar4Profit = 0;
+  if (income > 0) {
+    if (isMainBranch) {
+      jar4Profit = grossAfterBOM - jar3Reserve;
+    } else if (grossAfterBOM >= targetRent) {
+      jar4Profit = surplusAfterRent - jar3Reserve;
+    } else {
+      jar4Profit = grossAfterBOM - targetRent; // Số âm (cần bù tiền nhà)
+    }
+  }
+
+  const isNegative = income > 0 && jar4Profit < 0;
+  const profitMargin = (income > 0 && jar4Profit > 0) ? Math.round((jar4Profit / income) * 100) : 0;
+
+  // Header summary
+  if ($("#jarsTotalRevenue")) $("#jarsTotalRevenue").textContent = formatMoney(income);
+  if ($("#jarsTotalDrinks")) $("#jarsTotalDrinks").textContent = `${totalDrinks} ly nước (${numDays} ngày • ${periodLabel})`;
+  if ($("#jarsCashRev")) $("#jarsCashRev").textContent = formatMoney(cashIncome);
+  if ($("#jarsBankRev")) $("#jarsBankRev").textContent = formatMoney(bankIncome);
+  if ($("#jarsNetProfitSummary")) {
+    if (jar4Profit > 0) {
+      $("#jarsNetProfitSummary").textContent = `+${formatMoney(jar4Profit)}`;
+      $("#jarsNetProfitSummary").style.color = "#34d399";
+    } else if (isNegative) {
+      $("#jarsNetProfitSummary").textContent = `-${formatMoney(Math.abs(jar4Profit))}`;
+      $("#jarsNetProfitSummary").style.color = "#f87171";
+    } else {
+      $("#jarsNetProfitSummary").textContent = "0 đ";
+      $("#jarsNetProfitSummary").style.color = "#e2e8f0";
+    }
+  }
+  if ($("#jarsNetProfitStatus")) {
+    if (income === 0) {
+      $("#jarsNetProfitStatus").textContent = `⚪ Chưa có doanh thu trong kỳ (${periodLabel})`;
+      $("#jarsNetProfitStatus").style.color = "#c7d2fe";
+    } else if (isMainBranch) {
+      $("#jarsNetProfitStatus").textContent = `🏠 Quán Nhà (Mặt bằng 0đ): Tiền lời sạch nhận trọn: +${formatMoney(jar4Profit)} (Tỷ suất lời: ${profitMargin}%)`;
+      $("#jarsNetProfitStatus").style.color = "#a7f3d0";
+    } else if (jar4Profit > 0) {
+      $("#jarsNetProfitStatus").textContent = `🟢 ĐÃ ĐẠT ĐỦ 100% MẶT BẰNG! Tiền lời sạch thực nhận: +${formatMoney(jar4Profit)} (Tỷ suất lời: ${profitMargin}%)`;
+      $("#jarsNetProfitStatus").style.color = "#a7f3d0";
+    } else {
+      $("#jarsNetProfitStatus").textContent = `🔴 Chưa đủ tiền trả mặt bằng: Cần bù -${formatMoney(Math.abs(jar4Profit))} vào tiền nhà. Vốn nhập hàng (${formatMoney(jar1Cost)}) bảo toàn 100%.`;
+      $("#jarsNetProfitStatus").style.color = "#fca5a5";
+    }
+  }
+
+  // 4 Jars Cards
+  if ($("#jar1Amount")) $("#jar1Amount").textContent = formatMoney(jar1Cost);
+  if ($("#jar1ActualCost")) $("#jar1ActualCost").textContent = `${formatMoney(totalCost)} (Chuẩn BOM 100% vốn)`;
+  
+  if ($("#jar2Amount")) $("#jar2Amount").textContent = formatMoney(jar2Rent);
+  if ($("#jar2DailyOverhead")) {
+    if (isMainBranch) {
+      $("#jar2DailyOverhead").textContent = `Mặt bằng nhà (0 đ/tháng)`;
+    } else {
+      $("#jar2DailyOverhead").textContent = `${rentProgress}% mục tiêu (${formatMoney(targetRent)})`;
+    }
+  }
+
+  if ($("#jar2Badge")) {
+    if (isMainBranch) {
+      $("#jar2Badge").textContent = `🏠 Nhà Ở - 0đ`;
+      $("#jar2Badge").style.background = "#f0fdf4";
+      $("#jar2Badge").style.color = "#16a34a";
+      $("#jar2Badge").style.borderColor = "#86efac";
+    } else {
+      $("#jar2Badge").textContent = `Ưu Tiên Số 1`;
+      $("#jar2Badge").style.background = "#f0f9ff";
+      $("#jar2Badge").style.color = "#0284c7";
+      $("#jar2Badge").style.borderColor = "#7dd3fc";
+    }
+  }
+
+  if ($("#jar2NoteText")) {
+    if (isMainBranch) {
+      $("#jar2NoteText").innerHTML = `Quán Nhà là <strong>mặt bằng nhà ở của gia đình (0 đ tiền thuê)</strong>. Toàn bộ doanh thu sau khi hoàn vốn và trích quỹ dự phòng sẽ được <strong>chuyển 100% thành tiền lời sạch</strong> ở Hũ 4!`;
+    } else {
+      $("#jar2NoteText").innerHTML = `Ưu tiên gom đủ tiền mặt bằng (ít nhất <strong>${formatMoney(dailyOverhead)}/ngày</strong>) để <strong>cuối tháng gom đủ ${formatMoney(monthlyOverhead)} trả chủ nhà</strong>.`;
+    }
+  }
+
+  if ($("#jar3Amount")) $("#jar3Amount").textContent = formatMoney(jar3Reserve);
+  if ($("#jar3OpeningCash")) $("#jar3OpeningCash").textContent = `5% PS + 5% Vốn (Két: ${formatMoney(isAll ? 100000 : 50000)})`;
+
+  const jar4CardElem = $("#jar4CardElement");
+  if (jar4CardElem) {
+    if (isNegative) {
+      jar4CardElem.classList.add("is-negative");
+    } else {
+      jar4CardElem.classList.remove("is-negative");
+    }
+  }
+
+  if ($("#jar4Amount")) {
+    if (jar4Profit > 0) {
+      $("#jar4Amount").textContent = `+${formatMoney(jar4Profit)}`;
+      $("#jar4Amount").style.color = "#059669";
+    } else if (isNegative) {
+      $("#jar4Amount").textContent = `-${formatMoney(Math.abs(jar4Profit))}`;
+      $("#jar4Amount").style.color = "#dc2626";
+    } else {
+      $("#jar4Amount").textContent = "0 đ";
+      $("#jar4Amount").style.color = "#64748b";
+    }
+  }
+  if ($("#jar4MarginPct")) $("#jar4MarginPct").textContent = `${jar4Profit > 0 ? profitMargin : 0}%`;
+  if ($("#jar4Badge")) {
+    if (jar4Profit > 0) {
+      $("#jar4Badge").textContent = `🟢 Lời Ròng Dôi Ra`;
+      $("#jar4Badge").style.background = "#ecfdf5";
+      $("#jar4Badge").style.color = "#059669";
+      $("#jar4Badge").style.borderColor = "#6ee7b7";
+    } else if (isNegative) {
+      $("#jar4Badge").textContent = `🔴 Âm Tiền Mặt Bằng`;
+      $("#jar4Badge").style.background = "#fee2e2";
+      $("#jar4Badge").style.color = "#b91c1c";
+      $("#jar4Badge").style.borderColor = "#fca5a5";
+    } else {
+      $("#jar4Badge").textContent = `Bắt đầu 0đ`;
+      $("#jar4Badge").style.background = "#f8fafc";
+      $("#jar4Badge").style.color = "#64748b";
+      $("#jar4Badge").style.borderColor = "#cbd5e1";
+    }
+  }
+  if ($("#jar4NoteBox")) {
+    if (jar4Profit > 0) {
+      $("#jar4NoteBox").style.background = "#ecfdf5";
+      $("#jar4NoteBox").style.color = "#065f46";
+      $("#jar4NoteBox").style.borderColor = "#a7f3d0";
+    } else if (isNegative) {
+      $("#jar4NoteBox").style.background = "#fef2f2";
+      $("#jar4NoteBox").style.color = "#991b1b";
+      $("#jar4NoteBox").style.borderColor = "#fecaca";
+    } else {
+      $("#jar4NoteBox").style.background = "#f8fafc";
+      $("#jar4NoteBox").style.color = "#334155";
+      $("#jar4NoteBox").style.borderColor = "#e2e8f0";
+    }
+  }
+  if ($("#jar4NoteText")) {
+    if (isMainBranch && jar4Profit > 0) {
+      $("#jar4NoteText").innerHTML = `🏠 <strong>Quán Nhà (Mặt bằng 0đ):</strong> Đã thu đủ ${formatMoney(jar1Cost)} vốn hàng, trích ${formatMoney(jar3Reserve)} quỹ xoay vòng & phát sinh, anh/chị nhận trọn <strong>+${formatMoney(jar4Profit)} tiền lời sạch</strong> bỏ túi từ ly đầu tiên!`;
+    } else if (jar4Profit > 0) {
+      $("#jar4NoteText").innerHTML = `🎉 <strong>Đã hoàn tất 100% mục tiêu mặt bằng:</strong> Đã thu ${formatMoney(jar1Cost)} vốn hàng, dồn đủ 100% tiền mặt bằng (${formatMoney(targetRent)}), phần dôi ra (${formatMoney(surplusAfterRent)}) trích ${formatMoney(jar3Reserve)} quỹ xoay vòng & phát sinh, anh/chị nhận trọn <strong>+${formatMoney(jar4Profit)} tiền lời sạch</strong> bỏ túi!`;
+    } else if (isNegative) {
+      $("#jar4NoteText").innerHTML = `⚠️ <strong>Chưa đủ tiền trả mặt bằng:</strong> Toàn bộ doanh thu sau vốn (${formatMoney(grossAfterBOM)}) đã dồn vào tiền mặt bằng (${formatMoney(jar2Rent)}/${formatMoney(targetRent)} - ${rentProgress}%). Hũ 4 hiển thị âm <strong>-${formatMoney(Math.abs(jar4Profit))}</strong> cần bù vào tiền nhà. <strong>Tiền vốn hàng (${formatMoney(jar1Cost)}) được giữ nguyên vẹn 100%</strong>!`;
+    } else {
+      $("#jar4NoteText").innerHTML = `Chưa phát sinh doanh thu trong kỳ <strong>${periodLabel}</strong>. Bất kể thu về bao nhiêu, hệ thống sẽ tự động hoàn vốn và gom quỹ mặt bằng trước khi tính lời!`;
+    }
+  }
+
+  // Render breakdown transactions list in Jars tab (Show List)
+  const txListContainer = $("#jarsTransactionsList");
+  const countBadge = $("#jarsTxListCountBadge");
+  if (countBadge) countBadge.textContent = `${items.length} đơn (${totalDrinks} ly)`;
+  
+  if (txListContainer) {
+    if (!items.length) {
+      txListContainer.innerHTML = `<p class="empty-state" style="text-align: center; color: #94a3b8; padding: 1.5rem 0; font-size: 0.88rem;">Không có giao dịch nào trong khoảng thời gian này tại <strong>${isAll ? "tất cả điểm bán" : currentBranch}</strong>.</p>`;
+    } else {
+      txListContainer.innerHTML = items
+        .slice(0, 100)
+        .map((item) => {
+          const isThu = item.loai === "thu";
+          const isTransfer = item.phuongThuc === "chuyen_khoan";
+          const billCode = item.billCode || (isThu ? `#BILL-${String(item.id).slice(-4)}` : `#PO-${String(item.id).slice(-4)}`);
+          const branchName = item.chiNhanh || "Quán Nhà (Chính)";
+          const isMain = matchBranch(branchName, "Quán Nhà (Chính)");
+          const branchBadgeClass = isMain ? "main-branch" : "branch-2";
+          
+          return `
+            <div class="transaction-item ${item.loai}">
+              <div class="tx-main">
+                <div class="tx-title-row">
+                  <span class="tx-bill-badge" style="background: ${isThu ? '#ecfdf5' : '#fef3c7'}; color: ${isThu ? '#047857' : '#b45309'}; font-weight: 800; font-size: 0.72rem; padding: 0.12rem 0.45rem; border-radius: 0.3rem; border: 1px solid ${isThu ? '#a7f3d0' : '#fde68a'};">${billCode}</span>
+                  <span class="tx-title">${item.danhMuc || (isThu ? "Nước mía" : "Chi")}</span>
+                  ${item.soLuong ? `<span class="tx-qty">x${item.soLuong} ${item.donViTinh || (isThu ? "ly" : "kg")}</span>` : ""}
+                  <span class="tx-branch-badge ${branchBadgeClass}">📍 ${branchName}</span>
+                  <span style="font-size: 0.72rem; font-weight: 800; padding: 0.1rem 0.45rem; border-radius: 0.3rem; ${isTransfer ? 'background: rgba(14, 165, 233, 0.15); color: #0284c7; border: 1px solid #bae6fd;' : 'background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid #bbf7d0;'}">${isTransfer ? '📱 CK QR' : '💵 Tiền mặt'}</span>
+                </div>
+                ${item.ghiChu || item.cauNoiGoc ? `<p class="tx-note" style="margin: 0.15rem 0 0; font-size: 0.8rem; color: #64748b;">${item.ghiChu || item.cauNoiGoc}</p>` : ""}
+                <div class="tx-meta" style="margin-top: 0.2rem; display: flex; gap: 0.65rem; font-size: 0.75rem; color: #94a3b8; font-weight: 700;">
+                  <span>🕒 ${formatDate(item.ngay)} ${item.gio || ""}</span>
+                  ${item.giaCostDonVi > 0 ? `<span style="color: #ea580c;">Vốn: ${formatMoney(item.tongGiaCost || item.giaCostDonVi * (item.soLuong || 1))}</span>` : ""}
+                </div>
+              </div>
+              <div class="tx-right" style="text-align: right;">
+                <strong class="tx-amount ${item.loai}" style="display: block; font-size: 1.1rem;">${isThu ? "+" : "-"}${formatMoney(item.soTien)}</strong>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+  }
+}
+
+function runJarSimulation() {
+  const rev = Number($("#jarSimRevenue")?.value) || 0;
+  const days = Math.max(1, Number($("#jarSimDays")?.value) || 1);
+
+  const currentBranch = state.currentBranch || "all";
+  const isAll = currentBranch === "all";
+  const isMainBranch = matchBranch(currentBranch, "Quán Nhà (Chính)") && !isAll;
+
+  let monthlyOverhead = 0;
+  let dailyOverhead = 0;
+  if (isMainBranch) {
+    monthlyOverhead = 0;
+    dailyOverhead = 0;
+  } else if (isAll) {
+    const ov2 = layOverheadChoChiNhanh(state, "Chi nhánh 2");
+    monthlyOverhead = ov2 ? (Number(ov2.rentMonthly) || 6000000) : 6000000;
+    dailyOverhead = Math.max(200000, Math.round(monthlyOverhead / 30));
+  } else {
+    const ov = layOverheadChoChiNhanh(state, currentBranch);
+    monthlyOverhead = ov ? (Number(ov.rentMonthly) || 6000000) : 6000000;
+    dailyOverhead = Math.max(200000, Math.round(monthlyOverhead / 30));
+  }
+
+  const targetRent = Math.round(dailyOverhead * days);
+
+  const cost = Math.round(rev * 0.50); // Ước lượng vốn ~50%
+  const grossAfterBOM = Math.max(0, rev - cost);
+
+  const rentCollected = Math.min(grossAfterBOM, targetRent);
+  const rentShortfall = Math.max(0, targetRent - rentCollected);
+  const rentProgress = targetRent > 0 ? Math.min(100, Math.round((rentCollected / targetRent) * 100)) : 100;
+  
+  const surplus = Math.max(0, grossAfterBOM - targetRent);
+  const reserve = isMainBranch 
+    ? Math.round(grossAfterBOM * 0.10) 
+    : Math.round(surplus * 0.10);
+
+  let profit = 0;
+  if (rev > 0) {
+    if (isMainBranch) {
+      profit = grossAfterBOM - reserve;
+    } else if (grossAfterBOM >= targetRent) {
+      profit = surplus - reserve;
+    } else {
+      profit = grossAfterBOM - targetRent;
+    }
+  }
+
+  if ($("#simCost")) $("#simCost").textContent = formatMoney(cost);
+  if ($("#simRent")) $("#simRent").textContent = isMainBranch ? `0 đ (Mặt bằng nhà)` : `${formatMoney(rentCollected)} / ${formatMoney(targetRent)} (${rentProgress}%)`;
+  if ($("#simOpening")) $("#simOpening").textContent = `${formatMoney(reserve)} (5% PS + 5% Vốn)`;
+  if ($("#simProfit")) {
+    if (rev === 0) {
+      $("#simProfit").textContent = "0 đ";
+      $("#simProfit").style.color = "#64748b";
+    } else if (profit >= 0) {
+      $("#simProfit").textContent = `+${formatMoney(profit)}`;
+      $("#simProfit").style.color = "#059669";
+    } else {
+      $("#simProfit").textContent = `-${formatMoney(Math.abs(profit))}`;
+      $("#simProfit").style.color = "#dc2626";
+    }
+  }
+
+  const noteBox = $("#simNoteBox");
+  if (noteBox) {
+    if (rev === 0) {
+      noteBox.style.background = "#fffbeb";
+      noteBox.style.borderColor = "#fde68a";
+      noteBox.style.color = "#92400e";
+      noteBox.innerHTML = `📌 Nhập số doanh thu để xem phân bổ chuẩn sau khi lấy lại đúng tiền vốn.`;
+    } else if (isMainBranch) {
+      noteBox.style.background = "#ecfdf5";
+      noteBox.style.borderColor = "#a7f3d0";
+      noteBox.style.color = "#065f46";
+      noteBox.innerHTML = `🏠 <strong>Quán Nhà (Mặt bằng 0đ):</strong> Doanh thu ${formatMoney(rev)} trong ${days} ngày: Hoàn ${formatMoney(cost)} vốn hàng, trích ${formatMoney(reserve)} quỹ xoay vòng & phát sinh, nhận trọn vẹn <strong>+${formatMoney(profit)}</strong> tiền lời sạch bỏ túi!`;
+    } else if (profit >= 0) {
+      noteBox.style.background = "#ecfdf5";
+      noteBox.style.borderColor = "#a7f3d0";
+      noteBox.style.color = "#065f46";
+      noteBox.innerHTML = `✅ <strong>Đã đạt điểm hòa vốn & có lời:</strong> Doanh thu ${formatMoney(rev)}: Dồn đủ 100% tiền mặt bằng (${formatMoney(targetRent)}), phần dôi ra ${formatMoney(surplus)} được trích ${formatMoney(reserve)} quỹ xoay vòng & phát sinh, còn lại <strong>+${formatMoney(profit)}</strong> tiền lời sạch!`;
+    } else {
+      noteBox.style.background = "#fef2f2";
+      noteBox.style.borderColor = "#fecaca";
+      noteBox.style.color = "#991b1b";
+      noteBox.innerHTML = `⚠️ <strong>Chưa đủ tiền trả mặt bằng:</strong> Toàn bộ doanh thu sau vốn (${formatMoney(grossAfterBOM)}) đã dồn vào tiền mặt bằng (${formatMoney(rentCollected)}/${formatMoney(targetRent)} - ${rentProgress}%). Hũ 4 hiển thị âm <strong>-${formatMoney(Math.abs(profit))}</strong> để bù vào mặt bằng, <strong>tiền vốn nhập hàng (${formatMoney(cost)}) được bảo toàn nguyên vẹn 100%</strong>!`;
+    }
+  }
+}
+
+// ----------------------------------------------------
+// TAB 3: SỔ PHIẾU CHỐT CA & TỔNG KẾT NGÀY (VIEW CLOSINGS)
+// ----------------------------------------------------
+
+function getClosedShiftRecord(date, branch) {
+  const key = `${date}_${branch}`;
+  try {
+    const raw = localStorage.getItem("closed_shifts_v1");
+    const map = raw ? JSON.parse(raw) : {};
+    return map[key] || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveClosedShiftRecord(date, branch, data = {}) {
+  const key = `${date}_${branch}`;
+  try {
+    const raw = localStorage.getItem("closed_shifts_v1");
+    const map = raw ? JSON.parse(raw) : {};
+    map[key] = {
+      ...data,
+      date,
+      branch,
+      closedAt: data.closedAt || new Date().toISOString(),
+    };
+    localStorage.setItem("closed_shifts_v1", JSON.stringify(map));
+  } catch (err) {
+    console.warn("Failed to save closed shift:", err);
+  }
+}
+
+function deleteClosedShiftRecord(date, branch) {
+  try {
+    const raw = localStorage.getItem("closed_shifts_v1");
+    const map = raw ? JSON.parse(raw) : {};
+    delete map[`${date}_${branch}`];
+    delete map[`${date}_all`];
+    delete map[`${date}_Quán Nhà (Chính)`];
+    delete map[`${date}_Chi nhánh 2`];
+    localStorage.setItem("closed_shifts_v1", JSON.stringify(map));
+  } catch (err) {
+    console.warn("Failed to delete closed shift:", err);
+  }
+}
+
+// Auto-clean any legacy accidentally closed 31/08 record once
+try {
+  const raw = localStorage.getItem("closed_shifts_v1");
+  if (raw) {
+    const map = JSON.parse(raw);
+    let changed = false;
+    for (const k of Object.keys(map)) {
+      if (k.startsWith("2026-08-31")) {
+        delete map[k];
+        changed = true;
+      }
+    }
+    if (changed) {
+      localStorage.setItem("closed_shifts_v1", JSON.stringify(map));
+    }
+  }
+} catch (e) {
+  console.warn(e);
+}
+
+// ----------------------------------------------------
+// TAB 3: SỔ PHIẾU CHỐT CA & TỔNG KẾT NGÀY (VIEW CLOSINGS)
+// ----------------------------------------------------
+
+function renderClosingsView() {
+  const branchFilter = state.closingsBranchFilter || $("#closingsBranchSelect")?.value || "all";
+  const periodFilter = state.closingsPeriodFilter || $("#closingsPeriodSelect")?.value || "this_month";
+
+  // Sync pills and select
+  if ($("#closingsBranchSelect") && $("#closingsBranchSelect").value !== branchFilter) {
+    $("#closingsBranchSelect").value = branchFilter;
+  }
+  if ($("#closingsPeriodSelect") && $("#closingsPeriodSelect").value !== periodFilter) {
+    $("#closingsPeriodSelect").value = periodFilter;
+  }
+
+  $$(".closings-pill-btn").forEach((btn) => {
+    if (btn.getAttribute("data-branch") === branchFilter) {
+      btn.classList.add("is-active");
+    } else {
+      btn.classList.remove("is-active");
+    }
+  });
+
+  const allItems = (state.ds || []).filter((it) => !it.deleted && it.loai !== "chuyen_quy" && it.loai !== "dieu_chinh_quy");
+  
+  // Unique dates
+  const dateSet = new Set(allItems.map((it) => it.ngay).filter(Boolean));
+  dateSet.add(todayKey());
+  const sortedDates = [...dateSet].sort().reverse(); // Newest first
+
+  const today = todayKey();
+  const thisMonthPrefix = today.slice(0, 7);
+
+  const filteredDates = sortedDates.filter((d) => {
+    if (periodFilter === "all") return true;
+    if (periodFilter === "this_month") return d.startsWith(thisMonthPrefix);
+    if (periodFilter === "7days") {
+      const diff = (new Date(today) - new Date(d)) / (1000 * 60 * 60 * 24);
+      return diff >= 0 && diff < 7;
+    }
+    if (periodFilter === "30days") {
+      const diff = (new Date(today) - new Date(d)) / (1000 * 60 * 60 * 24);
+      return diff >= 0 && diff < 30;
+    }
+    return true;
+  });
+
+  let totalTicketsCount = 0;
+  let totalRevenueSum = 0;
+  let totalProfitSum = 0;
+
+  // Build grouped data per date
+  const dateGroups = [];
+
+  for (const d of filteredDates) {
+    const branchesToCheck = branchFilter === "all" ? ["Quán Nhà (Chính)", "Chi nhánh 2"] : [branchFilter];
+    const branchTickets = [];
+    let dayTotalRev = 0;
+    let dayTotalProfit = 0;
+
+    for (const br of branchesToCheck) {
+      const isMain = matchBranch(br, "Quán Nhà (Chính)");
+      const openingCash = getTodayOpeningCash(br);
+      const rep = dailyReport(allItems, d, br, openingCash);
+
+      // Skip past days with no sales/expenses
+      if (d !== today && rep.income === 0 && rep.expense === 0) continue;
+
+      let dailyOverhead = 0;
+      if (isMain) {
+        dailyOverhead = 0;
+      } else {
+        const ov = layOverheadChoChiNhanh(state, br);
+        const monthlyOverhead = ov ? (Number(ov.rentMonthly) || 6000000) : 6000000;
+        dailyOverhead = Math.max(200000, Math.round(monthlyOverhead / 30));
+      }
+
+      const targetRent = dailyOverhead;
+      const jar1Cost = rep.cost;
+      const grossAfterBOM = Math.max(0, rep.income - jar1Cost);
+      const jarRent = Math.min(grossAfterBOM, targetRent);
+      const surplus = Math.max(0, grossAfterBOM - targetRent);
+      const jar3Reserve = isMain ? Math.round(grossAfterBOM * 0.10) : Math.round(surplus * 0.10);
+
+      let jar4Profit = 0;
+      if (rep.income > 0) {
+        if (isMain) {
+          jar4Profit = grossAfterBOM - jar3Reserve;
+        } else if (grossAfterBOM >= targetRent) {
+          jar4Profit = surplus - jar3Reserve;
+        } else {
+          jar4Profit = grossAfterBOM - targetRent;
+        }
+      }
+
+      const closedRecord = getClosedShiftRecord(d, br);
+      const isClosed = Boolean(closedRecord);
+      const closedTime = closedRecord && closedRecord.closedAt
+        ? new Date(closedRecord.closedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+        : "";
+
+      totalTicketsCount++;
+      totalRevenueSum += rep.income;
+      totalProfitSum += jar4Profit;
+      dayTotalRev += rep.income;
+      dayTotalProfit += jar4Profit;
+
+      branchTickets.push({
+        date: d,
+        branch: br,
+        isToday: d === today,
+        isClosed,
+        closedTime,
+        report: rep,
+        jar1Cost,
+        targetRent,
+        jarRent,
+        jar3Reserve,
+        jar4Profit,
+      });
+    }
+
+    if (branchTickets.length > 0) {
+      dateGroups.push({
+        date: d,
+        isToday: d === today,
+        dayTotalRev,
+        dayTotalProfit,
+        tickets: branchTickets,
+      });
+    }
+  }
+
+  // Update summary header
+  if ($("#closingsTotalTickets")) $("#closingsTotalTickets").textContent = `${totalTicketsCount} phiếu`;
+  if ($("#closingsTotalRevenue")) $("#closingsTotalRevenue").textContent = formatMoney(totalRevenueSum);
+  if ($("#closingsTotalProfit")) {
+    if (totalProfitSum >= 0) {
+      $("#closingsTotalProfit").textContent = `+${formatMoney(totalProfitSum)}`;
+      $("#closingsTotalProfit").style.color = "#34d399";
+    } else {
+      $("#closingsTotalProfit").textContent = `-${formatMoney(Math.abs(totalProfitSum))}`;
+      $("#closingsTotalProfit").style.color = "#f87171";
+    }
+  }
+  if ($("#closingsCountBadge")) $("#closingsCountBadge").textContent = `${totalTicketsCount} phiếu`;
+
+  const container = $("#closingsCardsList");
+  if (!container) return;
+
+  if (dateGroups.length === 0) {
+    container.innerHTML = `<p class="empty-state" style="text-align: center; color: #94a3b8; padding: 2.5rem 0; font-size: 0.95rem;">Không tìm thấy phiếu chốt ca nào cho bộ lọc đã chọn.</p>`;
+    return;
+  }
+
+  container.innerHTML = dateGroups
+    .map((group) => {
+      const showGroupHeader = branchFilter === "all" && group.tickets.length > 1;
+      
+      const groupHeaderHtml = showGroupHeader
+        ? `
+          <div class="closings-date-group-header">
+            <span>📅 Ngày ${formatDate(group.date)} ${group.isToday ? "(Hôm nay)" : ""}</span>
+            <span style="color: #059669;">Tổng thu: <strong>${formatMoney(group.dayTotalRev)}</strong></span>
+          </div>
+        `
+        : "";
+
+      const ticketsHtml = group.tickets
+        .map((t) => {
+          const isMain = matchBranch(t.branch, "Quán Nhà (Chính)");
+          const branchBadgeClass = isMain ? "main-branch" : "branch-2";
+          const profitClass = t.jar4Profit >= 0 ? "profit" : "profit negative";
+          const profitText = t.jar4Profit >= 0 ? `+${formatMoney(t.jar4Profit)}` : `-${formatMoney(Math.abs(t.jar4Profit))}`;
+          
+          const statusBadge = t.isClosed
+            ? `<span class="ticket-status-badge closed">🟢 Đã chốt ca ${t.closedTime ? `(${t.closedTime})` : ""} • ${t.report.totalDrinks} ly</span>`
+            : `<span class="ticket-status-badge unclosed">⚪ Chưa chốt ca • ${t.report.totalDrinks} ly</span>`;
+
+          const primaryActionBtnText = t.isClosed
+            ? `<span>👁️ Xem Phiếu Chi Tiết</span>`
+            : `<span>⚡ Chốt Ca Ngay</span>`;
+
+          return `
+            <div class="closing-ticket-card ${t.isToday ? "is-today" : ""}">
+              <div class="closing-ticket-top">
+                <div class="ticket-date-info">
+                  <span style="font-size: 1.2rem;">${t.isToday ? "🌟" : "📅"}</span>
+                  <h4 class="ticket-date-title">Phiếu Ngày ${formatDate(t.date)} ${t.isToday ? "(Hôm nay)" : ""}</h4>
+                  <span class="ticket-branch-badge ${branchBadgeClass}">📍 ${t.branch}</span>
+                </div>
+                ${statusBadge}
+              </div>
+
+              <div class="closing-ticket-metrics">
+                <div class="ticket-metric-box revenue">
+                  <span>+ Doanh Thu</span>
+                  <strong>${formatMoney(t.report.income)}</strong>
+                </div>
+                <div class="ticket-metric-box cost">
+                  <span>🧊 Vốn BOM (100%)</span>
+                  <strong>${formatMoney(t.jar1Cost)}</strong>
+                </div>
+                <div class="ticket-metric-box rent">
+                  <span>🏢 Hũ Mặt Bằng</span>
+                  <strong>${isMain ? "0 đ (Nhà)" : `${formatMoney(t.jarRent)}`}</strong>
+                </div>
+                <div class="ticket-metric-box ${profitClass}">
+                  <span>💰 Tiền Lời Sạch</span>
+                  <strong>${profitText}</strong>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; color: #64748b; margin-top: 0.4rem; padding: 0.35rem 0.65rem; background: #f8fafc; border-radius: var(--radius-sm); border: 1px dashed #e2e8f0; flex-wrap: wrap; gap: 0.35rem;">
+                <span>💵 Tiền mặt: <strong>${formatMoney(t.report.cashIncome)}</strong> (Thối sáng: ${formatMoney(t.report.openingCash)})</span>
+                <span>📱 CK QR: <strong>${formatMoney(t.report.transferIncome)}</strong></span>
+                <span>🛒 Chi phát sinh: <strong>−${formatMoney(t.report.expense)}</strong></span>
+              </div>
+
+              <div class="closing-ticket-actions">
+                <button type="button" class="ticket-action-btn primary view-ticket-btn" data-date="${t.date}" data-branch="${t.branch}">
+                  ${primaryActionBtnText}
+                </button>
+                ${t.isClosed ? `
+                  <button type="button" class="ticket-action-btn unclose-ticket-btn" data-date="${t.date}" data-branch="${t.branch}" style="color: #dc2626; border-color: #fecaca; background: #fef2f2;" title="Hủy chốt ca, chuyển về Chưa chốt ca">
+                    <span>🔓 Mở Lại Ca</span>
+                  </button>
+                ` : ""}
+                <button type="button" class="ticket-action-btn speak-ticket-btn" data-date="${t.date}" data-branch="${t.branch}">
+                  <span>🔊 Nghe Loa</span>
+                </button>
+                <button type="button" class="ticket-action-btn copy-ticket-btn" data-date="${t.date}" data-branch="${t.branch}">
+                  <span>📋 Sao Chép Báo Cáo</span>
+                </button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+
+      return groupHeaderHtml + ticketsHtml;
+    })
+    .join("");
+
+  // Attach button event listeners
+  container.querySelectorAll(".view-ticket-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = btn.getAttribute("data-date");
+      const br = btn.getAttribute("data-branch");
+      openDailyClosingModal(d, br);
+    });
+  });
+
+  container.querySelectorAll(".unclose-ticket-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = btn.getAttribute("data-date");
+      const br = btn.getAttribute("data-branch");
+      deleteClosedShiftRecord(d, br);
+      showToast(`🔓 Đã chuyển ca ngày ${formatDate(d)} (${br}) về trạng thái Chưa chốt ca!`);
+      renderAll();
+    });
+  });
+
+  container.querySelectorAll(".speak-ticket-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const d = btn.getAttribute("data-date");
+      const br = btn.getAttribute("data-branch");
+      const openingCash = getTodayOpeningCash(br, d);
+      const rep = dailyReport(state.ds || [], d, br, openingCash);
+      docLai(rep.detailedText || rep.text);
+      showToast(`🔊 Đang phát loa báo cáo ngày ${formatDate(d)} (${br})...`);
+    });
+  });
+
+  container.querySelectorAll(".copy-ticket-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const d = btn.getAttribute("data-date");
+      const br = btn.getAttribute("data-branch");
+      const openingCash = getTodayOpeningCash(br, d);
+      const rep = dailyReport(state.ds || [], d, br, openingCash);
+      const textToCopy = `📋 BÁO CÁO TỔNG KẾT NGÀY ${formatDate(d)} - ${br}\n` +
+        `----------------------------------------\n` +
+        `🥤 Tổng số ly bán: ${rep.totalDrinks} ly\n` +
+        `💵 Tổng doanh thu: ${formatMoney(rep.income)}\n` +
+        `  - Tiền mặt: ${formatMoney(rep.cashIncome)}\n` +
+        `  - Chuyển khoản (MoMo/QR): ${formatMoney(rep.transferIncome)}\n` +
+        `🧊 Tiền vốn nguyên liệu (BOM): ${formatMoney(rep.cost)}\n` +
+        `🛒 Tiền chi phát sinh: -${formatMoney(rep.expense)}\n` +
+        `💰 Lợi nhuận bán nước (Lãi gộp): +${formatMoney(rep.grossProfit)}\n` +
+        `💵 Tiền thối đầu ca: ${formatMoney(rep.openingCash)}\n` +
+        `🎯 Tổng tiền mặt cần có trong két: ${formatMoney(rep.expectedCashInDrawer)}\n` +
+        `----------------------------------------\n` +
+        `Sổ Quán Nước Mía - Quản Trị Tự Động`;
+
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        showToast(`📋 Đã sao chép báo cáo ngày ${formatDate(d)} (${br}) vào bộ nhớ tạm!`);
+      } catch (err) {
+        showToast("Không thể sao chép tự động!");
+      }
+    });
+  });
 }
 
 // ----------------------------------------------------
@@ -1451,22 +4165,12 @@ function phatLoaThongBaoChuyenKhoan(soTien, phuongThuc = "chuyen_khoan") {
   const text = `Đã nhận thành công ${speechMoney} qua chuyển khoản!`;
 
   setTimeout(() => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "vi-VN";
-        utterance.rate = 1.0;
-        const voices = window.speechSynthesis.getVoices();
-        const viVoice = voices.find((v) => v.lang.includes("vi") || v.name.includes("Vietnamese") || v.name.includes("Tiếng Việt"));
-        if (viVoice) utterance.voice = viVoice;
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        console.warn("SpeechSynthesis audio alert error:", err);
-      }
-    }
+    docLai(text).catch((err) => {
+      console.warn("Speech audio alert error:", err);
+    });
   }, 350);
 }
+
 
 function updateAudioAlertButtonUI() {
   const isEnabled = state.enableAudioPaymentAlert !== false;
@@ -1577,7 +4281,7 @@ function renderTaxReportModal() {
 
   const branchSelect = $("#taxBranchSelect");
   const branches = state.branches || [{ id: "main", name: "Quán Nhà (Chính)" }];
-  if (branchSelect) {
+  if (branchSelect && branchSelect.children.length <= 1) {
     branchSelect.innerHTML = `
       <option value="all">🏢 Toàn bộ chi nhánh</option>
       ${branches.map((b) => `<option value="${b.name}" ${b.name === currentTaxBranch ? "selected" : ""}>📍 ${b.name}</option>`).join("")}
@@ -1589,7 +4293,75 @@ function renderTaxReportModal() {
   if ($("#taxTotalRevenueDisplay")) $("#taxTotalRevenueDisplay").textContent = formatMoney(taxReport.revenue);
   if ($("#taxVatDisplay")) $("#taxVatDisplay").textContent = formatMoney(taxReport.vatTax);
   if ($("#taxPitDisplay")) $("#taxPitDisplay").textContent = formatMoney(taxReport.pitTax);
-  if ($("#taxTotalAmountDisplay")) $("#taxTotalAmountDisplay").textContent = formatMoney(taxReport.totalTax);
+  if ($("#taxAnnualEstDisplay")) $("#taxAnnualEstDisplay").textContent = formatMoney(taxReport.estimatedAnnualRevenue);
+
+  const banner = $("#taxExemptionStatusBanner");
+  const payableCard = $("#taxPayableCard");
+  const payableTitle = $("#taxPayableTitle");
+  const payableSub = $("#taxPayableSub");
+  const totalAmountDisplay = $("#taxTotalAmountDisplay");
+
+  if (taxReport.isExempt) {
+    if (banner) {
+      banner.style.background = "#f0fdf4";
+      banner.style.border = "1px solid #86efac";
+      banner.innerHTML = `
+        <div style="font-size: 1.5rem; line-height: 1; flex-shrink: 0;">🎉</div>
+        <div>
+          <strong style="display: block; font-size: 0.88rem; color: #15803d;">QUÁN ĐƯỢC MIỄN 100% THUẾ GTGT & TNCN!</strong>
+          <span style="font-size: 0.76rem; color: #166534; line-height: 1.4; display: block; margin-top: 0.15rem;">
+            Doanh thu ước tính cả năm <strong>${formatMoney(taxReport.estimatedAnnualRevenue)}</strong> ≤ <strong>200 triệu đ/năm</strong> (Ngưỡng miễn thuế mới). Số thuế thực tế phải nộp: <strong>0 đ</strong>.
+          </span>
+        </div>
+      `;
+    }
+    if (payableCard) {
+      payableCard.style.background = "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)";
+      payableCard.style.border = "1px solid #a7f3d0";
+    }
+    if (payableTitle) {
+      payableTitle.style.color = "#065f46";
+      payableTitle.textContent = "🛡️ SỐ THUẾ THỰC NỘP SAU MIỄN TRỪ:";
+    }
+    if (payableSub) {
+      payableSub.style.color = "#047857";
+      payableSub.textContent = "Được miễn 100% thuế theo luật (Doanh thu năm ≤ 200 triệu đ)";
+    }
+    if (totalAmountDisplay) {
+      totalAmountDisplay.style.color = "#065f46";
+      totalAmountDisplay.textContent = "0 đ";
+    }
+  } else {
+    if (banner) {
+      banner.style.background = "#fffbeb";
+      banner.style.border = "1px solid #fde68a";
+      banner.innerHTML = `
+        <div style="font-size: 1.5rem; line-height: 1; flex-shrink: 0;">⚠️</div>
+        <div>
+          <strong style="display: block; font-size: 0.88rem; color: #b45309;">THUỘC DIỆN NỘP THUẾ KHOÁN / KÊ KHAI (4.5%)</strong>
+          <span style="font-size: 0.76rem; color: #92400e; line-height: 1.4; display: block; margin-top: 0.15rem;">
+            Doanh thu ước tính năm <strong>${formatMoney(taxReport.estimatedAnnualRevenue)}</strong> vượt ngưỡng 200 triệu đ/năm. Tỷ lệ thuế F&B: 3% GTGT + 1.5% TNCN.
+          </span>
+        </div>
+      `;
+    }
+    if (payableCard) {
+      payableCard.style.background = "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)";
+      payableCard.style.border = "1px solid #fecaca";
+    }
+    if (payableTitle) {
+      payableTitle.style.color = "#991b1b";
+      payableTitle.textContent = "🎯 TỔNG NGHĨA VỤ THUẾ TẠM TÍNH (4.5%):";
+    }
+    if (payableSub) {
+      payableSub.style.color = "#b91c1c";
+      payableSub.textContent = "Dịch vụ ăn uống giải khát (F&B)";
+    }
+    if (totalAmountDisplay) {
+      totalAmountDisplay.style.color = "#b91c1c";
+      totalAmountDisplay.textContent = formatMoney(taxReport.actualTaxPayable);
+    }
+  }
 }
 
 function downloadTextFile(filename, text) {
@@ -1641,6 +4413,16 @@ async function triggerAutoSync() {
   try {
     const isAuth = await daDangNhap();
     if (!isAuth) return;
+
+    // Do not sync down and overwrite state if user is actively typing in settings
+    const isEditingSettings = document.activeElement && (
+      document.querySelector("#menuItemsEditor")?.contains(document.activeElement) ||
+      document.querySelector("#ingredientItemsEditor")?.contains(document.activeElement)
+    );
+    if (isEditingSettings) {
+      return;
+    }
+
     const syncStatus = $("#syncStatus");
     if (syncStatus) syncStatus.textContent = "Đang đồng bộ...";
     await dongBo();
@@ -1673,20 +4455,149 @@ async function startRealtimeListener() {
 // EVENT LISTENERS & SETUP
 // ----------------------------------------------------
 
+export function switchView(currentView) {
+  $$(".tabs .tab").forEach((t) => t.classList.remove("is-active"));
+  $$(".view").forEach((v) => v.classList.remove("is-active"));
+  const tab = $(`.tabs .tab[data-view='${currentView}']`);
+  if (tab) tab.classList.add("is-active");
+  const viewId = `view-${currentView}`;
+  $(`#${viewId}`)?.classList.add("is-active");
+
+  // On non-today tabs on mobile, hide the redundant today header cards so the selected tab is clean!
+  const isTodayView = currentView === "today";
+  document.body.classList.toggle("is-subview-active", !isTodayView);
+
+  if (currentView === "stats") {
+    renderStats();
+  } else if (currentView === "materials") {
+    renderMaterialsView();
+  } else if (currentView === "jars") {
+    renderJarsView();
+  } else if (currentView === "closings") {
+    renderClosingsView();
+  } else if (currentView === "history") {
+    renderHistory();
+  }
+}
+
 function initEventListeners() {
   // Tabs navigation
   $$(".tabs .tab").forEach((tab) => {
     tab.onclick = () => {
-      $$(".tabs .tab").forEach((t) => t.classList.remove("is-active"));
-      $$(".view").forEach((v) => v.classList.remove("is-active"));
-      tab.classList.add("is-active");
-      const viewId = `view-${tab.getAttribute("data-view")}`;
-      $(`#${viewId}`)?.classList.add("is-active");
-
-      if (tab.getAttribute("data-view") === "stats") {
-        renderStats();
-      }
+      const currentView = tab.getAttribute("data-view");
+      switchView(currentView);
     };
+  });
+
+  // Tab Nguyên Liệu & Kho NVL Listeners
+  $("#materialsBranchSelect")?.addEventListener("change", () => {
+    renderMaterialsView();
+  });
+
+  $("#materialsAddStockBtn")?.addEventListener("click", () => {
+    currentInventoryBranch = $("#materialsBranchSelect")?.value || state.currentBranch || "Quán Nhà (Chính)";
+    renderInventoryModal();
+    $("#inventoryDialog")?.showModal();
+    const actionSel = $("#quickStockActionType");
+    if (actionSel) actionSel.value = "nhap";
+  });
+
+  $("#materialsStockCheckBtn")?.addEventListener("click", () => {
+    currentInventoryBranch = $("#materialsBranchSelect")?.value || state.currentBranch || "Quán Nhà (Chính)";
+    renderInventoryModal();
+    $("#inventoryDialog")?.showModal();
+    const actionSel = $("#quickStockActionType");
+    if (actionSel) actionSel.value = "kiem";
+  });
+
+  $$("input[name='matLogFilter']").forEach((radio) => {
+    radio.addEventListener("change", (e) => {
+      materialsLogFilter = e.target.value;
+      renderMaterialsView();
+    });
+  });
+
+  // Tab Lịch Sử View Listeners
+  $$(".history-pill-btn").forEach((pill) => {
+    pill.addEventListener("click", () => {
+      historyPeriod = pill.getAttribute("data-period") || "today";
+      renderHistory();
+    });
+  });
+
+  $("#historyApplyCustomBtn")?.addEventListener("click", () => {
+    historyStartDate = $("#historyStartDate")?.value || todayKey();
+    historyEndDate = $("#historyEndDate")?.value || todayKey();
+    renderHistory();
+  });
+
+  $("#historyBranchSelect")?.addEventListener("change", (e) => {
+    state.historyBranchFilter = e.target.value;
+    renderHistory();
+  });
+
+  // Tab Chốt Ca View Listeners
+  $$(".closings-pill-btn").forEach((pill) => {
+    pill.addEventListener("click", () => {
+      const br = pill.getAttribute("data-branch") || "all";
+      state.closingsBranchFilter = br;
+      renderClosingsView();
+    });
+  });
+
+  $("#closingsBranchSelect")?.addEventListener("change", (e) => {
+    state.closingsBranchFilter = e.target.value;
+    renderClosingsView();
+  });
+
+  $("#closingsPeriodSelect")?.addEventListener("change", (e) => {
+    state.closingsPeriodFilter = e.target.value;
+    renderClosingsView();
+  });
+
+  $("#closingsQuickClosingBtn")?.addEventListener("click", () => {
+    const curBranch = state.closingsBranchFilter || state.currentBranch || "all";
+    openDailyClosingModal(todayKey(), curBranch === "all" ? null : curBranch);
+  });
+
+  // 4 Jars View Listeners
+  $("#jarsPeriodSelect")?.addEventListener("change", (e) => {
+    const val = e.target.value;
+    const customDiv = $("#jarsCustomDateRange");
+    if (customDiv) {
+      customDiv.style.display = val === "custom" ? "flex" : "none";
+      if (val === "custom") {
+        const today = todayKey();
+        if ($("#jarsStartDate") && !$("#jarsStartDate").value) $("#jarsStartDate").value = today;
+        if ($("#jarsEndDate") && !$("#jarsEndDate").value) $("#jarsEndDate").value = today;
+      }
+    }
+    renderJarsView(val);
+  });
+
+  $("#jarsApplyCustomDateBtn")?.addEventListener("click", () => {
+    renderJarsView("custom");
+  });
+
+  $("#jarSimulateBtn")?.addEventListener("click", () => {
+    runJarSimulation();
+  });
+
+  $("#jarSimRevenue")?.addEventListener("input", () => {
+    runJarSimulation();
+  });
+
+  $("#jarSimDays")?.addEventListener("input", () => {
+    runJarSimulation();
+  });
+
+  $("#jarsQuickVoiceBtn")?.addEventListener("click", () => {
+    const rev = $("#jarsTotalRevenue")?.textContent || "0 đ";
+    const cost = $("#jar1Amount")?.textContent || "0 đ";
+    const rent = $("#jar2Amount")?.textContent || "0 đ";
+    const profit = $("#jar4Amount")?.textContent || "0 đ";
+    const speech = `Tổng doanh thu là ${rev}. Phân bổ bốn hũ tiền gồm có: Hũ một vốn nguyên liệu là ${cost}. Hũ hai quỹ mặt bằng là ${rent}. Hũ ba tiền thối két năm mươi ngàn. Hũ bốn tiền lời thực nhận là ${profit}.`;
+    docLai(speech).catch((err) => console.warn("Voice error:", err));
   });
 
   // Topbar branch selection
@@ -1702,9 +4613,102 @@ function initEventListeners() {
     };
   }
 
-  // Daily Closing button
+  // Edit Funds
+  $("#editFundsBtn")?.addEventListener("click", () => {
+    const dialog = $("#editFundsDialog");
+    if (!dialog) return;
+    const funds = computeFundBalances(state);
+    $("#editFundWallet").value = funds.capitalWallet;
+    $("#editFundRent").value = funds.rentFund;
+    $("#editFundProfit").value = funds.profitFund;
+    dialog.showModal();
+  });
+
+  $("#cancelEditFundsBtn")?.addEventListener("click", () => {
+    $("#editFundsDialog")?.close();
+  });
+
+  $("#saveEditFundsBtn")?.addEventListener("click", async () => {
+    const dialog = $("#editFundsDialog");
+    const newWallet = Number($("#editFundWallet").value) || 0;
+    const newRent = Number($("#editFundRent").value) || 0;
+    const newProfit = Number($("#editFundProfit").value) || 0;
+
+    const data = await docDuLieu();
+    
+    
+    // We compute the current to find the difference
+    const currentFunds = computeFundBalances(data);
+    const diffWallet = newWallet - currentFunds.capitalWallet;
+    const diffRent = newRent - currentFunds.rentFund;
+    const diffProfit = newProfit - currentFunds.profitFund;
+    
+    const nowStr = new Date().toISOString();
+    const branch = data.currentBranch || "all";
+    const date = todayKey();
+
+    if (diffWallet !== 0) {
+      data.ds.push({ id: Date.now() * 100 + 1, loai: 'chuyen_quy', fund: "capitalWallet", soTien: diffWallet, type: "manual_adjust", ngay: date, chiNhanh: branch, createdAt: nowStr });
+    }
+    if (diffRent !== 0) {
+      data.ds.push({ id: Date.now() * 100 + 2, loai: 'chuyen_quy', fund: "rentFund", soTien: diffRent, type: "manual_adjust", ngay: date, chiNhanh: branch, createdAt: nowStr });
+    }
+    if (diffProfit !== 0) {
+      data.ds.push({ id: Date.now() * 100 + 3, loai: 'chuyen_quy', fund: "profitFund", soTien: diffProfit, type: "manual_adjust", ngay: date, chiNhanh: branch, createdAt: nowStr });
+    }
+    
+    await luuDuLieu(data);
+    state = data;
+    dialog?.close();
+    renderAll();
+    showToast(`✅ Đã điều chỉnh cân bằng Sổ Quỹ thành công!`);
+  });
+
+  // Daily Closing buttons
   $("#openDailyClosingBtn")?.addEventListener("click", () => {
-    openDailyClosingModal();
+    openDailyClosingModal(todayKey(), state.currentBranch || "all");
+  });
+
+  $("#confirmDailyClosingBtn")?.addEventListener("click", async () => {
+    const target = state.activeClosingTarget || { date: todayKey(), branch: state.currentBranch || "all" };
+    const targetDate = target.date || todayKey();
+    const targetBranch = target.branch || "all";
+    const actualCash = $("#closingCashActual")?.value || "";
+    const actualBank = $("#closingBankActual")?.value || "";
+
+    saveClosedShiftRecord(targetDate, targetBranch, {
+      actualCash,
+      actualBank,
+      closedBy: "Chủ quán",
+      closedAt: new Date().toISOString(),
+    });
+    
+    // Lưu các giao dịch Sổ Quỹ
+    const data = await docDuLieu();
+    
+    
+    // Xóa các giao dịch Sổ Quỹ cũ của ca chốt này (nếu chốt lại)
+    const txRefId = `closing_${targetDate}_${targetBranch}`;
+    data.ds = data.ds.filter(tx => tx.refId !== txRefId);
+    
+    if (state.pendingClosingFunds) {
+      const nowStr = new Date().toISOString();
+      if (state.pendingClosingFunds.bom > 0) {
+        data.ds.push({ id: Date.now() * 100 + 4, loai: 'chuyen_quy', fund: "capitalWallet", soTien: state.pendingClosingFunds.bom, type: "closing", refId: txRefId, ngay: targetDate, chiNhanh: targetBranch, createdAt: nowStr });
+      }
+      if (state.pendingClosingFunds.rent > 0) {
+        data.ds.push({ id: Date.now() * 100 + 5, loai: 'chuyen_quy', fund: "rentFund", soTien: state.pendingClosingFunds.rent, type: "closing", refId: txRefId, ngay: targetDate, chiNhanh: targetBranch, createdAt: nowStr });
+      }
+      if (state.pendingClosingFunds.profit !== 0) {
+        data.ds.push({ id: Date.now() * 100 + 6, loai: 'chuyen_quy', fund: "profitFund", soTien: state.pendingClosingFunds.profit, type: "closing", refId: txRefId, ngay: targetDate, chiNhanh: targetBranch, createdAt: nowStr });
+      }
+    }
+    await luuDuLieu(data);
+    state = data;
+
+    showToast(`✅ Đã xác nhận chốt ca và cập nhật Sổ Quỹ thành công cho ngày ${formatDate(targetDate)}!`);
+    $("#dailyClosingDialog")?.close();
+    renderAll();
   });
 
   $("#closeDailyClosingBtn")?.addEventListener("click", () => {
@@ -1771,23 +4775,9 @@ function initEventListeners() {
     showToast(`Đang phát loa đọc doanh số ${isAll ? "tất cả điểm bán" : state.currentBranch}...`);
   });
 
-  // Radio button loai switch (Thu / Chi) in manual form
-  $$("#manualForm input[name='loai']").forEach((radio) => {
-    radio.onchange = () => {
-      const isThu = radio.value === "thu";
-      const catInput = $("#manualCategoryInput");
-      const costGroup = $("#manualCostGroup");
-      if (catInput) {
-        catInput.placeholder = isThu ? "Ví dụ: Nước mía thường, Trà tắc, Cam tươi..." : "Ví dụ: Mua cam, Mua mía, Mua đá, Tiền điện...";
-      }
-      if (costGroup) {
-        costGroup.style.display = isThu ? "grid" : "none";
-      }
-      renderCategoryDatalist();
-    };
-  });
 
-  // Manual Form Submission
+
+  // Manual Form Submission & Context Capture
   const manualForm = $("#manualForm");
   if (manualForm) {
     manualForm.onsubmit = async (e) => {
@@ -1798,7 +4788,7 @@ function initEventListeners() {
       const unit = $("#manualUnitSelect")?.value || (loai === "thu" ? "ly" : "kg");
       const amount = Number($("#manualAmount")?.value.replace(/[^0-9]/g, "")) || 0;
       let costPrice = Number($("#manualCostPrice")?.value.replace(/[^0-9]/g, ""));
-      const note = $("#manualNote")?.value?.trim() || "";
+      let note = $("#manualNote")?.value?.trim() || "";
 
       if (amount <= 0) {
         showToast("Vui lòng nhập số tiền lớn hơn 0", true);
@@ -1812,9 +4802,31 @@ function initEventListeners() {
       }
 
       const phuongThuc = $("#manualPaymentMethodGroup input[name='phuongThuc']:checked")?.value || "tien_mat";
+      const nguonTienChi = loai === "chi" ? ($("#expenseSourceGroup input[name='nguonTienChi']:checked")?.value || "tien_von") : null;
+      
       const activeBranch = (state.currentBranch && state.currentBranch !== "all")
         ? state.currentBranch
         : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
+
+      // Nếu là Chi: Thu thập bối cảnh đợt cũ & lý do nhập
+      if (loai === "chi") {
+        const oldStatus = $("#manualOldStockStatus")?.value || "Đã hết sạch đợt cũ";
+        const reason = $("#manualProcurementReason")?.value || "Hết hàng nên nhập mới";
+        const contextStr = `[Đợt cũ: ${oldStatus} | Lý do: ${reason}]`;
+        note = note ? `${note} ${contextStr}` : contextStr;
+
+        state.procurementHistory = state.procurementHistory || [];
+        state.procurementHistory.push({
+          id: Date.now(),
+          item: category,
+          qty,
+          unit,
+          amount,
+          branch: activeBranch,
+          answer: `${oldStatus} - ${reason}`,
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       await themGiaoDich({
         loai,
@@ -1822,11 +4834,12 @@ function initEventListeners() {
         soLuong: qty,
         donViTinh: unit,
         phuongThuc,
+        nguonTienChi,
         giaCostDonVi: costPrice || 0,
         tongGiaCost: qty * (costPrice || 0),
         danhMuc: category,
         ghiChu: note,
-        cauNoiGoc: note || `${loai === "thu" ? "Bán" : "Chi"} ${qty} ${unit} ${category}${phuongThuc === "chuyen_khoan" ? " (CK)" : ""}`,
+        cauNoiGoc: note || `${loai === "thu" ? "Bán" : "Mua"} ${qty} ${unit} ${category}${phuongThuc === "chuyen_khoan" ? " (CK)" : ""}`,
         daSuaTay: true,
         chiNhanh: activeBranch,
       });
@@ -1853,6 +4866,9 @@ function initEventListeners() {
         const catInput = $("#manualCategoryInput");
         const unitSelect = $("#manualUnitSelect");
         const costGroup = $("#manualCostGroup");
+        const contextGroup = $("#manualExpenseContextGroup");
+        const sourceGroup = $("#expenseSourceGroup");
+        
         if (catInput) {
           catInput.placeholder = isThu ? "Ví dụ: Nước mía thường, Trà tắc, Cam tươi..." : "Ví dụ: Mua cam, Mua mía, Mua đá, Tiền điện...";
         }
@@ -1862,12 +4878,554 @@ function initEventListeners() {
         if (costGroup) {
           costGroup.style.display = isThu ? "grid" : "none";
         }
+        if (contextGroup) {
+          contextGroup.style.display = isThu ? "none" : "grid";
+        }
+        if (sourceGroup) {
+          sourceGroup.style.display = isThu ? "none" : "block";
+        }
         renderCategoryDatalist();
       };
     });
   }
 
-  // Stats Mode Switcher (Day / Week / Month)
+  // ----------------------------------------------------
+  // SỰ KIỆN CHỐT BILL NHANH KHÔNG IN GIẤY (DIGITAL FAST POS)
+  // ----------------------------------------------------
+  $("#clearPosBillBtn")?.addEventListener("click", () => {
+    activePosBill = [];
+    renderPosBillBar();
+    renderQuickButtons();
+    showToast("Đã làm mới Bill");
+  });
+
+  $("#openCheckoutBillBtn")?.addEventListener("click", () => {
+    if (!activePosBill.length) {
+      showToast("Chưa có món nào trong Bill", true);
+      return;
+    }
+    renderFastCheckoutModal();
+    $("#fastCheckoutDialog")?.showModal();
+  });
+
+  $("#closeFastCheckoutBtn")?.addEventListener("click", () => {
+    $("#fastCheckoutDialog")?.close();
+  });
+
+  // Tender presets ($50k, $100k, $200k, exact)
+  $$("#fastTenderPresetButtons button").forEach((btn) => {
+    btn.onclick = () => {
+      const preset = btn.getAttribute("data-amount");
+      const totalAmount = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1) * (Number(entry.item.price) || 0), 0);
+      const tenderInput = $("#fastCheckoutTenderedInput");
+      if (!tenderInput) return;
+
+      if (preset === "exact") {
+        tenderInput.value = formatMoney(totalAmount);
+      } else {
+        const val = Number(preset) || totalAmount;
+        tenderInput.value = formatMoney(val);
+      }
+      updateFastCheckoutChange();
+    };
+  });
+
+  $("#fastCheckoutTenderedInput")?.addEventListener("input", () => {
+    updateFastCheckoutChange();
+  });
+
+  // Action function to checkout bill
+  const checkoutDigitalBill = async (paymentMethod = "tien_mat") => {
+    if (!activePosBill.length) return;
+
+    const activeBranch = (state.currentBranch && state.currentBranch !== "all")
+      ? state.currentBranch
+      : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
+
+    const totalCups = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1), 0);
+    const totalAmount = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1) * (getItemPrice(entry.item, activeBranch) || 0), 0);
+    const billCode = `#BILL-${Date.now().toString().slice(-4)}`;
+
+    // Ghi từng món vào sổ doanh thu với mã Bill chung
+    for (const entry of activePosBill) {
+      const itemPrice = getItemPrice(entry.item, activeBranch);
+      const lineCost = entry.qty * (Number(entry.item.costPrice) || 0);
+      const linePrice = entry.qty * itemPrice;
+
+      await themGiaoDich({
+        loai: "thu",
+        soTien: linePrice,
+        soLuong: entry.qty,
+        donViTinh: entry.item.voiceUnit || "ly",
+        phuongThuc: paymentMethod,
+        giaCostDonVi: entry.item.costPrice || 0,
+        tongGiaCost: lineCost,
+        danhMuc: entry.item.category || entry.item.name,
+        ghiChu: `${billCode} - Bán ${entry.qty} ${entry.item.name}`,
+        cauNoiGoc: `Bán ${entry.qty} ${entry.item.name} (${billCode})`,
+        daSuaTay: false,
+        chiNhanh: activeBranch,
+      });
+    }
+
+    // Phát chuông Ting Ting chuyên nghiệp
+    phatTiengChuongTingTing();
+
+    if (paymentMethod === "chuyen_khoan") {
+      phatLoaThongBaoChuyenKhoan(totalAmount, "chuyen_khoan");
+    }
+
+    $("#fastCheckoutDialog")?.close();
+    activePosBill = [];
+
+    state = await docDuLieu();
+    renderAll();
+    triggerAutoSync();
+
+    showToast(`🎉 Đã chốt ${billCode} (${totalCups} ly - ${formatMoney(totalAmount)}) thành công!`);
+  };
+
+  $("#confirmCashBillBtn")?.addEventListener("click", () => checkoutDigitalBill("tien_mat"));
+  $("#confirmQrBillBtn")?.addEventListener("click", () => checkoutDigitalBill("chuyen_khoan"));
+
+  // ----------------------------------------------------
+  // SỰ KIỆN CHUYỂN ĐỔI CHẾ ĐỘ: BÁN NƯỚC VS NHẬP NGUYÊN LIỆU
+  // ----------------------------------------------------
+  $("#posModeDrinkTab")?.addEventListener("click", () => {
+    $("#posModeDrinkTab")?.classList.add("is-active");
+    $("#posModeDrinkTab")?.setAttribute("aria-selected", "true");
+    $("#posModeIngredientTab")?.classList.remove("is-active");
+    $("#posModeIngredientTab")?.setAttribute("aria-selected", "false");
+    const drinkGrid = $("#quickButtons");
+    const ingGrid = $("#quickIngredientButtons");
+    if (drinkGrid) drinkGrid.style.display = "grid";
+    if (ingGrid) ingGrid.style.display = "none";
+  });
+
+  $("#posModeIngredientTab")?.addEventListener("click", () => {
+    $("#posModeIngredientTab")?.classList.add("is-active");
+    $("#posModeIngredientTab")?.setAttribute("aria-selected", "true");
+    $("#posModeDrinkTab")?.classList.remove("is-active");
+    $("#posModeDrinkTab")?.setAttribute("aria-selected", "false");
+    const drinkGrid = $("#quickButtons");
+    const ingGrid = $("#quickIngredientButtons");
+    if (drinkGrid) drinkGrid.style.display = "none";
+    if (ingGrid) ingGrid.style.display = "grid";
+    renderQuickIngredients();
+  });
+
+  // ----------------------------------------------------
+  // SỰ KIỆN HỘP THOẠI NHẬP NGUYÊN LIỆU (QUICK INGREDIENT MODAL)
+  // ----------------------------------------------------
+  $("#closeQuickIngredientBtn")?.addEventListener("click", () => {
+    $("#quickIngredientDialog")?.close();
+  });
+
+  $("#ingQtyDecBtn")?.addEventListener("click", () => {
+    const input = $("#ingQtyInput");
+    if (!input) return;
+    const cur = Math.max(1, (Number(input.value) || 1) - 1);
+    input.value = cur;
+    updateIngModalCost();
+  });
+
+  $("#ingQtyIncBtn")?.addEventListener("click", () => {
+    const input = $("#ingQtyInput");
+    if (!input) return;
+    const cur = (Number(input.value) || 1) + 1;
+    input.value = cur;
+    updateIngModalCost();
+  });
+
+  $("#ingQtyInput")?.addEventListener("input", () => {
+    updateIngModalCost();
+  });
+
+  $$("#ingQtyPresets .ing-preset-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const preset = Number(btn.getAttribute("data-qty")) || 1;
+      const input = $("#ingQtyInput");
+      if (input) {
+        input.value = preset;
+        updateIngModalCost();
+      }
+    };
+  });
+
+  // Nút Xác nhận Ghi sổ Chi tiền (Nhập Hàng) & Sơ chế
+  $("#confirmBuyIngredientBtn")?.addEventListener("click", async () => {
+    if (!activeIngredientItem) return;
+
+    const qtyInput = $("#ingQtyInput");
+    const totalCostInput = $("#ingTotalCostInput");
+    const qty = Math.max(1, Number(qtyInput?.value) || 1);
+    const is10kg = activeIngredientItem.id === "ing_mia_bo_10kg" || (activeIngredientItem.name && activeIngredientItem.name.includes("10kg"));
+    const is12cay = activeIngredientItem.id === "ing_mia_bo" || (activeIngredientItem.name && (activeIngredientItem.name.includes("12 cây") || activeIngredientItem.name.includes("cây thô")));
+
+    const isMaterialsView = $("#view-materials")?.classList.contains("is-active");
+    const materialsBranch = $("#materialsBranchSelect")?.value;
+    const activeBranch = (isMaterialsView && materialsBranch)
+      ? materialsBranch
+      : ((state.currentBranch && state.currentBranch !== "all")
+        ? state.currentBranch
+        : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)"));
+
+    if (is10kg) {
+      // Nghiệp vụ Sơ chế: Nhập kho Bó 10kg từ Bó 12 cây dài (0đ tiền chi)
+      const rawQtyInput = $("#ingFromRawQtyInput");
+      const rawQty = Math.max(0.5, Number(rawQtyInput?.value) || 1);
+      const billCode = `#SC-${Date.now().toString().slice(-4)}`;
+      const userBuyNote = $("#ingBuyNoteInput")?.value?.trim();
+      const defaultNote = `[Sơ chế nhập kho] Bào vỏ ${rawQty} bó mía 12 cây dài -> Nhập kho ${qty} bó mía 10kg (${qty * 10} kg)`;
+      const fullNote = userBuyNote ? `${userBuyNote} (${billCode})` : `${defaultNote} (${billCode})`;
+
+      await themGiaoDich({
+        loai: "xuat_dung",
+        danhMuc: "Sơ chế mía 10kg",
+        soTien: 0,
+        soLuong: qty,
+        donViTinh: `bó (${qty * 10} kg)`,
+        phuongThuc: "tien_mat",
+        giaCostDonVi: 0,
+        tongGiaCost: 0,
+        chiNhanh: activeBranch,
+        ingredientId: "mia_10kg",
+        inventoryAction: "soche",
+        rawQty: rawQty,
+        yieldQty: qty,
+        yieldKg: qty * 10,
+        ghiChu: fullNote,
+        billCode,
+        cauNoiGoc: fullNote,
+      });
+
+      // Tăng tồn kho bó 10kg
+      await nhapKhoNguyenLieu(activeBranch, "mia_10kg", qty, 0);
+      // Giảm tồn kho bó 12 cây tương ứng
+      await nhapKhoNguyenLieu(activeBranch, "mia_cay", -rawQty, 90000);
+
+      $("#quickIngredientDialog")?.close();
+      state = await docDuLieu();
+      renderAll();
+      renderMaterialsView();
+      triggerAutoSync();
+      showToast(`🎋 Đã nhập ${qty} bó 10kg (${qty * 10} kg) vào kho (từ ${rawQty} bó 12 cây dài)!`);
+      return;
+    }
+
+    // Các mặt hàng mua khác (hoặc Mía cây thô 12 cây):
+    const totalCost = Number(totalCostInput?.value.replace(/[^0-9]/g, "")) || (qty * (Number(activeIngredientItem.unitCost) || 0));
+    const unitCost = Math.round(totalCost / qty);
+    const billCode = `#PO-${Date.now().toString().slice(-4)}`;
+    const nguonTienChi = $("#quickExpenseSourceGroup input[name='quickNguonTienChi']:checked")?.value || "tien_von";
+    const userBuyNote = $("#ingBuyNoteInput")?.value?.trim();
+    const defaultBuyNote = is12cay
+      ? `[Nhập hàng kho] Mua ${qty} bó mía cây tươi 12 cây dài`
+      : `[Nhập hàng nhanh] Mua ${qty} ${activeIngredientItem.unit} ${activeIngredientItem.name}`;
+    const fullBuyNote = userBuyNote ? `${userBuyNote} (${billCode})` : `${defaultBuyNote} (${billCode})`;
+    const invId = activeIngredientItem.inventoryId || (is12cay ? "mia_cay" : activeIngredientItem.id);
+
+    await themGiaoDich({
+      loai: "chi",
+      danhMuc: is12cay ? "Mua mía cây" : (activeIngredientItem.category || `Mua ${activeIngredientItem.name}`),
+      soTien: totalCost,
+      soLuong: qty,
+      donViTinh: activeIngredientItem.unit,
+      phuongThuc: "tien_mat",
+      nguonTienChi: nguonTienChi,
+      chiNhanh: activeBranch,
+      ingredientId: invId,
+      inventoryAction: "nhap",
+      ghiChu: fullBuyNote,
+      billCode,
+      cauNoiGoc: fullBuyNote,
+    });
+
+    if (invId) {
+      await nhapKhoNguyenLieu(activeBranch, invId, qty, unitCost);
+    }
+
+    $("#quickIngredientDialog")?.close();
+    state = await docDuLieu();
+    renderAll();
+    renderMaterialsView();
+    triggerAutoSync();
+    if (is12cay) {
+      showToast(`🎋 Đã ghi chi ${formatMoney(totalCost)} nhập ${qty} bó mía 12 cây vào kho`);
+    } else {
+      showToast(`🛒 Đã ghi chi ${formatMoney(totalCost)} mua ${qty} ${activeIngredientItem.unit} ${activeIngredientItem.name}`);
+    }
+  });
+
+  // Nút Xuất dùng / Xuất hàng để bán (Lấy mía 10kg chặt khúc / Lấy đá)
+  $("#confirmUseIngredientBtn")?.addEventListener("click", async () => {
+    if (!activeIngredientItem) return;
+
+    const qtyInput = $("#ingQtyInput");
+    const qty = Math.max(1, Number(qtyInput?.value) || 1);
+
+    const isMaterialsView = $("#view-materials")?.classList.contains("is-active");
+    const materialsBranch = $("#materialsBranchSelect")?.value;
+    const activeBranch = (isMaterialsView && materialsBranch)
+      ? materialsBranch
+      : ((state.currentBranch && state.currentBranch !== "all")
+        ? state.currentBranch
+        : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)"));
+
+    const is10kg = activeIngredientItem.id === "ing_mia_bo_10kg" || (activeIngredientItem.name && activeIngredientItem.name.includes("10kg"));
+    const is12cay = activeIngredientItem.id === "ing_mia_bo" || (activeIngredientItem.name && (activeIngredientItem.name.includes("12 cây") || activeIngredientItem.name.includes("cây thô")));
+    const invId = activeIngredientItem.inventoryId || (is10kg ? "mia_10kg" : (is12cay ? "mia_cay" : activeIngredientItem.id));
+    const billCode = `#XK-${Date.now().toString().slice(-4)}`;
+
+    const userUseNote = $("#ingUseNoteInput")?.value?.trim();
+    let defaultUseNote = `[Pha chế bán hàng] Lấy ${qty} ${activeIngredientItem.unit} ${activeIngredientItem.name} ra quầy phục vụ`;
+    if (is10kg) {
+      defaultUseNote = `[Xuất quầy bán] Lấy ${qty} bó mía 10kg (${qty * 10} kg) bào sạch ra quầy ép nước`;
+    } else if (is12cay) {
+      defaultUseNote = `[Xuất sơ chế] Lấy ${qty} bó mía 12 cây dài đi bào vỏ sạch`;
+    }
+    const fullUseNote = userUseNote ? `${userUseNote} (${billCode})` : `${defaultUseNote} (${billCode})`;
+
+    await themGiaoDich({
+      loai: "xuat_dung",
+      danhMuc: activeIngredientItem.name,
+      soTien: 0,
+      soLuong: qty,
+      donViTinh: is10kg ? `bó (${qty * 10} kg)` : activeIngredientItem.unit,
+      phuongThuc: "tien_mat",
+      giaCostDonVi: Number(activeIngredientItem.unitCost) || 0,
+      tongGiaCost: qty * (Number(activeIngredientItem.unitCost) || 0),
+      chiNhanh: activeBranch,
+      ingredientId: invId,
+      inventoryAction: "xuat",
+      ghiChu: fullUseNote,
+      billCode,
+      cauNoiGoc: fullUseNote,
+    });
+
+    if (invId) {
+      await nhapKhoNguyenLieu(activeBranch, invId, -qty, Number(activeIngredientItem.unitCost) || 0);
+    }
+
+    $("#quickIngredientDialog")?.close();
+    state = await docDuLieu();
+    renderAll();
+    renderMaterialsView();
+    triggerAutoSync();
+    if (is10kg) {
+      showToast(`🎋 Đã xuất ${qty} bó mía 10kg (${qty * 10} kg) bào sạch ra quầy ép bán!`);
+    } else if (is12cay) {
+      showToast(`🎋 Đã xuất ${qty} bó mía 12 cây dài đi bào vỏ!`);
+    } else {
+      showToast(`📦 Đã ghi xuất dùng ${qty} ${activeIngredientItem.unit} ${activeIngredientItem.name}`);
+    }
+  });
+
+  $("#ingFromRawQtyInput")?.addEventListener("input", () => {
+    updateIngModalCost();
+  });
+
+  // Thiết lập sự kiện Hộp thoại Vận Hành Sơ Chế & Điều Chuyển Mía
+  $("#miaActionSocheBtn")?.addEventListener("click", () => openMiaOperationsModal("soche"));
+  $("#miaActionTransferBtn")?.addEventListener("click", () => openMiaOperationsModal("transfer"));
+  $("#miaActionRemainingBtn")?.addEventListener("click", () => openMiaOperationsModal("remaining"));
+  $("#btnOpenNewBatchDialog")?.addEventListener("click", () => openMiaOperationsModal("new_batch"));
+  $("#btnOpenBatchReportDialog")?.addEventListener("click", () => openMiaOperationsModal("report"));
+  $("#closeMiaOpDialogBtn")?.addEventListener("click", () => $("#miaOperationsDialog")?.close());
+
+  $$("#miaOpTabGroup input").forEach(r => {
+    r.addEventListener("change", () => switchMiaOpTab(r.value));
+  });
+
+  $("#socheRawQtyInput")?.addEventListener("input", updateSocheNotes);
+  $("#socheYieldKgInput")?.addEventListener("input", updateSocheNotes);
+  $("#socheYieldQtyInput")?.addEventListener("input", updateSocheNotes);
+  $("#transferQtyInput")?.addEventListener("input", updateTransferNotes);
+  $("#transferTargetBranch")?.addEventListener("change", updateTransferNotes);
+  $("#remainingBranchSelect")?.addEventListener("change", updateRemainingNotes);
+  $("#remainingAmountInput")?.addEventListener("input", updateRemainingNotes);
+  $$("#miaOpPanelRemaining input[name='remainingUnitType']").forEach(r => {
+    r.addEventListener("change", updateRemainingNotes);
+  });
+  $("#newBatchQtyInput")?.addEventListener("input", updateNewBatchTotal);
+  $("#reportBatchSelect")?.addEventListener("change", (e) => renderBatchReport(e.target.value));
+
+  // Nút 1: Xác nhận Bào mía sơ chế
+  $("#confirmSocheBtn")?.addEventListener("click", async () => {
+    const rawQty = Math.max(0.1, Number($("#socheRawQtyInput")?.value) || 1);
+    const yieldKg = Math.max(1, Number($("#socheYieldKgInput")?.value) || 10);
+    const yieldQty = Math.round((yieldKg / 10) * 10) / 10;
+    const note = $("#socheNoteInput")?.value?.trim() || `[Sơ chế] Bào ${rawQty} bó 12 cây -> thu ${yieldKg} kg (${yieldQty} bó 10kg)`;
+    const billCode = `#SC-${Date.now().toString().slice(-4)}`;
+    const fullNote = `${note} (${billCode})`;
+
+    const activeBatch = await layDotMiaDangHoatDong("Quán Nhà (Chính)");
+
+    await themGiaoDich({
+      loai: "xuat_dung",
+      danhMuc: "Sơ chế mía 10kg",
+      soTien: 0,
+      soLuong: yieldQty,
+      donViTinh: `bó (${yieldKg} kg)`,
+      phuongThuc: "tien_mat",
+      giaCostDonVi: 0,
+      tongGiaCost: 0,
+      chiNhanh: "Quán Nhà (Chính)",
+      ingredientId: "mia_10kg",
+      inventoryAction: "soche",
+      rawQty: rawQty,
+      yieldQty: yieldQty,
+      yieldKg: yieldKg,
+      batchId: activeBatch?.id || null,
+      ghiChu: fullNote,
+      billCode,
+      cauNoiGoc: fullNote,
+    });
+
+    await nhapKhoNguyenLieu("Quán Nhà (Chính)", "mia_cay", -rawQty, 90000);
+    await nhapKhoNguyenLieu("Quán Nhà (Chính)", "mia_10kg", yieldQty, 0);
+
+    // Tích lũy vào đợt mía đang hoạt động
+    await ghiNhanSoCheDotMia({ rawQty, yieldQty, note: fullNote });
+
+    $("#miaOperationsDialog")?.close();
+    state = await docDuLieu();
+    renderAll();
+    renderMaterialsView();
+    triggerAutoSync();
+    showToast(`🎋 Đã ghi nhận bào ${rawQty} bó 12 cây -> thu được ${yieldKg} kg (${yieldQty} bó 10kg)!`);
+  });
+
+  // Nút 2: Xác nhận Xuất mía sang Chi nhánh 2
+  $("#confirmTransferBtn")?.addEventListener("click", async () => {
+    const qty = Math.max(1, Number($("#transferQtyInput")?.value) || 1);
+    const targetBranch = $("#transferTargetBranch")?.value || "Chi nhánh 2";
+    const note = $("#transferNoteInput")?.value?.trim() || `[Điều chuyển] Xuất ${qty} bó mía 10kg để bán ở ${targetBranch}`;
+    const billCode = `#DC-${Date.now().toString().slice(-4)}`;
+    const fullNote = `${note} (${billCode})`;
+
+    await themGiaoDich({
+      loai: "xuat_dung",
+      danhMuc: "Xuất mía sang chi nhánh",
+      soTien: 0,
+      soLuong: qty,
+      donViTinh: `bó (${qty * 10} kg)`,
+      phuongThuc: "tien_mat",
+      giaCostDonVi: 0,
+      tongGiaCost: 0,
+      chiNhanh: "Quán Nhà (Chính)",
+      sourceBranch: "Quán Nhà (Chính)",
+      targetBranch: targetBranch,
+      ingredientId: "mia_10kg",
+      inventoryAction: "transfer",
+      ghiChu: fullNote,
+      billCode,
+      cauNoiGoc: fullNote,
+    });
+
+    // Trừ Quán Nhà, cộng Chi nhánh đích
+    await nhapKhoNguyenLieu("Quán Nhà (Chính)", "mia_10kg", -qty, 0);
+    await nhapKhoNguyenLieu(targetBranch, "mia_10kg", qty, 0);
+
+    $("#miaOperationsDialog")?.close();
+    state = await docDuLieu();
+    renderAll();
+    renderMaterialsView();
+    triggerAutoSync();
+    showToast(`🚚 Đã xuất ${qty} bó mía 10kg (${qty * 10} kg) sang ${targetBranch} để bán!`);
+  });
+
+  // Nút 3: Xác nhận Kiểm kê mía dư cuối ngày
+  $("#confirmRemainingBtn")?.addEventListener("click", async () => {
+    const branch = $("#remainingBranchSelect")?.value || "Chi nhánh 2";
+    const amount = Number($("#remainingAmountInput")?.value) || 0;
+    const unitType = $("#miaOpPanelRemaining input[name='remainingUnitType']:checked")?.value || "ly";
+    const unitText = unitType === "ly" ? "ly" : "kg";
+    const note = $("#remainingNoteInput")?.value?.trim() || `[Mía dư cuối ngày] ${branch} hôm nay chưa bán hết mía, còn dư ~${amount} ${unitText}`;
+    const billCode = `#KK-${Date.now().toString().slice(-4)}`;
+    const fullNote = `${note} (${billCode})`;
+
+    await themGiaoDich({
+      loai: "xuat_dung",
+      danhMuc: "Kiểm kê mía dư cuối ngày",
+      soTien: 0,
+      soLuong: amount,
+      donViTinh: unitText,
+      phuongThuc: "tien_mat",
+      giaCostDonVi: 0,
+      tongGiaCost: 0,
+      chiNhanh: branch,
+      ghiChu: fullNote,
+      billCode,
+      cauNoiGoc: fullNote,
+    });
+
+    $("#miaOperationsDialog")?.close();
+    state = await docDuLieu();
+    renderAll();
+    renderMaterialsView();
+    triggerAutoSync();
+    showToast(`🌙 Đã lưu ghi nhận: ${branch} còn dư ~${amount} ${unitText} mía cuối ngày!`);
+  });
+
+  // Nút 4: Đóng & Tổng kết đợt mía
+  $("#closeActiveBatchBtn")?.addEventListener("click", async () => {
+    const currentId = $("#reportBatchSelect")?.value;
+    if (!currentId) return;
+    await dongDotNhapMia(currentId);
+    state = await docDuLieu();
+    renderBatchReport(currentId);
+    renderSugarcaneBatchDashboard();
+    triggerAutoSync();
+    showToast(`🏁 Đã tổng kết và đóng đợt mía thành công!`);
+  });
+
+  // Nút 5: Xác nhận Khởi tạo đợt mía mới & Ghi chi
+  $("#confirmNewBatchBtn")?.addEventListener("click", async () => {
+    const date = $("#newBatchDateInput")?.value || new Date().toISOString().slice(0, 10);
+    const rawQty = Math.max(1, Number($("#newBatchQtyInput")?.value) || 20);
+    const price = Number($("#newBatchPriceInput")?.value.replace(/[^0-9]/g, "")) || 90000;
+    const totalCost = rawQty * price;
+    const note = $("#newBatchNoteInput")?.value?.trim() || `Nhập đợt mía thô ${rawQty} bó 12 cây dài`;
+    const billCode = `#PO-${Date.now().toString().slice(-4)}`;
+    const fullNote = `[Nhập đợt mía] ${note} (${billCode})`;
+
+    const newBatch = await taoDotNhapMia({
+      date,
+      rawStalkBundles: rawQty,
+      costPerBundle: price,
+      branch: "Quán Nhà (Chính)",
+      note,
+    });
+
+    await themGiaoDich({
+      loai: "chi",
+      danhMuc: "Mua mía cây",
+      soTien: totalCost,
+      soLuong: rawQty,
+      donViTinh: "bó",
+      phuongThuc: "tien_mat",
+      nguonTienChi: "tien_von",
+      chiNhanh: "Quán Nhà (Chính)",
+      ingredientId: "mia_cay",
+      inventoryAction: "nhap",
+      batchId: newBatch?.id || null,
+      ghiChu: fullNote,
+      billCode,
+      cauNoiGoc: fullNote,
+    });
+
+    await nhapKhoNguyenLieu("Quán Nhà (Chính)", "mia_cay", rawQty, price);
+
+    $("#miaOperationsDialog")?.close();
+    state = await docDuLieu();
+    renderAll();
+    renderMaterialsView();
+    triggerAutoSync();
+    showToast(`🎋 Đã khởi tạo Đợt Mía Mới (${rawQty} bó 12 cây) & Ghi chi ${formatMoney(totalCost)}!`);
+  });
+
+    // Stats Mode Switcher (Day / Week / Month)
   $$(".stats-mode-btn").forEach((btn) => {
     btn.onclick = () => {
       $$(".stats-mode-btn").forEach((b) => b.classList.remove("is-active"));
@@ -1949,19 +5507,29 @@ function initEventListeners() {
   }
 
   // Menu Manager Save & Add buttons
-  $("#addNewMenuItemBtn")?.addEventListener("click", () => {
+  $("#addNewMenuItemBtn")?.addEventListener("click", async () => {
     state.quickItems = state.quickItems || [];
-    state.quickItems.push({
-      id: `mon_${Date.now()}`,
+    const newId = `mon_${Date.now()}`;
+    const newItem = {
+      id: newId,
       name: "Món mới",
       shortName: "Món mới",
       price: 15000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 15000,
+        "Chi nhánh 2": 17000,
+      },
       costPrice: 5000,
       category: "Món mới",
       icon: "cane",
       voiceUnit: "ly",
-    });
-    renderMenuManager();
+      image: "./assets/menu/nuoc_mia.jpg",
+    };
+    state.quickItems.push(newItem);
+    await luuDanhSachMenu(state.quickItems);
+    renderMenuManager(true);
+    renderQuickButtons();
+    showToast("⚡ Đã thêm món mới vào menu! Nhớ chỉnh sửa tên, giá và bấm Lưu Menu nhé.");
   });
 
   $("#saveMenuBtn")?.addEventListener("click", async () => {
@@ -1969,23 +5537,94 @@ function initEventListeners() {
     const updated = rows.map((row, i) => {
       const existing = (state.quickItems || [])[i] || {};
       const name = row.querySelector(".menu-item-name")?.value?.trim() || existing.name || "Món nước";
-      const price = Number(row.querySelector(".menu-item-price")?.value) || existing.price || 10000;
-      const costPrice = Number(row.querySelector(".menu-item-cost")?.value) || 0;
+      const priceMainInput = row.querySelector(".menu-item-price-main");
+      const priceCn2Input = row.querySelector(".menu-item-price-cn2");
+      const costInput = row.querySelector(".menu-item-cost");
+
+      const priceMain = priceMainInput ? (Number(priceMainInput.value) || 0) : (Number(existing.price) || 10000);
+      const priceCn2 = priceCn2Input ? (Number(priceCn2Input.value) || 0) : (existing.priceByBranch?.["Chi nhánh 2"] || (priceMain + 2000));
+      const costPrice = costInput ? (Number(costInput.value) || 0) : (Number(existing.costPrice) || 0);
+
+      const existingBranches = existing.priceByBranch || {};
+      const priceByBranch = {
+        ...existingBranches,
+        "Quán Nhà (Chính)": priceMain,
+        "Chi nhánh 2": priceCn2,
+      };
+
       return {
         ...existing,
         id: existing.id || `item_${i}`,
         name,
         shortName: name,
         category: name,
-        price,
+        price: priceMain,
         costPrice,
+        priceByBranch,
       };
     });
 
+    state.quickItems = updated;
     await luuDanhSachMenu(updated);
     state = await docDuLieu();
-    renderAll();
-    showToast("Đã lưu bảng giá Menu và Giá Vốn thành công!");
+    renderAll({ forceSettings: true });
+    showToast("✅ Đã lưu toàn bộ bảng giá Menu & Chi nhánh thành công!");
+    triggerAutoSync();
+  });
+
+  // Ingredient Manager Save & Add buttons
+  $("#addNewIngredientItemBtn")?.addEventListener("click", async () => {
+    state.quickIngredients = state.quickIngredients || [];
+    const newId = `ing_${Date.now()}`;
+    const newIng = {
+      id: newId,
+      name: "Nguyên liệu mới",
+      shortName: "Nguyên liệu mới",
+      unit: "kg",
+      defaultQty: 1,
+      unitCost: 20000,
+      category: "Mua nguyên liệu",
+      note: "Nguyên liệu mới",
+      icon: "cane_bundle",
+      image: "./assets/ingredients/bo_mia.jpg",
+      inventoryId: newId,
+      yieldPerUnit: 10,
+    };
+    state.quickIngredients.push(newIng);
+    await luuDanhSachNguyenLieu(state.quickIngredients);
+    renderIngredientManager(true);
+    renderQuickIngredients();
+    showToast("⚡ Đã thêm nguyên liệu mới! Nhớ chỉnh sửa tên, giá và bấm Lưu Nguyên Liệu.");
+  });
+
+  $("#saveIngredientsBtn")?.addEventListener("click", async () => {
+    const rows = $$("#ingredientItemsEditor .ingredient-item-row");
+    const updated = rows.map((row, i) => {
+      const existing = (state.quickIngredients || [])[i] || {};
+      const name = row.querySelector(".ing-item-name")?.value?.trim() || existing.name || "Nguyên liệu";
+      const unit = row.querySelector(".ing-item-unit")?.value?.trim() || existing.unit || "kg";
+      const unitCost = Number(row.querySelector(".ing-item-cost")?.value) || 0;
+      const defaultQty = Number(row.querySelector(".ing-item-qty")?.value) || 1;
+      const yieldPerUnit = Number(row.querySelector(".ing-item-yield")?.value) || 1;
+
+      return {
+        ...existing,
+        id: existing.id || `ing_${i}_${Date.now()}`,
+        name,
+        shortName: name,
+        unit,
+        unitCost,
+        defaultQty,
+        yieldPerUnit,
+        image: getValidIngredientImage({ ...existing, name }),
+      };
+    });
+
+    state.quickIngredients = updated;
+    await luuDanhSachNguyenLieu(updated);
+    state = await docDuLieu();
+    renderAll({ forceSettings: true });
+    showToast("✅ Đã lưu toàn bộ bảng giá nguyên liệu thành công!");
     triggerAutoSync();
   });
 
@@ -2212,7 +5851,7 @@ function initEventListeners() {
     triggerAutoSync();
   });
 
-  // Opening Cash Float buttons
+  // Daily Routine Assistant & Opening Cash Float buttons
   $("#editOpeningCashBtn")?.addEventListener("click", () => {
     const dialog = $("#editOpeningCashDialog");
     const input = $("#todayOpeningCashInput");
@@ -2221,13 +5860,21 @@ function initEventListeners() {
     dialog.showModal();
   });
 
+  $$("#editOpeningCashDialog .routine-preset-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const val = Number(btn.getAttribute("data-val")) || 50000;
+      const input = $("#todayOpeningCashInput");
+      if (input) input.value = val;
+    };
+  });
+
   $("#cancelOpeningCashBtn")?.addEventListener("click", () => {
     $("#editOpeningCashDialog")?.close();
   });
 
   $("#saveTodayOpeningCashBtn")?.addEventListener("click", async () => {
     const input = $("#todayOpeningCashInput");
-    const amount = Number(input?.value?.replace(/[^0-9]/g, "")) || 0;
+    const amount = Number(input?.value?.replace(/[^0-9]/g, "")) || 50000;
     const today = todayKey();
     const branch = state.currentBranch || "Quán Nhà (Chính)";
     await luuTienThoiDauNgay(today, amount, branch);
@@ -2240,12 +5887,50 @@ function initEventListeners() {
 
   $("#saveDefaultOpeningCashBtn")?.addEventListener("click", async () => {
     const input = $("#defaultOpeningCashInput");
-    const amount = Number(input?.value?.replace(/[^0-9]/g, "")) || 500000;
+    const amount = Number(input?.value?.replace(/[^0-9]/g, "")) || 50000;
     await luuTienThoiMacDinh(amount);
     state = await docDuLieu();
     renderAll();
     showToast(`Đã lưu tiền thối mặc định: ${formatMoney(amount)}`);
     triggerAutoSync();
+  });
+
+  // Daily Routine Banner Action
+  $("#routineBannerActionBtn")?.addEventListener("click", () => {
+    openDailyRoutineModal();
+  });
+
+  $("#closeRoutineModalBtn")?.addEventListener("click", () => {
+    $("#dailyRoutineModal")?.close();
+  });
+
+  $("#dismissRoutineModalBtn")?.addEventListener("click", () => {
+    $("#dailyRoutineModal")?.close();
+  });
+
+  $("#submitRoutineModalBtn")?.addEventListener("click", async () => {
+    const period = getDailyRoutinePeriod();
+    const modal = $("#dailyRoutineModal");
+
+    if (period === "morning") {
+      const input = $("#routineOpeningCashInput");
+      const amount = Number(input?.value?.replace(/[^0-9]/g, "")) || 50000;
+      const today = todayKey();
+      const branch = state.currentBranch || "Quán Nhà (Chính)";
+      await luuTienThoiDauNgay(today, amount, branch);
+      state = await docDuLieu();
+      renderAll();
+      modal?.close();
+      phatTiengChuongTingTing();
+      showToast(`🌅 Đã xác nhận mở két đầu ngày: ${formatMoney(amount)}!`);
+      triggerAutoSync();
+    } else if (period === "midday") {
+      modal?.close();
+      showToast("☀️ Chúc quán ca trưa & chiều bán đắt hàng!");
+    } else {
+      modal?.close();
+      openDailyClosingModal();
+    }
   });
 
   // CSV & JSON Backup buttons
@@ -2294,6 +5979,26 @@ function initEventListeners() {
       triggerAutoSync();
     } catch (err) {
       showToast(`Lỗi khôi phục: ${err.message}`, true);
+    }
+  });
+
+  $("#clearAppCacheBtn")?.addEventListener("click", async () => {
+    try {
+      showToast("🧹 Đang xóa bộ nhớ đệm cache...");
+      if (typeof window.caches !== "undefined") {
+        const cacheKeys = await window.caches.keys();
+        await Promise.all(cacheKeys.map((key) => window.caches.delete(key)));
+      }
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.clear();
+      }
+      showToast("✅ Đã xóa cache thành công! Đang tải lại ứng dụng...");
+      setTimeout(() => {
+        window.location.reload(true);
+      }, 500);
+    } catch (e) {
+      console.warn("Lỗi khi xóa cache:", e);
+      window.location.reload(true);
     }
   });
 
@@ -2390,6 +6095,12 @@ function initEventListeners() {
     }
   });
 
+  $("#authOfflineBypassBtn")?.addEventListener("click", () => {
+    $("#authScreen").hidden = true;
+    $(".app-shell")?.classList.remove("is-auth-locked");
+    showToast("Đang sử dụng ở chế độ lưu trữ thiết bị");
+  });
+
   // Auto-sync on window focus / app resume
   window.addEventListener("focus", () => {
     triggerAutoSync();
@@ -2423,12 +6134,15 @@ function initEventListeners() {
   // ----------------------------------------------------
   // KHO NGUYÊN LIỆU & ĐỊNH MỨC (BOM) EVENTS
   // ----------------------------------------------------
+
   $("#openInventoryBtn")?.addEventListener("click", () => {
-    renderInventoryModal();
-    $("#inventoryDialog")?.showModal();
+    switchView("materials");
   });
 
   $("#closeInventoryBtn")?.addEventListener("click", () => {
+    $("#inventoryDialog")?.close();
+  });
+  $("#closeInventoryHeaderBtn")?.addEventListener("click", () => {
     $("#inventoryDialog")?.close();
   });
 
@@ -2455,17 +6169,37 @@ function initEventListeners() {
     if (actionType === "nhap") {
       await nhapKhoNguyenLieu(branch, itemId, qty, cost > 0 && qty > 0 ? Math.round(cost / qty) : 0);
       if (cost > 0) {
+        const billCode = `#PO-${Date.now().toString().slice(-4)}`;
         await themGiaoDich({
           loai: "chi",
           soTien: cost,
           soLuong: qty,
           donViTinh: "phần",
           danhMuc: `Mua ${itemName.split(" (")[0]}`,
-          ghiChu: `Nhập kho ${qty} ${itemName}`,
+          ghiChu: `[Nhập hàng kho] Mua ${qty} ${itemName} (${billCode})`,
+          billCode: billCode,
           chiNhanh: branch,
+          ingredientId: itemId,
+          inventoryAction: "nhap",
         });
       }
       showToast(`Đã nhập thêm +${qty} ${itemName} vào kho ${branch}!`);
+    } else if (actionType === "xuat") {
+      await nhapKhoNguyenLieu(branch, itemId, -qty, 0);
+      const billCode = `#XK-${Date.now().toString().slice(-4)}`;
+      await themGiaoDich({
+        loai: "xuat_dung",
+        soTien: 0,
+        soLuong: qty,
+        donViTinh: "phần",
+        danhMuc: itemName.split(" (")[0],
+        ghiChu: `[Xuất dùng kho] Lấy ${qty} ${itemName} ra quầy phục vụ (${billCode})`,
+        billCode: billCode,
+        chiNhanh: branch,
+        ingredientId: itemId,
+        inventoryAction: "xuat",
+      });
+      showToast(`📦 Đã ghi nhận xuất dùng ${qty} ${itemName} khỏi kho ${branch}!`);
     } else {
       await capNhatTonKhoThucTe(branch, itemId, qty);
       showToast(`Đã điều chỉnh tồn kho ${itemName} thành ${qty} (${branch})!`);
@@ -2473,6 +6207,7 @@ function initEventListeners() {
 
     state = await docDuLieu();
     renderAll();
+    renderMaterialsView();
     renderInventoryModal();
     $("#quickStockQtyInput").value = "";
     $("#quickStockCostInput").value = "";
@@ -2488,6 +6223,9 @@ function initEventListeners() {
   });
 
   $("#closeTaxReportBtn")?.addEventListener("click", () => {
+    $("#taxReportDialog")?.close();
+  });
+  $("#closeTaxReportHeaderBtn")?.addEventListener("click", () => {
     $("#taxReportDialog")?.close();
   });
 
@@ -2955,6 +6693,19 @@ function setupAIAssistant() {
         } else if (result.action === "learn_customer") {
           await luuKhachQuen(result.customer);
           showToast(`Đã lưu khách quen: ${result.customer.name}`);
+        } else if (result.action === "save_procurement_context") {
+          const ctx = result.contextData;
+          if (ctx) {
+            state.procurementHistory = state.procurementHistory || [];
+            state.procurementHistory.push(ctx);
+            const lastChi = (state.ds || []).slice().reverse().find((t) => !t.deleted && t.loai === "chi");
+            if (lastChi) {
+              lastChi.ghiChu = `${lastChi.ghiChu || lastChi.danhMuc} | Bối cảnh: ${ctx.answer}`;
+            }
+            await luuDuLieu(state);
+            showToast(`Đã ghi nhớ bối cảnh nhập ${ctx.item}!`);
+            triggerAutoSync();
+          }
         } else if (result.action === "customer_debt") {
           showToast(`Đã ghi nợ: ${result.customerName} (${formatMoney(result.debtAmount)})`);
         } else if (result.action === "restart_today") {
@@ -3146,17 +6897,33 @@ function setupAIAssistant() {
 // ----------------------------------------------------
 
 async function init() {
-  // Set default dates
-  $("#statsDateInput").value = statsDate;
-  $("#statsWeekInput").value = statsWeekDate;
+  try {
+    const sDate = $("#statsDateInput");
+    if (sDate) sDate.value = statsDate;
+    const sWeek = $("#statsWeekInput");
+    if (sWeek) sWeek.value = statsWeekDate;
 
-  // Auto-refresh transaction costs according to latest menu cost config
-  await capNhatLaiGiaCostToanBoGiaoDich();
-  state = await docDuLieu();
+    // Auto-refresh transaction costs according to latest menu cost config
+    await capNhatLaiGiaCostToanBoGiaoDich();
+    await chuyenTatCaGiaoDichMua10kgThanhXuatDung();
+    state = await docDuLieu();
+  } catch (e) {
+    console.warn("Init pre-flight warning:", e);
+  }
+
+  // Always bind event listeners reliably
+  try {
+    initEventListeners();
+  } catch (e) {
+    console.error("initEventListeners error:", e);
+  }
 
   // Render everything
-  renderAll();
-  initEventListeners();
+  try {
+    renderAll();
+  } catch (e) {
+    console.error("renderAll error:", e);
+  }
 
   // Check auth session
   if (!isAuthBypassedForTest()) {
@@ -3199,7 +6966,119 @@ async function init() {
     }
   }
 
+  // Auto-prompt Morning Cash Drawer Check on first morning open
+  try {
+    const today = todayKey();
+    const hour = new Date().getHours();
+    const morningPromptKey = `routine_morning_shown_${today}`;
+    if (hour >= 5 && hour < 11.5 && typeof localStorage !== "undefined" && !localStorage.getItem(morningPromptKey)) {
+      localStorage.setItem(morningPromptKey, "true");
+      setTimeout(() => {
+        openDailyRoutineModal("morning");
+      }, 500);
+    }
+  } catch (err) {
+    console.warn("Routine prompt check failed:", err);
+  }
+
   console.log("Sổ Quán Nước Mía 2.0 đã khởi động thành công!");
 }
 
 init();
+
+
+
+
+
+
+window.openWalletLedger = function() {
+  const tbody = $("#walletLedgerBody");
+  if (!tbody) return;
+  
+  let ledger = [];
+  
+  (state.ds || []).forEach(tx => {
+    if (tx.deleted) return;
+    
+    // 1. Expense that deducted from wallet
+    if (tx.loai === 'chi') {
+      let isWallet = tx.nguonTienChi === 'tien_von';
+      if (!tx.nguonTienChi && (tx.ngay || '') < '2026-09-03') {
+        const name = (tx.danhMuc || '').toLowerCase();
+        if (!(name.includes('đá') && Number(tx.soTien) === 21000)) {
+          isWallet = true;
+        }
+      }
+      if (isWallet) {
+        ledger.push({
+          dateObj: new Date(tx.createdAt || (tx.ngay + "T12:00:00Z")),
+          title: "Chi: " + (tx.danhMuc || "Không tên"),
+          amount: -Number(tx.soTien || 0)
+        });
+      }
+    }
+    
+    // 2. Fund transactions (chuyen_quy) that hit capitalWallet
+    if (tx.loai === 'chuyen_quy' || tx.loai === 'dieu_chinh_quy') {
+      if (tx.fund === 'capitalWallet') {
+        let title = "Hoàn vốn (Chốt ca)";
+        if (tx.type === 'manual_adjust' || tx.type === 'manual_adjustment') title = "Điều chỉnh sổ quỹ";
+        ledger.push({
+          id: tx.id,
+          dateObj: new Date(tx.createdAt || (tx.ngay + "T12:00:00Z")),
+          title: title,
+          amount: Number(tx.soTien || 0),
+          canDelete: tx.type === 'manual_adjust' || tx.type === 'manual_adjustment'
+        });
+      }
+    }
+  });
+  
+  // Sort chronologically
+  ledger.sort((a, b) => a.dateObj - b.dateObj);
+  
+  let html = '';
+  let runningBalance = 4990000; // Khởi tạo
+  
+  html += `<tr>
+    <td style="font-size: 0.8rem; color: #64748b;">Khởi tạo</td>
+    <td>Vốn ban đầu</td>
+    <td style="text-align: right; font-weight: bold; color: #1e293b;">${formatMoney(runningBalance)}</td>
+  </tr>`;
+  
+  ledger.forEach(tx => {
+    runningBalance += tx.amount;
+    const timeStr = tx.dateObj.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const isPos = tx.amount >= 0;
+    
+    html += `<tr>
+      <td style="font-size: 0.8rem; color: #64748b;">${timeStr}</td>
+      <td>${tx.title}<br><span style="color: ${isPos ? '#10b981' : '#ef4444'}; font-weight: bold; font-size: 0.9rem;">${isPos ? '+' : ''}${formatMoney(tx.amount)}</span></td>
+      <td style="text-align: right; font-weight: bold; color: #1e293b;">${formatMoney(runningBalance)}</td>
+    </tr>`;
+  });
+  
+  tbody.innerHTML = html;
+  
+  const dialog = $("#walletLedgerDialog");
+  if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
+};
+
+window.deleteLedgerTx = async function(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa giao dịch điều chỉnh này?')) return;
+  
+  const data = await docDuLieu();
+  const txIndex = data.ds.findIndex(tx => String(tx.id) === String(id));
+  
+  if (txIndex !== -1) {
+    data.ds[txIndex].deleted = true;
+    Object.assign(state, data);
+    await luuDuLieu(state);
+    
+    renderFundsWidget();
+    window.openWalletLedger();
+    
+    showToast('Đã xóa giao dịch điều chỉnh sổ quỹ');
+    triggerAutoSync();
+  }
+};

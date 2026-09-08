@@ -51,5 +51,77 @@
   "suppliers": [
     { "name": "Anh Ba đá", "category": "Mua đá", "defaultPrice": 15000, "unit": "bao" },
     { "name": "Vựa mía Năm", "category": "Mua mía", "defaultPrice": 180000, "unit": "bó" }
-  ]
+  ],
+  "ai_training_knowledge": {
+    "title": "Cẩm nang & Tài liệu Huấn Luyện AI (AI Training & LLM Fine-Tuning)",
+    "workflow_steps": [
+      "1. Thu thập & Chuẩn bị dữ liệu (Data Preparation): JSONL định dạng Instruction-Input-Output hoặc ShareGPT / ChatML.",
+      "2. Chọn Mô hình Nền tảng (Base / Instruct Model): Qwen 2.5, Llama 3.1/3.3, Mistral, DeepSeek-R1 Distill, Gemma 2.",
+      "3. Tinh chỉnh Mô hình (Fine-Tuning): Dùng LoRA / QLoRA để tối ưu VRAM và tốc độ huấn luyện.",
+      "4. Căn chỉnh Hành vi (Alignment): Áp dụng DPO (Direct Preference Optimization) hoặc RLHF để AI trả lời đúng định dạng và an toàn.",
+      "5. Lượng tử hóa & Triển khai (Quantization & Deploy): Chuyển đổi sang GGUF (chạy Ollama/LM Studio) hoặc AWQ/GPTQ (chạy vLLM/TGI)."
+    ],
+    "top_frameworks": [
+      {
+        "name": "LLaMA-Factory",
+        "repo": "https://github.com/hiyouga/LLaMA-Factory",
+        "stars": "45k+",
+        "features": "Bộ công cụ toàn diện hỗ trợ 100+ LLMs, có giao diện WebUI trực quan, hỗ trợ LoRA/QLoRA, SFT, DPO, PPO."
+      },
+      {
+        "name": "Unsloth",
+        "repo": "https://github.com/unslothai/unsloth",
+        "stars": "35k+",
+        "features": "Tăng tốc train 2x - 5x, giảm 80% VRAM, chạy mượt trên Colab/GPU cá nhân với Llama-3, Qwen-2.5, Mistral."
+      },
+      {
+        "name": "nanoGPT",
+        "repo": "https://github.com/karpathy/nanoGPT",
+        "stars": "40k+",
+        "features": "Kho mã nguồn đơn giản nhất của Andrej Karpathy để học và huấn luyện mô hình GPT từ đầu (From Scratch)."
+      },
+      {
+        "name": "Hugging Face TRL & PEFT",
+        "repo": "https://github.com/huggingface/trl",
+        "stars": "12k+",
+        "features": "Thư viện chuẩn để huấn luyện Transformer với LoRA, QLoRA, SFT, DPO, PPO, ORPO."
+      },
+      {
+        "name": "DeepSpeed & Megatron-LM",
+        "repo": "https://github.com/microsoft/DeepSpeed",
+        "stars": "38k+",
+        "features": "Thư viện huấn luyện phân tán đa GPU quy mô lớn (ZeRO-1/2/3) cho các mô hình AI hàng tỷ tham số."
+      }
+    ],
+    "github_curated_search_repos": [
+      { "repo": "microsoft/agent-lightning", "link": "https://github.com/microsoft/agent-lightning", "desc": "Huấn luyện Agentic AI và Reinforcement Learning MLOps từ Microsoft." },
+      { "repo": "qualcomm/aimet", "link": "https://github.com/qualcomm/aimet", "desc": "Bộ công cụ nén mô hình và Quantization-aware training từ Qualcomm." },
+      { "repo": "kubeflow/trainer", "link": "https://github.com/kubeflow/trainer", "desc": "Huấn luyện AI/ML phân tán trên cụm máy chủ Kubernetes." },
+      { "repo": "argonne-lcf/ai-science-training-series", "link": "https://github.com/argonne-lcf/ai-science-training-series", "desc": "Chuỗi bài giảng & notebook thực hành huấn luyện Deep Learning trên siêu máy tính." }
+    ],
+    "vram_hardware_matrix": {
+      "1B - 3B models": "8GB - 12GB VRAM (GPU RTX 3060 / 4060) với QLoRA",
+      "7B - 8B models": "16GB - 24GB VRAM (GPU RTX 3090 / 4090 hoặc Google Colab T4/A100) với QLoRA",
+      "14B models": "24GB - 48GB VRAM (1x hoặc 2x RTX 3090/4090)",
+      "70B models": "2x - 4x A100 / H100 80GB với DeepSpeed ZeRO-3 hoặc QLoRA 4-bit"
+    },
+    "fnb_ai_transformation": {
+      "six_levels_of_ai_maturity": [
+        "Cấp 1 - AI Chatbot & Prompting: Dùng ChatGPT/Claude/Gemini viết bài, phân tích báo cáo đơn lẻ.",
+        "Cấp 2 - Công Cụ AI Chuyên Biệt: Midjourney (ảnh), Descript/HeyGen (video), Julius AI (phân tích data), Gamma (slide).",
+        "Cấp 3 - Tự Động Hóa Quy Trình (Automation): Dùng Make.com, n8n, Zapier đồng bộ dữ liệu đa kênh không cần bấm nút.",
+        "Cấp 4 - Trợ Lý AI Agent Độc Lập: AI Agent (ReAct) tự ra quyết định, gọi function/API, tra cứu DB và tự xử lý tác vụ phức tạp.",
+        "Cấp 5 - Modern Data Stack & Executive Dashboard: Gom dữ liệu POS, Kho, Ngân hàng về Data Warehouse, dashboard realtime cho CEO.",
+        "Cấp 6 - Custom AI Model Chuyên Ngành: Fine-tune mô hình AI riêng (Qwen, Llama) hiểu sâu nghiệp vụ chuỗi quán nước, ngôn ngữ bán hàng địa phương."
+      ],
+      "fnb_real_world_use_cases": [
+        "1. Quản lý Food Cost & BOM: Giảm 30% lãng phí nguyên liệu, cảnh báo lệch công thức, kiểm soát giá vốn nguyên liệu tươi.",
+        "2. Ghi đơn siêu tốc bằng giọng nói (Voice Ordering): Tự động chuyển đổi câu nói bán hàng thành đơn hàng có cấu trúc.",
+        "3. Tóm tắt ca & Báo cáo ngoại lệ (Shift Briefing): Báo cáo nhanh 10 dòng đầu/cuối ca, chỉ ra điểm bất thường thay vì bảng số dài.",
+        "4. Quản trị dòng tiền đa chi nhánh (4 Hũ): Hoàn vốn hàng -> Bù mặt bằng -> Dự phòng -> Lợi nhuận ròng.",
+        "5. Trí nhớ khách quen (CRM Retention): Ghi nhớ khẩu vị, món quen của từng khách để phục vụ tức thì."
+      ],
+      "industry_benchmarks": "Case Study từ chuỗi Cái Lò Nướng, BrandsVietnam, CiCC, Bizfly cho thấy ứng dụng AI giúp giảm 50-80% thời gian thủ công, giảm 40-90% sai sót ghi đơn và tối ưu 25% chi phí vận hành."
+    }
+  }
 }

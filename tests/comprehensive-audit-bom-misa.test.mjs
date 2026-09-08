@@ -42,7 +42,7 @@ console.log("==================================================");
 
     const stock = layDanhSachTonKho(s, "Quán Nhà (Chính)");
     const ly = stock.find((i) => i.id === "ly_nhua");
-    assert.equal(ly.stockQty, 1000 - tc.expectedLy);
+    assert.equal(ly.stockQty, 2000 - tc.expectedLy);
 
     if (tc.expectedMiaDeduct !== undefined) {
       const mia = stock.find((i) => i.id === "mia_cay");
@@ -82,7 +82,7 @@ console.log("==================================================");
   const stock = layDanhSachTonKho(state, "Quán Nhà (Chính)");
   const totalCupsSold = 8 + 2 + 1 + 3 + 4; // 18 cups
   const ly = stock.find((i) => i.id === "ly_nhua");
-  assert.equal(ly.stockQty, 1000 - totalCupsSold); // 982
+  assert.equal(ly.stockQty, 2000 - totalCupsSold); // 1982
 
   const cam = stock.find((i) => i.id === "cam_sanh");
   assert.equal(cam.stockQty, Math.round((15 - 8 * 0.33) * 100) / 100); // 15 - 2.64 = 12.36
@@ -95,19 +95,19 @@ console.log("==================================================");
   const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
   const item = state.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "da_vien");
   
-  // Step 1: Start with 10 bags @ 15,000 đ
+  // Step 1: Start with 10 bags @ 17,000 đ
   assert.equal(item.stockQty, 10);
-  assert.equal(item.unitCost, 15000);
+  assert.equal(item.unitCost, 17000);
 
   // Step 2: Restock 10 bags @ 25,000 đ
-  // New cost = (10 * 15000 + 10 * 25000) / 20 = 400000 / 20 = 20,000 đ
-  const res1 = Math.round(((10 * 15000) + (10 * 25000)) / 20);
-  assert.equal(res1, 20000);
+  // New cost = (10 * 17000 + 10 * 25000) / 20 = 420000 / 20 = 21,000 đ
+  const res1 = Math.round(((10 * 17000) + (10 * 25000)) / 20);
+  assert.equal(res1, 21000);
 
-  // Step 3: Restock 5 bags @ 30,000 đ
-  // New cost = (20 * 20000 + 5 * 30000) / 25 = (400000 + 150000) / 25 = 550000 / 25 = 22,000 đ
-  const res2 = Math.round(((20 * 20000) + (5 * 30000)) / 25);
-  assert.equal(res2, 22000);
+  // Step 3: Restock 5 bags @ 31,000 đ
+  // New cost = (20 * 21000 + 5 * 31000) / 25 = (420000 + 155000) / 25 = 575000 / 25 = 23,000 đ
+  const res2 = Math.round(((20 * 21000) + (5 * 31000)) / 25);
+  assert.equal(res2, 23000);
 
   console.log("✅ AUDIT 3 PASS: Multi-step Weighted Average Cost simulation holds true.");
 }
@@ -165,10 +165,11 @@ console.log("==================================================");
   assert.ok(resDa.reply.includes("10 bao"));
 
   // Lower stock under min
-  state.inventoryStock["Quán Nhà (Chính)"][0].stockQty = 2; // min is 5
+  const miaCay = state.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "mia_cay");
+  miaCay.stockQty = 2; // min is 5
   const resWarn = phanTichTaiChinhNoiBo("EV báo cáo nguyên liệu sắp hết", state);
   assert.equal(resWarn.type, "inventory");
-  assert.ok(resWarn.reply.includes("Mía cây tươi"));
+  assert.ok(resWarn.reply.includes("Mía cây"));
 
   console.log("✅ AUDIT 6 PASS: EV Voice Assistant stock check and low-stock alarms verified.");
 }

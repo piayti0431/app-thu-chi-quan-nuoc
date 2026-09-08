@@ -4,7 +4,7 @@ const BACKUP_STORAGE_KEY = `${STORAGE_KEY}_backup`;
 export const DEFAULT_DATA = {
   ds: [],
   currentBranch: "Quán Nhà (Chính)",
-  defaultOpeningCash: 500000,
+  defaultOpeningCash: 50000,
   openingCashByDate: {},
   branches: [
     { id: "main", name: "Quán Nhà (Chính)" },
@@ -45,6 +45,10 @@ export const DEFAULT_DATA = {
       name: "Nước mía thường",
       shortName: "Mía ly",
       price: 8000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 7000,
+        "Chi nhánh 2": 8000,
+      },
       costPrice: 4000,
       category: "Nước mía thường",
       note: "Bán nước mía thường",
@@ -57,6 +61,10 @@ export const DEFAULT_DATA = {
       name: "Nước mía 1 lít",
       shortName: "Mía 1 lít",
       price: 15000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 15000,
+        "Chi nhánh 2": 18000,
+      },
       costPrice: 10000,
       category: "Nước mía 1 lít",
       note: "Bán nước mía 1 lít",
@@ -69,6 +77,10 @@ export const DEFAULT_DATA = {
       name: "Mía tắc",
       shortName: "Mía tắc",
       price: 10000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 10000,
+        "Chi nhánh 2": 12000,
+      },
       costPrice: 5000,
       category: "Mía tắc",
       note: "Bán mía tắc",
@@ -80,8 +92,12 @@ export const DEFAULT_DATA = {
       id: "mia_thom",
       name: "Mía thơm",
       shortName: "Mía thơm",
-      price: 10000,
-      costPrice: 5000,
+      price: 12000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 12000,
+        "Chi nhánh 2": 14000,
+      },
+      costPrice: 7000,
       category: "Mía thơm",
       note: "Bán mía thơm",
       icon: "cane",
@@ -93,6 +109,10 @@ export const DEFAULT_DATA = {
       name: "Mía cam",
       shortName: "Mía cam",
       price: 17000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 17000,
+        "Chi nhánh 2": 20000,
+      },
       costPrice: 10000,
       category: "Mía cam",
       note: "Bán mía cam",
@@ -105,7 +125,11 @@ export const DEFAULT_DATA = {
       name: "Rau má tươi",
       shortName: "Rau má",
       price: 10000,
-      costPrice: 4000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 10000,
+        "Chi nhánh 2": 12000,
+      },
+      costPrice: 5000,
       category: "Rau má tươi",
       note: "Bán rau má tươi",
       icon: "leaf",
@@ -117,6 +141,10 @@ export const DEFAULT_DATA = {
       name: "Rau má sữa",
       shortName: "Má sữa",
       price: 15000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 15000,
+        "Chi nhánh 2": 18000,
+      },
       costPrice: 6000,
       category: "Rau má sữa",
       note: "Bán rau má sữa",
@@ -129,6 +157,10 @@ export const DEFAULT_DATA = {
       name: "Rau má đậu xanh",
       shortName: "Má đậu",
       price: 15000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 15000,
+        "Chi nhánh 2": 18000,
+      },
       costPrice: 6000,
       category: "Rau má đậu xanh",
       note: "Bán rau má đậu xanh",
@@ -141,6 +173,10 @@ export const DEFAULT_DATA = {
       name: "Trà tắc",
       shortName: "Trà tắc",
       price: 12000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 12000,
+        "Chi nhánh 2": 15000,
+      },
       costPrice: 7000,
       category: "Trà tắc",
       note: "Bán trà tắc",
@@ -153,12 +189,232 @@ export const DEFAULT_DATA = {
       name: "Nước cam",
       shortName: "Cam tươi",
       price: 15000,
-      costPrice: 7000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 15000,
+        "Chi nhánh 2": 18000,
+      },
+      costPrice: 10000,
       category: "Nước cam",
       note: "Bán nước cam",
       icon: "orange",
       image: "./assets/menu/nuoc_cam.jpg",
       voiceUnit: "ly",
+    },
+    {
+      id: "tra_da",
+      name: "Trà đá",
+      shortName: "Trà đá",
+      price: 3000,
+      priceByBranch: {
+        "Quán Nhà (Chính)": 3000,
+        "Chi nhánh 2": 5000,
+      },
+      costPrice: 1500,
+      category: "Trà đá",
+      note: "Bán trà đá",
+      icon: "tea",
+      image: "./assets/menu/tra_da.jpg",
+      voiceUnit: "ly",
+    },
+  ],
+  quickIngredients: [
+    {
+      id: "ing_mia_bo_10kg",
+      name: "Bó mía 10kg bào sẵn (Bán hàng)",
+      shortName: "Bó 10kg bào sẵn",
+      unit: "bó",
+      defaultQty: 1,
+      unitCost: 0,
+      category: "Mía chặt khúc bán hàng",
+      note: "1 bó 10kg bào sạch ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)",
+      icon: "cane_bundle",
+      image: "./assets/ingredients/bo_mia_10kg.jpg",
+      inventoryId: "mia_10kg",
+      yieldPerUnit: 25,
+      defaultMode: "use",
+    },
+    {
+      id: "ing_mia_bo",
+      name: "Mía cây thô (Bó 12 cây dài)",
+      shortName: "Bó 12 cây dài (Thô)",
+      unit: "bó",
+      defaultQty: 5,
+      unitCost: 90000,
+      category: "Mua mía cây",
+      note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)",
+      icon: "cane_bundle",
+      image: "./assets/ingredients/bo_mia_12_cay.jpg",
+      inventoryId: "mia_cay",
+      yieldPerUnit: 45,
+      defaultMode: "buy",
+    },
+    {
+      id: "ing_da_vien",
+      name: "Bao đá viên sạch",
+      shortName: "Bao đá",
+      unit: "bao",
+      defaultQty: 1,
+      unitCost: 17000,
+      category: "Mua đá viên",
+      note: "Quán Nhà 17k / CN2 21k (1 bao ~30 ly)",
+      icon: "ice_bag",
+      image: "./assets/ingredients/da_vien.jpg",
+      inventoryId: "da_vien",
+      yieldPerUnit: 30,
+    },
+    {
+      id: "ing_tac",
+      name: "Tắc tươi (Quất)",
+      shortName: "Tắc tươi",
+      unit: "kg",
+      defaultQty: 2,
+      unitCost: 30000,
+      category: "Mua tắc",
+      note: "1.5kg tắc 45k (30k/kg) pha sốt tắc",
+      icon: "calamansi",
+      image: "./assets/ingredients/tac.jpg",
+      inventoryId: "tac_tuoi",
+      yieldPerUnit: 25,
+    },
+    {
+      id: "ing_thom",
+      name: "Thơm (Dứa tươi)",
+      shortName: "Thơm tươi",
+      unit: "trái",
+      defaultQty: 5,
+      unitCost: 15000,
+      category: "Mua thơm",
+      note: "4 ly/trái (Cost mía thơm 7k)",
+      icon: "pineapple",
+      image: "./assets/ingredients/thom.jpg",
+      inventoryId: "thom_dua",
+      yieldPerUnit: 4,
+    },
+    {
+      id: "ing_rau_ma",
+      name: "Rau má tươi",
+      shortName: "Rau má",
+      unit: "kg",
+      defaultQty: 3,
+      unitCost: 30000,
+      category: "Mua rau má",
+      note: "1kg 30k ra 12.5 ly rau má",
+      icon: "pennywort",
+      image: "./assets/ingredients/rau_ma.jpg",
+      inventoryId: "rau_ma",
+      yieldPerUnit: 12.5,
+    },
+    {
+      id: "ing_dau_xanh",
+      name: "Đậu xanh chín",
+      shortName: "Đậu xanh",
+      unit: "kg",
+      defaultQty: 2,
+      unitCost: 40000,
+      category: "Mua đậu xanh",
+      note: "10 ly/kg",
+      icon: "mung_bean",
+      image: "./assets/ingredients/dau_xanh.jpg",
+      inventoryId: "dau_xanh",
+      yieldPerUnit: 10,
+    },
+    {
+      id: "ing_cam",
+      name: "Cam sành tươi",
+      shortName: "Cam sành",
+      unit: "kg",
+      defaultQty: 5,
+      unitCost: 25000,
+      category: "Mua cam",
+      note: "3 ly/kg (Cost mía cam 10k)",
+      icon: "orange_fresh",
+      image: "./assets/ingredients/cam_sanh.jpg",
+      inventoryId: "cam_sanh",
+      yieldPerUnit: 3,
+    },
+    {
+      id: "ing_sua_dac",
+      name: "Sữa đặc lon",
+      shortName: "Sữa đặc",
+      unit: "lon",
+      defaultQty: 6,
+      unitCost: 22000,
+      category: "Mua sữa đặc",
+      note: "1 lon pha ~10 ly má sữa",
+      icon: "condensed_milk",
+      image: "./assets/ingredients/sua_dac.jpg",
+      inventoryId: "sua_dac",
+      yieldPerUnit: 10,
+    },
+    {
+      id: "ing_ly_nhua",
+      name: "Ly nhựa (Thùng 2.000 cái)",
+      shortName: "Ly nhựa",
+      unit: "thùng",
+      defaultQty: 1,
+      unitCost: 1000000,
+      category: "Mua ly nhựa",
+      note: "2000 cái là 1tr (500đ/cái)",
+      icon: "plastic_cup",
+      image: "./assets/ingredients/ly_nhua.jpg",
+      inventoryId: "ly_nhua",
+      yieldPerUnit: 2000,
+    },
+    {
+      id: "ing_ong_hut",
+      name: "Ống hút (Bao 10 bịch)",
+      shortName: "Ống hút",
+      unit: "bao",
+      defaultQty: 1,
+      unitCost: 270000,
+      category: "Mua ống hút",
+      note: "270k/bao 10 bịch (27k/bịch ~2.000 ống)",
+      icon: "drinking_straw",
+      image: "./assets/ingredients/ong_hut.jpg",
+      inventoryId: "ong_hut",
+      yieldPerUnit: 2000,
+    },
+    {
+      id: "ing_bich_t",
+      name: "Bọc chữ T mang đi",
+      shortName: "Bọc xách",
+      unit: "kg",
+      defaultQty: 1,
+      unitCost: 35000,
+      category: "Mua bịch mang đi",
+      note: "Bọc 1 ly / 2 ly (~300 cái/kg)",
+      icon: "takeaway_bag",
+      image: "./assets/ingredients/bich_t.jpg",
+      inventoryId: "bich_t",
+      yieldPerUnit: 300,
+    },
+    {
+      id: "ing_mang_keo",
+      name: "Cuộn màng ép miệng ly",
+      shortName: "Màng ép",
+      unit: "cuộn",
+      defaultQty: 1,
+      unitCost: 45000,
+      category: "Mua màng ép",
+      note: "45k/cuộn ép được 2.000 ly (22.5đ/ly)",
+      icon: "cup_sealing_film",
+      image: "./assets/ingredients/mang_keo.jpg",
+      inventoryId: "mang_ep",
+      yieldPerUnit: 2000,
+    },
+    {
+      id: "ing_duong",
+      name: "Đường cát trắng",
+      shortName: "Đường cát",
+      unit: "kg",
+      defaultQty: 10,
+      unitCost: 20000,
+      category: "Mua đường",
+      note: "Đường 20k/kg (pha trà 10k/kg đường)",
+      icon: "sugar_sack",
+      image: "./assets/ingredients/duong_cat.jpg",
+      inventoryId: "duong_cat",
+      yieldPerUnit: 25,
     },
   ],
   crmCustomers: [
@@ -197,17 +453,17 @@ export const DEFAULT_DATA = {
     },
   ],
   overheadConfig: {
-    rentMonthly: 6000000,          // Tiền thuê mặt bằng (200.000 đ/ngày = 6.000.000 đ/tháng)
-    electricityMonthly: 2400000,   // Tiền điện (25-30 ký/ngày chạy 8h-22h = ~2.400.000 đ/tháng)
-    waterMonthly: 150000,          // Tiền nước (dùng ít, chủ yếu rửa máy dọn dẹp = ~150.000 đ/tháng)
-    trashMonthly: 50000,           // Tiền rác & vệ sinh môi trường (đ/tháng)
-    depreciationMonthly: 300000,   // Khấu hao máy ép mía & bảo trì (đ/tháng)
-    otherMonthly: 500000,          // Chi phí phát sinh khác (~500.000 đ/tháng)
-    expectedCupsPerDay: 80,        // Sản lượng bán dự kiến (ly/ngày)
+    rentMonthly: 6000000,          // Tiền thuê mặt bằng toàn hệ thống (CN1: 0đ + CN2: 6.000.000 đ/tháng)
+    electricityMonthly: 3600000,   // Tiền điện toàn hệ thống (CN1: 2.4tr + CN2: 1.2tr = 3.600.000 đ/tháng)
+    waterMonthly: 250000,          // Tiền nước toàn hệ thống (CN1: 150k + CN2: 100k = 250.000 đ/tháng)
+    trashMonthly: 100000,          // Tiền rác toàn hệ thống (100.000 đ/tháng)
+    depreciationMonthly: 500000,   // Khấu hao 2 máy ép mía & bảo trì (500.000 đ/tháng)
+    otherMonthly: 800000,          // Chi phí phát sinh khác toàn hệ thống (800.000 đ/tháng)
+    expectedCupsPerDay: 130,       // Sản lượng bán dự kiến toàn hệ thống (130 ly/ngày)
   },
   overheadByBranch: {
     "Quán Nhà (Chính)": {
-      rentMonthly: 6000000,          // Mặt bằng 200k/ngày
+      rentMonthly: 0,                // Nhà ở (Mặt bằng = 0 đ)
       electricityMonthly: 2400000,   // Điện 80k/ngày (30 ký)
       waterMonthly: 150000,          // Nước 5k/ngày
       trashMonthly: 50000,
@@ -226,40 +482,66 @@ export const DEFAULT_DATA = {
     },
   },
   enableAudioPaymentAlert: true,      // Loa AI thông báo chuyển khoản QR
+  sugarcaneBatches: [
+    {
+      id: "batch_default",
+      date: "2026-09-02",
+      code: "DOT-0209",
+      name: "Đợt mía thô 02/09 (20 bó 12 cây dài)",
+      branch: "Quán Nhà (Chính)",
+      rawStalkBundles: 20,
+      costPerBundle: 90000,
+      totalCost: 1800000,
+      processedRawBundles: 5,
+      remainingRawBundles: 15,
+      yield10kgBundles: 14.5,
+      status: "active",
+      history: [
+        { time: "02/09/2026 08:30", rawQty: 2, yieldQty: 6, note: "Bào ca sáng" },
+        { time: "02/09/2026 14:30", rawQty: 3, yieldQty: 8.5, note: "Bào ca chiều" },
+      ],
+    },
+  ],
   inventoryStock: {
     "Quán Nhà (Chính)": [
-      { id: "mia_cay", name: "Mía cây tươi", unit: "bó", stockQty: 20, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây ~45 ly" },
-      { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 10, minQty: 2, unitCost: 20000, yieldPerUnit: 20, note: "20-25 phần/kg" },
+      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 10, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
+      { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 20, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)" },
+      { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 10, minQty: 2, unitCost: 30000, yieldPerUnit: 25, note: "1.5kg tắc 45k (30k/kg)" },
       { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 15, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
       { id: "thom_dua", name: "Thơm (Dứa) tươi", unit: "trái", stockQty: 10, minQty: 2, unitCost: 15000, yieldPerUnit: 4, note: "4 ly/trái" },
-      { id: "rau_ma", name: "Rau má tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 30000, yieldPerUnit: 5, note: "5 ly/kg" },
+      { id: "rau_ma", name: "Rau má tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 30000, yieldPerUnit: 12.5, note: "1kg 30k ra 12.5 ly" },
       { id: "dau_xanh", name: "Đậu xanh chín", unit: "kg", stockQty: 5, minQty: 1, unitCost: 40000, yieldPerUnit: 10, note: "10 ly/kg" },
-      { id: "da_vien", name: "Đá viên sạch", unit: "bao", stockQty: 10, minQty: 2, unitCost: 15000, yieldPerUnit: 30, note: "1 bao ~30 ly" },
-      { id: "ly_nhua", name: "Ly nhựa + Nắp", unit: "cái", stockQty: 1000, minQty: 200, unitCost: 500, yieldPerUnit: 1, note: "1 cái/ly" },
-      { id: "mang_ep", name: "Màng ép miệng ly", unit: "ly", stockQty: 2000, minQty: 300, unitCost: 23, yieldPerUnit: 1, note: "1 cuộn 2000 ly" },
-      { id: "ong_hut", name: "Ống hút", unit: "cái", stockQty: 1000, minQty: 200, unitCost: 135, yieldPerUnit: 1, note: "1 cái/ly" },
-      { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 20, minQty: 5, unitCost: 22000, yieldPerUnit: 25, note: "25 ly/kg" },
+      { id: "da_vien", name: "Đá viên sạch", unit: "bao", stockQty: 10, minQty: 2, unitCost: 17000, yieldPerUnit: 30, note: "Đá viên sạch 17.000 đ/bao" },
+      { id: "sua_dac", name: "Sữa đặc lon", unit: "lon", stockQty: 6, minQty: 2, unitCost: 22000, yieldPerUnit: 10, note: "1 lon pha ~10 ly má sữa" },
+      { id: "ly_nhua", name: "Ly nhựa", unit: "cái", stockQty: 2000, minQty: 300, unitCost: 500, yieldPerUnit: 1, note: "2000 cái là 1tr (500đ/cái)" },
+      { id: "mang_ep", name: "Màng ép miệng ly", unit: "ly", stockQty: 2000, minQty: 300, unitCost: 23, yieldPerUnit: 1, note: "1 cuộn 45k ép 2000 ly (22.5đ/ly)" },
+      { id: "ong_hut", name: "Ống hút", unit: "cái", stockQty: 2000, minQty: 300, unitCost: 135, yieldPerUnit: 1, note: "1 bao 10 bịch 270k (27k/bịch)" },
+      { id: "bich_t", name: "Bọc chữ T mang đi", unit: "kg", stockQty: 2, minQty: 1, unitCost: 35000, yieldPerUnit: 300, note: "Bọc 1 ly / 2 ly (~300 cái/kg)" },
+      { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 20, minQty: 5, unitCost: 20000, yieldPerUnit: 25, note: "Đường 20k/kg" },
     ],
     "Chi nhánh 2": [
-      { id: "mia_cay", name: "Mía cây tươi", unit: "bó", stockQty: 15, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây ~45 ly" },
-      { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 20000, yieldPerUnit: 20, note: "20-25 phần/kg" },
+      { id: "mia_10kg", name: "Mía sạch (1 bó = 10kg)", unit: "bó", stockQty: 8, minQty: 3, unitCost: 0, yieldPerUnit: 25, note: "1 bó = 10kg ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)" },
+      { id: "mia_cay", name: "Mía cây thô (12 cây dài)", unit: "bó", stockQty: 15, minQty: 5, unitCost: 90000, yieldPerUnit: 45, note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)" },
+      { id: "tac_tuoi", name: "Tắc tươi", unit: "kg", stockQty: 8, minQty: 2, unitCost: 30000, yieldPerUnit: 25, note: "1.5kg tắc 45k (30k/kg)" },
       { id: "cam_sanh", name: "Cam sành tươi", unit: "kg", stockQty: 10, minQty: 3, unitCost: 25000, yieldPerUnit: 3, note: "3 ly/kg" },
       { id: "thom_dua", name: "Thơm (Dứa) tươi", unit: "trái", stockQty: 8, minQty: 2, unitCost: 15000, yieldPerUnit: 4, note: "4 ly/trái" },
-      { id: "rau_ma", name: "Rau má tươi", unit: "kg", stockQty: 6, minQty: 2, unitCost: 30000, yieldPerUnit: 5, note: "5 ly/kg" },
+      { id: "rau_ma", name: "Rau má tươi", unit: "kg", stockQty: 6, minQty: 2, unitCost: 30000, yieldPerUnit: 12.5, note: "1kg 30k ra 12.5 ly" },
       { id: "dau_xanh", name: "Đậu xanh chín", unit: "kg", stockQty: 4, minQty: 1, unitCost: 40000, yieldPerUnit: 10, note: "10 ly/kg" },
-      { id: "da_vien", name: "Đá viên sạch", unit: "bao", stockQty: 8, minQty: 2, unitCost: 15000, yieldPerUnit: 30, note: "1 bao ~30 ly" },
-      { id: "ly_nhua", name: "Ly nhựa + Nắp", unit: "cái", stockQty: 800, minQty: 200, unitCost: 500, yieldPerUnit: 1, note: "1 cái/ly" },
-      { id: "mang_ep", name: "Màng ép miệng ly", unit: "ly", stockQty: 1500, minQty: 300, unitCost: 23, yieldPerUnit: 1, note: "1 cuộn 2000 ly" },
-      { id: "ong_hut", name: "Ống hút", unit: "cái", stockQty: 800, minQty: 200, unitCost: 135, yieldPerUnit: 1, note: "1 cái/ly" },
-      { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 15, minQty: 5, unitCost: 22000, yieldPerUnit: 25, note: "25 ly/kg" },
+      { id: "da_vien", name: "Đá viên sạch", unit: "bao", stockQty: 8, minQty: 2, unitCost: 17000, yieldPerUnit: 30, note: "Đá viên sạch 17.000 đ/bao" },
+      { id: "sua_dac", name: "Sữa đặc lon", unit: "lon", stockQty: 4, minQty: 2, unitCost: 22000, yieldPerUnit: 10, note: "1 lon pha ~10 ly má sữa" },
+      { id: "ly_nhua", name: "Ly nhựa", unit: "cái", stockQty: 1500, minQty: 300, unitCost: 500, yieldPerUnit: 1, note: "2000 cái là 1tr (500đ/cái)" },
+      { id: "mang_ep", name: "Màng ép miệng ly", unit: "ly", stockQty: 1500, minQty: 300, unitCost: 23, yieldPerUnit: 1, note: "1 cuộn 45k ép 2000 ly (22.5đ/ly)" },
+      { id: "ong_hut", name: "Ống hút", unit: "cái", stockQty: 1500, minQty: 300, unitCost: 135, yieldPerUnit: 1, note: "1 bao 10 bịch 270k (27k/bịch)" },
+      { id: "bich_t", name: "Bọc chữ T mang đi", unit: "kg", stockQty: 1.5, minQty: 1, unitCost: 35000, yieldPerUnit: 300, note: "Bọc 1 ly / 2 ly (~300 cái/kg)" },
+      { id: "duong_cat", name: "Đường cát", unit: "kg", stockQty: 15, minQty: 5, unitCost: 20000, yieldPerUnit: 25, note: "Đường 20k/kg" },
     ],
   },
   packagingConfig: {
     cups: { name: "Ly nhựa", unit: "thùng (2.000 cái)", batchCost: 1000000, batchYield: 2000, unitCost: 500 },
     straws: { name: "Ống hút", unit: "bao (10 bịch)", batchCost: 270000, batchYield: 2000, unitCost: 135 },
     filmRoll: { name: "Màng ép ly", unit: "cuộn (2.000 ly)", batchCost: 45000, batchYield: 2000, unitCost: 23 },
-    bags: { name: "Bọc / Túi chữ T", unit: "bọc", batchCost: 25000, batchYield: 250, unitCost: 100 },
-    ice: { name: "Đá viên sạch", unit: "bao", batchCost: 15000, batchYield: 30, unitCost: 500 },
+    bags: { name: "Bọc chữ T", unit: "bọc (~300 cái/kg)", batchCost: 35000, batchYield: 300, unitCost: 115 },
+    ice: { name: "Đá viên sạch", unit: "bao (Quán Nhà 17k / CN2 21k)", batchCost: 17000, batchYield: 30, unitCost: 567 },
     comboPackaging: { name: "Bao bì + Màng ép + Ống hút + Đá (1L ko đá)", unit: "phần", batchCost: 1000, batchYield: 1, unitCost: 1000 },
   },
   costFormulas: {
@@ -463,6 +745,7 @@ export function getValidMenuImage(item) {
     "./assets/menu/mia_cam.jpg",
     "./assets/menu/nuoc_cam.jpg",
     "./assets/menu/tra_tac.jpg",
+    "./assets/menu/tra_da.jpg",
     "./assets/menu/rau_ma.jpg",
     "./assets/menu/rau_ma_dau_xanh.jpg",
     "./assets/menu/rau_ma_sua.jpg",
@@ -475,8 +758,13 @@ export function getValidMenuImage(item) {
   const str = `${item.id || ""} ${item.name || ""} ${item.shortName || ""} ${item.category || ""}`
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
     .toLowerCase();
 
+  if (str.includes("tra da") || (str.includes("tra") && str.includes("da") && !str.includes("tac"))) {
+    return "./assets/menu/tra_da.jpg";
+  }
   if (str.includes("thom") || str.includes("dua") || str.includes("khom") || (item.id && item.id.includes("thom"))) {
     return "./assets/menu/mia_thom.jpg";
   }
@@ -511,43 +799,68 @@ export function getValidMenuImage(item) {
   return item.image || "";
 }
 
+export function getValidIngredientImage(item) {
+  if (!item) return "./assets/ingredients/bo_mia.jpg";
+  if (item.image && item.image.endsWith(".jpg")) return item.image;
+
+  const str = `${item.id || ""} ${item.name || ""} ${item.shortName || ""} ${item.category || ""}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase();
+
+  if (str.includes("12 cay") || str.includes("cay dai") || str.includes("chua bao")) return "./assets/ingredients/bo_mia_12_cay.jpg";
+  if (str.includes("10kg") || str.includes("10 kg") || str.includes("mia")) return "./assets/ingredients/bo_mia_10kg.jpg";
+  if (str.includes("mang") || str.includes("keo") || str.includes("ep ly") || str.includes("cuon")) return "./assets/ingredients/mang_keo.jpg";
+  if (str.includes("bich") || str.includes("boc") || str.includes("t bag") || str.includes("tbag")) return "./assets/ingredients/bich_t.jpg";
+  if (str.includes("ong hut") || str.includes("hut") || str.includes("straw")) return "./assets/ingredients/ong_hut.jpg";
+  if (str.includes("da vien") || str.includes("bao da") || str.includes("nuoc da") || str.includes("ice") || /\bda\b/.test(str)) return "./assets/ingredients/da_vien.jpg";
+  if (str.includes("tac") || str.includes("quat") || str.includes("calamansi")) return "./assets/ingredients/tac.jpg";
+  if (str.includes("thom") || str.includes("dua") || str.includes("khom") || str.includes("pineapple")) return "./assets/ingredients/thom.jpg";
+  if (str.includes("rau ma") || str.includes("pennywort")) return "./assets/ingredients/rau_ma.jpg";
+  if (str.includes("dau xanh") || str.includes("dau") || str.includes("mung")) return "./assets/ingredients/dau_xanh.jpg";
+  if (str.includes("cam") || str.includes("orange")) return "./assets/ingredients/cam_sanh.jpg";
+  if (str.includes("sua") || str.includes("milk")) return "./assets/ingredients/sua_dac.jpg";
+  if (str.includes("duong") || str.includes("sugar")) return "./assets/ingredients/duong_cat.jpg";
+  if (str.includes("ly") || str.includes("coc") || str.includes("cup")) return "./assets/ingredients/ly_nhua.jpg";
+
+  return "./assets/ingredients/bo_mia_10kg.jpg";
+}
+
+export function getItemPrice(item, branch = "Quán Nhà (Chính)") {
+  if (!item) return 10000;
+  const targetBranch = branch === "all" || !branch ? "Quán Nhà (Chính)" : branch;
+  if (item.priceByBranch && item.priceByBranch[targetBranch] !== undefined && Number(item.priceByBranch[targetBranch]) > 0) {
+    return Number(item.priceByBranch[targetBranch]);
+  }
+  return Number(item.price) > 0 ? Number(item.price) : 10000;
+}
+
 export function mergeData(data) {
   const base = cloneDefault();
   const legacyPrices = Array.isArray(data?.quickPrices) ? data.quickPrices : null;
 
-  const NOTEBOOK_VERSION = "20260827_pricing_v3";
+  const NOTEBOOK_VERSION = "20260831_exact_pricing_v8";
   const needsNotebookUpgrade = data?.costDataVersion !== NOTEBOOK_VERSION;
 
   // Quick items: use custom list if provided; otherwise fallback to default base list
   let mergedQuickItems;
   if (Array.isArray(data?.quickItems) && data.quickItems.length > 0) {
     mergedQuickItems = data.quickItems.map((item, idx) => {
-      let costPrice = Number(item.costPrice) >= 0 ? Number(item.costPrice) : 0;
-      let price = Number(item.price) > 0 ? Number(item.price) : 10000;
       const key = `${item.id || ""} ${item.name || ""} ${item.shortName || ""}`.toLowerCase();
+      const costPrice = Number(item.costPrice) >= 0 ? Number(item.costPrice) : 0;
+      const price = Number(item.price) > 0 ? Number(item.price) : 10000;
 
-      // Seamlessly upgrade old default cost prices and selling prices to notebook standards
-      if (needsNotebookUpgrade) {
-        if (key.includes("nuoc_mia_1l") || key.includes("1 lít") || key.includes("1l") || key.includes("1 lit")) {
-          costPrice = 10000;
-          price = 15000;
-        } else if (key.includes("mia_cam") || key.includes("mía cam")) {
-          costPrice = 10000;
-          price = 17000;
-        } else if (key.includes("tra_tac") || key.includes("trà tắc")) {
-          costPrice = 7000;
-          price = 12000;
-        } else if (key.includes("mia_thom") || key.includes("mía thơm") || key.includes("dứa")) {
-          costPrice = 5000;
-          price = 10000;
-        } else if (key.includes("mia_tac") || key.includes("mía tắc")) {
-          costPrice = 5000;
-          price = 10000;
-        } else if (key.includes("nuoc_mia") || key.includes("mía thường") || key.includes("mía ly")) {
-          costPrice = 4000;
-          price = 8000;
-        }
-      }
+      // Preserve user-configured branch prices with fallbacks only for unconfigured branches
+      const priceMain = item.priceByBranch?.["Quán Nhà (Chính)"] ?? price;
+      const priceCn2 = item.priceByBranch?.["Chi nhánh 2"] ?? (key.includes("nuoc_mia") ? 8000 : (key.includes("tra_da") ? 5000 : (key.includes("1l") ? 18000 : (priceMain + 2000))));
+
+      const priceByBranch = {
+        "Quán Nhà (Chính)": Number(priceMain) || price,
+        "Chi nhánh 2": Number(priceCn2) || (price + 2000),
+        ...(item.priceByBranch || {}),
+      };
 
       return {
         ...item,
@@ -555,7 +868,8 @@ export function mergeData(data) {
         name: item.name || "Món nước",
         shortName: item.shortName || item.name || "Món nước",
         category: item.category || item.name || "Món nước",
-        price,
+        price: Number(priceByBranch["Quán Nhà (Chính)"]) || price,
+        priceByBranch,
         costPrice,
         icon: item.icon || "cane",
         image: getValidMenuImage(item),
@@ -563,6 +877,26 @@ export function mergeData(data) {
     });
 
     if (needsNotebookUpgrade) {
+      const hasTraDa = mergedQuickItems.some((i) => i.id === "tra_da" || i.name?.toLowerCase().includes("trà đá"));
+      if (!hasTraDa) {
+        mergedQuickItems.push({
+          id: "tra_da",
+          name: "Trà đá",
+          shortName: "Trà đá",
+          price: 3000,
+          priceByBranch: {
+            "Quán Nhà (Chính)": 3000,
+            "Chi nhánh 2": 5000,
+          },
+          costPrice: 1500,
+          category: "Trà đá",
+          note: "Bán trà đá",
+          icon: "tea",
+          image: "./assets/menu/tra_da.jpg",
+          voiceUnit: "ly",
+        });
+      }
+
       const hasMiaTac = mergedQuickItems.some((i) => i.id === "mia_tac" || i.name?.toLowerCase().includes("mía tắc"));
       if (!hasMiaTac) {
         mergedQuickItems.splice(2, 0, {
@@ -570,6 +904,10 @@ export function mergeData(data) {
           name: "Mía tắc",
           shortName: "Mía tắc",
           price: 10000,
+          priceByBranch: {
+            "Quán Nhà (Chính)": 10000,
+            "Chi nhánh 2": 12000,
+          },
           costPrice: 5000,
           category: "Mía tắc",
           note: "Bán mía tắc",
@@ -587,8 +925,12 @@ export function mergeData(data) {
           id: "mia_thom",
           name: "Mía thơm",
           shortName: "Mía thơm",
-          price: 10000,
-          costPrice: 5000,
+          price: 12000,
+          priceByBranch: {
+            "Quán Nhà (Chính)": 12000,
+            "Chi nhánh 2": 14000,
+          },
+          costPrice: 7000,
           category: "Mía thơm",
           note: "Bán mía thơm",
           icon: "cane",
@@ -640,15 +982,57 @@ export function mergeData(data) {
           ? Number(item.tongGiaCost)
           : qty * costPerUnit;
 
+        // Chuẩn hóa và tự động gán mã Bill/Đơn hàng cho tất cả giao dịch cũ & mới
+        let itemLoai = item.loai;
+        let itemSoTien = Number(item.soTien) || 0;
+        let itemDanhMuc = canonicalCategory(item.danhMuc);
+        let itemGhiChu = String(item.ghiChu || item.cauNoiGoc || "");
+        let itemGiaCostDonVi = costPerUnit;
+        let itemTongGiaCost = totalCost;
+
+        // Tự động chuyển các giao dịch mua mía bó 10kg thành xuất dùng (0 đ) theo nghiệp vụ tự sơ chế của quán
+        const checkStr = (String(item.danhMuc || "") + " " + itemGhiChu).toLowerCase();
+        const isMuaMia10kg = (checkStr.includes("10kg") || checkStr.includes("10 kg")) &&
+          (checkStr.includes("mía") || checkStr.includes("mia") || checkStr.includes("bó") || checkStr.includes("bo")) &&
+          (itemLoai === "chi" || checkStr.includes("mua") || checkStr.includes("nhập"));
+
+        if (isMuaMia10kg) {
+          itemLoai = "xuat_dung";
+          itemSoTien = 0;
+          itemDanhMuc = "Bó mía 10kg bào sẵn (Bán hàng)";
+          itemGiaCostDonVi = 0;
+          itemTongGiaCost = 0;
+          if (!itemGhiChu.includes("[Xuất dùng") && !itemGhiChu.includes("[Sơ chế") && !itemGhiChu.includes("[Xuất quầy")) {
+            itemGhiChu = `[Xuất dùng quầy] ${itemGhiChu.replace(/^\[.*?\]\s*/, "")}`;
+          }
+        }
+
+        let billCode = item.billCode || item.maDonHang || "";
+        if (!billCode) {
+          const match = itemGhiChu.match(/#(?:BILL|PO|XK|SC|DC)-\w+/i);
+          if (match) {
+            billCode = match[0].toUpperCase();
+          } else {
+            const prefix = itemLoai === "thu" ? "BILL" : (itemLoai === "xuat_dung" ? "XK" : "PO");
+            const idSuffix = String(item.id || Date.now()).slice(-4);
+            billCode = `#${prefix}-${idSuffix}`;
+          }
+        }
+
         return {
           ...item,
-          danhMuc: canonicalCategory(item.danhMuc),
+          loai: itemLoai,
+          soTien: itemSoTien,
+          billCode,
+          danhMuc: itemDanhMuc,
+          ghiChu: itemGhiChu,
           chiNhanh: item.chiNhanh || currentBranch,
           soLuong: qty,
-          donViTinh: String(item.donViTinh || (item.loai === "thu" ? "ly" : "kg")),
+          donViTinh: String(item.donViTinh || (itemLoai === "thu" ? "ly" : (isMuaMia10kg ? "bó" : "kg"))),
           phuongThuc: String(item.phuongThuc || "tien_mat"),
-          giaCostDonVi: costPerUnit,
-          tongGiaCost: totalCost,
+          giaCostDonVi: itemGiaCostDonVi,
+          tongGiaCost: itemTongGiaCost,
+          nguonTienChi: item.nguonTienChi || (itemLoai === "chi" ? "tien_von" : undefined),
         };
       })
     : [];
@@ -663,15 +1047,80 @@ export function mergeData(data) {
       chi: (Array.isArray(data?.danhMuc?.chi) && data.danhMuc.chi.length > 0) ? data.danhMuc.chi : base.danhMuc.chi,
     },
     quickItems: mergedQuickItems,
-    quickPrices: legacyPrices || mergedQuickItems.map((item) => item.price),
+    quickIngredients: (() => {
+      let list = [];
+      if (Array.isArray(data?.quickIngredients) && data.quickIngredients.length > 0) {
+        list = data.quickIngredients.map((item) => {
+          const unitCost = Number(item.unitCost) >= 0 ? Number(item.unitCost) : 0;
+          return {
+            ...item,
+            unitCost,
+            image: getValidIngredientImage(item),
+          };
+        });
+
+        const hasMia10kg = list.some((i) => i.id === "ing_mia_bo_10kg" || (i.name && (i.name.includes("10kg") || i.name.includes("10 kg"))));
+        if (!hasMia10kg) {
+          list.unshift({
+            id: "ing_mia_bo_10kg",
+            name: "Bó mía 10kg (Đã bào sạch)",
+            shortName: "Bó mía 10kg",
+            unit: "bó",
+            defaultQty: 1,
+            unitCost: 70000,
+            category: "Mua mía cây",
+            note: "1 bó 10kg đã bào sạch cột dây ~25-30 ly (7k/kg)",
+            icon: "cane_bundle",
+            image: "./assets/ingredients/bo_mia_10kg.jpg",
+            inventoryId: "mia_10kg",
+            yieldPerUnit: 25,
+          });
+        }
+
+        const hasMia12cay = list.some((i) => i.id === "ing_mia_bo" || (i.name && (i.name.includes("12 cây") || i.name.includes("cây dài"))));
+        if (!hasMia12cay) {
+          const idx10kg = list.findIndex((i) => i.id === "ing_mia_bo_10kg");
+          list.splice(idx10kg >= 0 ? idx10kg + 1 : 1, 0, {
+            id: "ing_mia_bo",
+            name: "Bó mía cây (12 cây dài)",
+            shortName: "Bó 12 cây dài",
+            unit: "bó",
+            defaultQty: 5,
+            unitCost: 90000,
+            category: "Mua mía cây",
+            note: "1 bó 12 cây dài 90k chưa bào ra 15kg mía (~45 ly)",
+            icon: "cane_bundle",
+            image: "./assets/ingredients/bo_mia_12_cay.jpg",
+            inventoryId: "mia_cay",
+            yieldPerUnit: 45,
+          });
+        }
+      } else {
+        list = base.quickIngredients;
+      }
+      return list;
+    })(),
     overheadConfig: { ...(base.overheadConfig || {}), ...(data?.overheadConfig || {}) },
-    overheadByBranch: { ...(base.overheadByBranch || {}), ...(data?.overheadByBranch || {}) },
+    overheadByBranch: {
+      "Quán Nhà (Chính)": {
+        ...(base.overheadByBranch?.["Quán Nhà (Chính)"] || {}),
+        ...(data?.overheadByBranch?.["Quán Nhà (Chính)"] || {}),
+        rentMonthly: 0, // Quán nhà là nhà ở, mặt bằng = 0 đ
+      },
+      "Chi nhánh 2": {
+        ...(base.overheadByBranch?.["Chi nhánh 2"] || {}),
+        ...(data?.overheadByBranch?.["Chi nhánh 2"] || {}),
+      },
+    },
     packagingConfig: { ...(base.packagingConfig || {}), ...(data?.packagingConfig || {}) },
     costFormulas: { ...(base.costFormulas || {}), ...(data?.costFormulas || {}) },
     crmCustomers: Array.isArray(data?.crmCustomers) ? data.crmCustomers : (base.crmCustomers || []),
     aiChatHistory: Array.isArray(data?.aiChatHistory) ? data.aiChatHistory : (base.aiChatHistory || []),
     restartLogs: Array.isArray(data?.restartLogs) ? data.restartLogs : (base.restartLogs || []),
     dailyClosings: Array.isArray(data?.dailyClosings) ? data.dailyClosings : (base.dailyClosings || []),
+    sugarcaneBatches: Array.isArray(data?.sugarcaneBatches) && data.sugarcaneBatches.length > 0
+      ? data.sugarcaneBatches
+      : (base.sugarcaneBatches || []),
     knowledgeBase: { ...(base.knowledgeBase || {}), ...(data?.knowledgeBase || {}) },
     costDataVersion: NOTEBOOK_VERSION,
     settingsVersion: Number(data?.settingsVersion) || 0,
@@ -683,9 +1132,33 @@ export function mergeData(data) {
     }),
     defaultOpeningCash: Number(data?.defaultOpeningCash) >= 0 ? Number(data.defaultOpeningCash) : (base.defaultOpeningCash || 500000),
     openingCashByDate: { ...(base.openingCashByDate || {}), ...(data?.openingCashByDate || {}) },
+    inventoryStock: (() => {
+      const stock = data?.inventoryStock || {};
+      const baseStock = base.inventoryStock || {};
+      const result = {};
+      const branchNames = Object.keys(baseStock);
+      for (const b of branchNames) {
+        const existingList = stock[b] || [];
+        const baseList = baseStock[b] || [];
+        const map = new Map();
+        existingList.forEach((item) => map.set(item.id, { ...item }));
+        baseList.forEach((baseItem) => {
+          if (!map.has(baseItem.id)) {
+            map.set(baseItem.id, { ...baseItem });
+          } else {
+            const cur = map.get(baseItem.id);
+            map.set(baseItem.id, { ...baseItem, ...cur, unit: baseItem.unit, name: baseItem.name });
+          }
+        });
+        result[b] = Array.from(map.values());
+      }
+      return result;
+    })(),
     ds: normalizedTransactions,
   };
 }
+
+const inMemoryFallbackStorage = new Map();
 
 async function readStorageValue(key) {
   const Preferences = getPreferences();
@@ -695,7 +1168,7 @@ async function readStorageValue(key) {
   if (typeof localStorage !== "undefined") {
     return localStorage.getItem(key);
   }
-  return null;
+  return inMemoryFallbackStorage.get(key) || null;
 }
 
 async function writeStorageValue(key, value) {
@@ -706,7 +1179,9 @@ async function writeStorageValue(key, value) {
   }
   if (typeof localStorage !== "undefined") {
     localStorage.setItem(key, value);
+    return;
   }
+  inMemoryFallbackStorage.set(key, value);
 }
 
 function parseStoredData(raw) {
@@ -784,6 +1259,7 @@ export function taoGiaoDich(input, existingItems = [], currentBranch = "Quán Nh
 
   return {
     id: generateTransactionId(existingItems),
+    billCode: input.billCode || (input.loai === "thu" ? `#BILL-${now.getTime().toString().slice(-4)}` : (input.loai === "xuat_dung" ? `#XK-${now.getTime().toString().slice(-4)}` : `#PO-${now.getTime().toString().slice(-4)}`)),
     ngay: input.ngay || localDateKey(now),
     gio: input.gio || now.toTimeString().slice(0, 5),
     loai: input.loai,
@@ -798,6 +1274,16 @@ export function taoGiaoDich(input, existingItems = [], currentBranch = "Quán Nh
     phuongThuc: input.phuongThuc === "chuyen_khoan" ? "chuyen_khoan" : "tien_mat",
     giaCostDonVi: unitCost,
     tongGiaCost: totalCost,
+    nguonTienChi: input.nguonTienChi,
+    ingredientId: input.ingredientId,
+    inventoryAction: input.inventoryAction,
+    rawQty: input.rawQty,
+    yieldQty: input.yieldQty,
+    yieldKg: input.yieldKg,
+    sourceBranch: input.sourceBranch,
+    targetBranch: input.targetBranch,
+    batchId: input.batchId,
+    slots: input.slots,
     daSync: false,
     deleted: false,
     updatedAt: now.toISOString(),
@@ -809,17 +1295,129 @@ export async function themGiaoDich(input) {
   const branch = input.chiNhanh || data.currentBranch || "Quán Nhà (Chính)";
   const giaoDich = taoGiaoDich({ ...input, chiNhanh: branch }, data.ds, branch, data.quickItems);
   data.ds.unshift(giaoDich);
-  if (giaoDich.loai === "thu") {
-    truKhoNguyenLieuTheoDonHang(data, giaoDich);
-  }
+  // Không tự động trừ lẻ nguyên liệu khi bán nước POS (nguyên liệu xuất dùng theo đợt)
   await luuDuLieu(data);
   return giaoDich;
 }
 
+export function rollbackInventoryOnDelete(data, tx) {
+  if (!tx || !data.inventoryStock) return;
+  const branch = tx.chiNhanh || data.currentBranch || "Quán Nhà (Chính)";
+  const stockList = data.inventoryStock[branch];
+  if (!stockList) return;
+
+  const findItem = (idOrName) => {
+    if (!idOrName) return null;
+    const norm = String(idOrName).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    let found = stockList.find((x) => x.id === idOrName);
+    if (found) return found;
+    found = stockList.find((x) => x.id.toLowerCase() === norm);
+    if (found) return found;
+    if (norm.includes("da")) return stockList.find((x) => x.id === "da_vien");
+    if (norm.includes("mia") || norm.includes("cane")) {
+      if (norm.includes("10kg") || norm.includes("10 kg") || norm.includes("sach") || norm.includes("bao")) {
+        return stockList.find((x) => x.id === "mia_10kg");
+      }
+      return stockList.find((x) => x.id === "mia_cay");
+    }
+    if (norm.includes("tac")) return stockList.find((x) => x.id === "tac_tuoi");
+    if (norm.includes("cam")) return stockList.find((x) => x.id === "cam_sanh");
+    if (norm.includes("thom") || norm.includes("dua") || norm.includes("khom")) return stockList.find((x) => x.id === "thom_dua");
+    if (norm.includes("rau ma")) return stockList.find((x) => x.id === "rau_ma");
+    if (norm.includes("dau xanh")) return stockList.find((x) => x.id === "dau_xanh");
+    if (norm.includes("sua") || norm.includes("dac")) return stockList.find((x) => x.id === "sua_dac");
+    if (norm.includes("ly")) return stockList.find((x) => x.id === "ly_nhua");
+    if (norm.includes("mang")) return stockList.find((x) => x.id === "mang_ep");
+    if (norm.includes("ong hut")) return stockList.find((x) => x.id === "ong_hut");
+    if (norm.includes("bich") || norm.includes("boc") || norm.includes("chu t")) return stockList.find((x) => x.id === "bich_t");
+    if (norm.includes("duong")) return stockList.find((x) => x.id === "duong_cat");
+    return stockList.find((x) => {
+      const xNorm = x.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return xNorm.includes(norm) || norm.includes(xNorm);
+    });
+  };
+
+  const action = tx.inventoryAction;
+  const isSoche = action === "soche" || (tx.danhMuc && tx.danhMuc.toLowerCase().includes("sơ chế"));
+  const isTransfer = action === "transfer" || (tx.danhMuc && (tx.danhMuc.toLowerCase().includes("điều chuyển") || tx.danhMuc.toLowerCase().includes("xuất mía sang")));
+
+  if (isSoche) {
+    // Sơ chế: trừ lại mía 10kg, cộng trả lại mía cây thô
+    const rawQty = Number(tx.rawQty) || (Number(tx.ghiChu?.match(/Bào\s*([\d\.]+)\s*bó/i)?.[1]) || 1);
+    const yieldQty = Number(tx.yieldQty) || Number(tx.soLuong) || 1;
+    const item10kg = findItem("mia_10kg");
+    const itemCay = findItem("mia_cay");
+    if (item10kg) {
+      item10kg.stockQty = Math.max(0, Math.round(((Number(item10kg.stockQty) || 0) - yieldQty) * 100) / 100);
+    }
+    if (itemCay) {
+      itemCay.stockQty = Math.round(((Number(itemCay.stockQty) || 0) + rawQty) * 100) / 100;
+    }
+    if (Array.isArray(data.sugarcaneBatches)) {
+      const batch = (tx.batchId && data.sugarcaneBatches.find((b) => b.id === tx.batchId)) || data.sugarcaneBatches.find((b) => b.status === "active") || data.sugarcaneBatches[0];
+      if (batch) {
+        batch.processedRawBundles = Math.max(0, Math.round(((Number(batch.processedRawBundles) || 0) - rawQty) * 100) / 100);
+        batch.remainingRawBundles = Math.min(Number(batch.rawStalkBundles) || 0, Math.round(((Number(batch.remainingRawBundles) || 0) + rawQty) * 100) / 100);
+        batch.yield10kgBundles = Math.max(0, Math.round(((Number(batch.yield10kgBundles) || 0) - yieldQty) * 100) / 100);
+        if (batch.status === "completed" && batch.remainingRawBundles > 0) {
+          batch.status = "active";
+        }
+      }
+    }
+    return;
+  }
+
+  if (isTransfer) {
+    // Điều chuyển: Quán Nhà xuất sang Chi nhánh 2
+    const targetBranchName = tx.targetBranch || "Chi nhánh 2";
+    const srcBranchName = tx.sourceBranch || "Quán Nhà (Chính)";
+    const qty = Number(tx.soLuong) || 1;
+    const srcList = data.inventoryStock[srcBranchName];
+    const targetList = data.inventoryStock[targetBranchName];
+    if (srcList) {
+      const itemSrc = srcList.find((x) => x.id === (tx.ingredientId || "mia_10kg"));
+      if (itemSrc) itemSrc.stockQty = Math.round(((Number(itemSrc.stockQty) || 0) + qty) * 100) / 100;
+    }
+    if (targetList) {
+      const itemTarget = targetList.find((x) => x.id === (tx.ingredientId || "mia_10kg"));
+      if (itemTarget) itemTarget.stockQty = Math.max(0, Math.round(((Number(itemTarget.stockQty) || 0) - qty) * 100) / 100);
+    }
+    return;
+  }
+
+  const isXuat = action === "xuat" || tx.loai === "xuat_dung" || tx.loai === "xuat_kho";
+  const isNhap = action === "nhap" || (tx.loai === "chi" && (
+    Boolean(tx.ingredientId) ||
+    String(tx.ghiChu || "").toLowerCase().includes("[nhập") ||
+    String(tx.ghiChu || "").toLowerCase().includes("[mua hàng") ||
+    String(tx.danhMuc || "").toLowerCase().includes("mua")
+  ));
+
+  const qty = Number(tx.soLuong) || 1;
+  const matched = findItem(tx.ingredientId || tx.danhMuc);
+
+  if (matched) {
+    if (isXuat) {
+      // Khi xóa phiếu xuất dùng: Hoàn trả lại tồn kho (+qty)
+      matched.stockQty = Math.round(((Number(matched.stockQty) || 0) + qty) * 100) / 100;
+    } else if (isNhap) {
+      // Khi xóa phiếu nhập mua hàng sai: Trừ trả lại tồn kho (-qty)
+      matched.stockQty = Math.max(0, Math.round(((Number(matched.stockQty) || 0) - qty) * 100) / 100);
+      if (tx.batchId && Array.isArray(data.sugarcaneBatches)) {
+        data.sugarcaneBatches = data.sugarcaneBatches.filter((b) => b.id !== tx.batchId);
+      }
+    }
+  }
+}
+
 export async function xoaGiaoDich(id) {
   const data = await docDuLieu();
+  const tx = data.ds.find((item) => String(item.id) === String(id));
+  if (tx && !tx.deleted) {
+    rollbackInventoryOnDelete(data, tx);
+  }
   data.ds = data.ds.map((item) =>
-    item.id === id
+    String(item.id) === String(id)
       ? { ...item, deleted: true, daSync: false, updatedAt: new Date().toISOString() }
       : item,
   );
@@ -895,6 +1493,20 @@ export async function luuDanhSachMenu(menuItems) {
   data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.quickItems;
+}
+
+export async function luuDanhSachNguyenLieu(ingredientItems) {
+  const data = await docDuLieu();
+  data.quickIngredients = ingredientItems.map((item) => ({
+    ...item,
+    unitCost: Number(item.unitCost) || 0,
+    defaultQty: Number(item.defaultQty) || 1,
+    yieldPerUnit: Number(item.yieldPerUnit) || 1,
+    image: getValidIngredientImage(item),
+  }));
+  data.settingsVersion = Date.now();
+  await luuDuLieu(data);
+  return data.quickIngredients;
 }
 
 export async function capNhatGiaNhanh(prices) {
@@ -1009,7 +1621,7 @@ export async function luuTienThoiDauNgay(ngay, soTien, branch = "Quán Nhà (Ch�
 
 export async function luuTienThoiMacDinh(soTien) {
   const data = await docDuLieu();
-  data.defaultOpeningCash = Number(soTien) >= 0 ? Number(soTien) : 500000;
+  data.defaultOpeningCash = Number(soTien) >= 0 ? Number(soTien) : 50000;
   data.settingsVersion = Date.now();
   await luuDuLieu(data);
   return data.defaultOpeningCash;
@@ -1425,11 +2037,17 @@ export async function nhapKhoNguyenLieu(branchName, ingredientIdOrName, qty, cos
 
   if (!matched) {
     if (queryNorm.includes("da")) matched = items.find((x) => x.id === "da_vien");
-    else if (queryNorm.includes("mia")) matched = items.find((x) => x.id === "mia_cay");
+    else if (queryNorm.includes("mia")) {
+      if (queryNorm.includes("10kg") || queryNorm.includes("10 kg")) matched = items.find((x) => x.id === "mia_10kg");
+      else matched = items.find((x) => x.id === "mia_cay");
+    }
     else if (queryNorm.includes("tac")) matched = items.find((x) => x.id === "tac_tuoi");
     else if (queryNorm.includes("cam")) matched = items.find((x) => x.id === "cam_sanh");
     else if (queryNorm.includes("thom") || queryNorm.includes("dua") || queryNorm.includes("khom")) matched = items.find((x) => x.id === "thom_dua");
     else if (queryNorm.includes("rau ma")) matched = items.find((x) => x.id === "rau_ma");
+    else if (queryNorm.includes("dau xanh") || queryNorm.includes("dau")) matched = items.find((x) => x.id === "dau_xanh");
+    else if (queryNorm.includes("sua") || queryNorm.includes("dac")) matched = items.find((x) => x.id === "sua_dac");
+    else if (queryNorm.includes("bich") || queryNorm.includes("boc") || queryNorm.includes("chu t")) matched = items.find((x) => x.id === "bich_t");
     else if (queryNorm.includes("ly")) matched = items.find((x) => x.id === "ly_nhua");
     else if (queryNorm.includes("ong hut")) matched = items.find((x) => x.id === "ong_hut");
     else if (queryNorm.includes("mang")) matched = items.find((x) => x.id === "mang_ep");
@@ -1527,8 +2145,8 @@ export function tinhBaoCaoThue(transactions, periodType = "month", periodValue =
   const totalTax = vatTax + pitTax;
 
   // ============================================================
-  // NGƯỠNG MIỄN THUẾ THEO THÔNG TƯ 40/2021/TT-BTC (Điều 2):
-  // Hộ kinh doanh/cá nhân KD có doanh thu NĂM <= 100.000.000 đ được miễn thuế
+  // NGƯỠNG MIỄN THUẾ THEO LUẬT THUẾ MỚI (Từ 2026):
+  // Hộ kinh doanh/cá nhân KD có doanh thu NĂM <= 200.000.000 đ được MIỄN 100% THUẾ
   // ============================================================
   // Ước tính doanh thu năm từ doanh thu kỳ hiện tại
   let estimatedAnnualRevenue = revenue;
@@ -1537,10 +2155,11 @@ export function tinhBaoCaoThue(transactions, periodType = "month", periodValue =
   } else if (periodType === "quarter") {
     estimatedAnnualRevenue = revenue * 4;
   }
-  const ANNUAL_EXEMPT_THRESHOLD = 100_000_000; // 100 triệu đồng/năm
-  const MONTHLY_EXEMPT_GUIDE    = Math.round(ANNUAL_EXEMPT_THRESHOLD / 12); // ~8.333.333 đ/tháng
+  const ANNUAL_EXEMPT_THRESHOLD = 200_000_000; // 200 triệu đồng/năm theo luật mới
+  const MONTHLY_EXEMPT_GUIDE    = Math.round(ANNUAL_EXEMPT_THRESHOLD / 12); // ~16.666.667 đ/tháng
   const isExempt = estimatedAnnualRevenue <= ANNUAL_EXEMPT_THRESHOLD;
-  const isNearThreshold = !isExempt && estimatedAnnualRevenue <= ANNUAL_EXEMPT_THRESHOLD * 1.2;
+  const isNearThreshold = !isExempt && estimatedAnnualRevenue <= ANNUAL_EXEMPT_THRESHOLD * 1.25;
+  const actualTaxPayable = isExempt ? 0 : totalTax;
 
   return {
     periodType,
@@ -1554,6 +2173,7 @@ export function tinhBaoCaoThue(transactions, periodType = "month", periodValue =
     vatTax,
     pitTax,
     totalTax,
+    actualTaxPayable,
     isExempt,
     isNearThreshold,
     estimatedAnnualRevenue,
@@ -1570,10 +2190,10 @@ export function xuatToKhaiThue01CNKD(taxReport, businessInfo = {}) {
 
   const annualEst = Number(taxReport.estimatedAnnualRevenue || taxReport.revenue);
   const exemptNote = taxReport.isExempt
-    ? `\n⚠️ DỰ BÁO MIỄN THUẾ: DT ước tính năm ${annualEst.toLocaleString("vi-VN")}đ ≤ 100.000.000đ (theo TT40/2021 Điều 2)\n   → Nếu DT thực tế cả năm ≤ 100 triệu: được miễn toàn bộ thuế!\n   → Khuyến nghị: theo dõi DT lũy kế năm để chủ động xử lý.`
+    ? `\n🎉 THÔNG BÁO MIỄN THUẾ: Doanh thu ước tính năm ${annualEst.toLocaleString("vi-VN")} đ ≤ 200.000.000 đ (ngưỡng miễn thuế mới)\n   → Hộ kinh doanh được MIỄN 100% thuế GTGT và thuế TNCN!\n   → Số thuế thực tế phải nộp: 0 đ\n   → Khuyến nghị: Kê khai doanh thu ban đầu để cơ quan thuế ấn định mức thuế 0 đ.`
     : (taxReport.isNearThreshold
-      ? `\n⚠️ CẢNH BÁO GẦN NGƯỠNG: DT ước tính năm ${annualEst.toLocaleString("vi-VN")}đ (gần ngưỡng 100 triệu)\n   → Cần nộp thuế 4.5% theo TT40/2021!`
-      : `\n📋 DT ước tính năm: ${annualEst.toLocaleString("vi-VN")}đ (vượt ngưỡng 100 triệu → bắt buộc nộp thuế)`);
+      ? `\n⚠️ CẢNH BÁO GẦN NGƯỠNG: Doanh thu ước tính năm ${annualEst.toLocaleString("vi-VN")} đ (vừa vượt ngưỡng 200 triệu)\n   → Thuộc diện nộp thuế 4.5% (GTGT 3% + TNCN 1.5%) theo Thông tư 40/2021/TT-BTC!`
+      : `\n📋 Doanh thu ước tính năm: ${annualEst.toLocaleString("vi-VN")} đ (vượt ngưỡng 200 triệu → nộp thuế 4.5% trên doanh thu)`);
 
   return `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
 Độc lập - Tự do - Hạnh phúc
@@ -1588,14 +2208,15 @@ TỜ KHAI THUẾ ĐỐI VỚI HỘ KINH DOANH, CÁ NHÂN KINH DOANH
 5. Ngành nghề kinh doanh: Dịch vụ ăn uống, giải khát (F&B)
 
 --------------------------------------------------
-BẢNG KÊ DOANH THU & NGHĨA VỤ THUẾ TẠM TÍNH:
+BẢNG KÊ DOANH THU & NGHĨA VỤ THUẾ:
 1. Tổng doanh thu bán hàng phát sinh: ${Number(taxReport.revenue).toLocaleString("vi-VN")} đ
 2. Số lượng giao dịch bán ra: ${taxReport.transactionCount} đơn
-3. Thuế Giá trị gia tăng (GTGT 3.0%): ${Number(taxReport.vatTax).toLocaleString("vi-VN")} đ
-4. Thuế Thu nhập cá nhân (TNCN 1.5%): ${Number(taxReport.pitTax).toLocaleString("vi-VN")} đ
+3. Doanh thu ước tính quy năm: ${Number(taxReport.estimatedAnnualRevenue).toLocaleString("vi-VN")} đ
+4. Thuế Giá trị gia tăng định mức (GTGT 3.0%): ${Number(taxReport.vatTax).toLocaleString("vi-VN")} đ
+5. Thuế Thu nhập cá nhân định mức (TNCN 1.5%): ${Number(taxReport.pitTax).toLocaleString("vi-VN")} đ
 --------------------------------------------------
-💰 TỔNG NGHĨA VỤ THUẾ PHẢI NỘP: ${Number(taxReport.totalTax).toLocaleString("vi-VN")} đ
-*(Tỷ lệ thuế khoán/kê khai ngành ăn uống: 4.5% trên doanh thu thực tế)*
+💰 NGHĨA VỤ THUẾ TẠM TÍNH (4.5%): ${Number(taxReport.totalTax).toLocaleString("vi-VN")} đ
+🛡️ SỐ THUẾ THỰC NỘP SAU MIỄN TRỪ: ${Number(taxReport.actualTaxPayable).toLocaleString("vi-VN")} đ
 ${exemptNote}
 --------------------------------------------------
 Ngày lập báo cáo: ${new Date().toLocaleDateString("vi-VN")}
@@ -1686,4 +2307,360 @@ export function tinhBaoCaoPL(transactions, periodType = "month", periodValue = n
     generatedAt: now.toISOString(),
   };
 }
+
+// ==========================================================================
+// MODULE TỔNG HỢP & TỰ HỌC ĐỊNH MỨC ĐẦU VÀO - ĐẦU RA 15 NGÀY (ADAPTIVE YIELD)
+// ==========================================================================
+
+export function tinhDinhMucDauVaoDauRa(transactions, days = 15, branchName = null) {
+  const now = new Date();
+  const cutoffTime = now.getTime() - (days * 24 * 60 * 60 * 1000);
+  const cutoffDateStr = new Date(cutoffTime).toISOString().slice(0, 10);
+
+  const validTx = (transactions || []).filter((tx) => {
+    if (tx.deleted) return false;
+    if (branchName && branchName !== "all" && branchName !== "Tất cả điểm bán" && tx.chiNhanh !== branchName) {
+      return false;
+    }
+    const dateStr = String(tx.ngay || tx.timestamp || "");
+    return dateStr >= cutoffDateStr;
+  });
+
+  const thuList = validTx.filter((t) => t.loai === "thu");
+  const chiList = validTx.filter((t) => t.loai === "chi");
+
+  // 1. TỔNG HỢP NGUYÊN LIỆU ĐẦU VÀO (INPUTS TỪ PHIẾU CHI / NHẬP HÀNG)
+  const inputs = {
+    mia: { qty: 0, cost: 0, unit: "bó", label: "Mía cây tươi", count: 0 },
+    tac: { qty: 0, cost: 0, unit: "kg", label: "Tắc tươi", count: 0 },
+    cam: { qty: 0, cost: 0, unit: "kg", label: "Cam sành", count: 0 },
+    thom: { qty: 0, cost: 0, unit: "trái", label: "Thơm (dứa)", count: 0 },
+    rauMa: { qty: 0, cost: 0, unit: "kg", label: "Rau má", count: 0 },
+    dauXanh: { qty: 0, cost: 0, unit: "kg", label: "Đậu xanh", count: 0 },
+    daVien: { qty: 0, cost: 0, unit: "bao", label: "Đá viên", count: 0 },
+    lyNhua: { qty: 0, cost: 0, unit: "ly", label: "Ly nhựa & bao", count: 0 },
+    tongTienNhap: 0,
+  };
+
+  chiList.forEach((tx) => {
+    const text = (String(tx.danhMuc || "") + " " + String(tx.ghiChu || "")).toLowerCase();
+    const money = Number(tx.soTien) || 0;
+    const qty = Number(tx.soLuong) || 1;
+    inputs.tongTienNhap += money;
+
+    if (text.includes("mía") || text.includes("mia")) {
+      inputs.mia.qty += qty;
+      inputs.mia.cost += money;
+      inputs.mia.count += 1;
+    } else if (text.includes("tắc") || text.includes("tac")) {
+      inputs.tac.qty += qty;
+      inputs.tac.cost += money;
+      inputs.tac.count += 1;
+    } else if (text.includes("cam")) {
+      inputs.cam.qty += qty;
+      inputs.cam.cost += money;
+      inputs.cam.count += 1;
+    } else if (text.includes("thơm") || text.includes("thom") || text.includes("dứa") || text.includes("khóm")) {
+      inputs.thom.qty += qty;
+      inputs.thom.cost += money;
+      inputs.thom.count += 1;
+    } else if (text.includes("rau má") || text.includes("rau ma")) {
+      inputs.rauMa.qty += qty;
+      inputs.rauMa.cost += money;
+      inputs.rauMa.count += 1;
+    } else if (text.includes("đậu") || text.includes("dau")) {
+      inputs.dauXanh.qty += qty;
+      inputs.dauXanh.cost += money;
+      inputs.dauXanh.count += 1;
+    } else if (text.includes("đá") || text.includes("da")) {
+      inputs.daVien.qty += qty;
+      inputs.daVien.cost += money;
+      inputs.daVien.count += 1;
+    } else if (text.includes("ly") || text.includes("bọc") || text.includes("ống hút") || text.includes("màng")) {
+      inputs.lyNhua.qty += qty;
+      inputs.lyNhua.cost += money;
+      inputs.lyNhua.count += 1;
+    }
+  });
+
+  // 2. TỔNG HỢP SẢN LƯỢNG NƯỚC BÁN RA (OUTPUTS TỪ PHIẾU THU)
+  const outputs = {
+    tongLyBan: 0,
+    tongDoanhThu: 0,
+    miaThuong: 0,
+    mia1Lit: 0,
+    miaTac: 0,
+    miaCam: 0,
+    miaThom: 0,
+    traTac: 0,
+    nuocCam: 0,
+    rauMa: 0,
+    rauMaDauXanh: 0,
+    // Quy đổi ra đơn vị tương đương mía thường (1 ly 1L quy đổi = 2 ly)
+    tongLyQuyDoiMia: 0,
+  };
+
+  thuList.forEach((tx) => {
+    const text = (String(tx.danhMuc || "") + " " + String(tx.ghiChu || "")).toLowerCase();
+    const money = Number(tx.soTien) || 0;
+    const qty = Number(tx.soLuong) || 1;
+
+    outputs.tongLyBan += qty;
+    outputs.tongDoanhThu += money;
+
+    if (text.includes("1l") || text.includes("1 lít") || text.includes("1 lit") || text.includes("lít")) {
+      outputs.mia1Lit += qty;
+      outputs.tongLyQuyDoiMia += qty * 2;
+    } else if (text.includes("mía tắc") || text.includes("mia tac")) {
+      outputs.miaTac += qty;
+      outputs.tongLyQuyDoiMia += qty;
+    } else if (text.includes("mía cam") || text.includes("mia cam")) {
+      outputs.miaCam += qty;
+      outputs.tongLyQuyDoiMia += qty;
+    } else if (text.includes("mía thơm") || text.includes("mia thom") || text.includes("khóm") || text.includes("dứa")) {
+      outputs.miaThom += qty;
+      outputs.tongLyQuyDoiMia += qty;
+    } else if (text.includes("trà tắc") || text.includes("tra tac")) {
+      outputs.traTac += qty;
+    } else if (text.includes("nước cam") || text.includes("cam vắt") || (text.includes("cam") && !text.includes("mía"))) {
+      outputs.nuocCam += qty;
+    } else if (text.includes("đậu xanh") || text.includes("rau má đậu")) {
+      outputs.rauMaDauXanh += qty;
+    } else if (text.includes("rau má") || text.includes("rau ma")) {
+      outputs.rauMa += qty;
+    } else {
+      outputs.miaThuong += qty;
+      outputs.tongLyQuyDoiMia += qty;
+    }
+  });
+
+  // 3. TÍNH HIỆU SUẤT ĐỊNH MỨC THỰC TẾ (YIELD & CONVERSION RATIO)
+  // Mía: 1 bó mía ép được bao nhiêu ly thực tế
+  const miaYieldActual = inputs.mia.qty > 0 ? Math.round((outputs.tongLyQuyDoiMia / inputs.mia.qty) * 10) / 10 : 0;
+  const miaCostPerCup = miaYieldActual > 0 && inputs.mia.qty > 0 ? Math.round(inputs.mia.cost / (inputs.mia.qty * miaYieldActual)) : 0;
+
+  // Tắc: 1 kg tắc pha được bao nhiêu ly (trà tắc + mía tắc)
+  const totalTacCups = outputs.traTac + outputs.miaTac;
+  const tacYieldActual = inputs.tac.qty > 0 ? Math.round((totalTacCups / inputs.tac.qty) * 10) / 10 : 0;
+
+  // Cam: 1 kg cam vắt được bao nhiêu ly (nước cam + mía cam)
+  const totalCamCups = outputs.nuocCam + outputs.miaCam;
+  const camYieldActual = inputs.cam.qty > 0 ? Math.round((totalCamCups / inputs.cam.qty) * 10) / 10 : 0;
+
+  // Rau má: 1 kg rau má xay được bao nhiêu ly
+  const totalRauMaCups = outputs.rauMa + outputs.rauMaDauXanh;
+  const rauMaYieldActual = inputs.rauMa.qty > 0 ? Math.round((totalRauMaCups / inputs.rauMa.qty) * 10) / 10 : 0;
+
+  // Đá viên: 1 bao đá phục vụ được bao nhiêu ly
+  const daYieldActual = inputs.daVien.qty > 0 ? Math.round((outputs.tongLyBan / inputs.daVien.qty) * 10) / 10 : 0;
+
+  // 4. SO SÁNH ĐỊNH MỨC LÝ THUYẾT VS THỰC TẾ
+  const benchmarks = {
+    mia: {
+      label: "Mía cây tươi",
+      inputQty: inputs.mia.qty,
+      inputUnit: "bó",
+      outputCups: outputs.tongLyQuyDoiMia,
+      actualYield: miaYieldActual, // ly / bó
+      benchmarkYield: 45.0,        // lý thuyết: 45 ly / bó
+      actualUnitCost: miaCostPerCup,
+      variancePct: miaYieldActual > 0 ? Math.round(((miaYieldActual - 45.0) / 45.0) * 1000) / 10 : 0,
+      status: miaYieldActual >= 42 ? "excellent" : (miaYieldActual >= 38 ? "good" : "low_yield"),
+    },
+    tac: {
+      label: "Tắc tươi",
+      inputQty: inputs.tac.qty,
+      inputUnit: "kg",
+      outputCups: totalTacCups,
+      actualYield: tacYieldActual, // ly / kg
+      benchmarkYield: 22.0,        // lý thuyết: 22 ly / kg
+      variancePct: tacYieldActual > 0 ? Math.round(((tacYieldActual - 22.0) / 22.0) * 1000) / 10 : 0,
+    },
+    cam: {
+      label: "Cam sành",
+      inputQty: inputs.cam.qty,
+      inputUnit: "kg",
+      outputCups: totalCamCups,
+      actualYield: camYieldActual, // ly / kg
+      benchmarkYield: 3.0,         // lý thuyết: 3 ly / kg
+      variancePct: camYieldActual > 0 ? Math.round(((camYieldActual - 3.0) / 3.0) * 1000) / 10 : 0,
+    },
+    rauMa: {
+      label: "Rau má tươi",
+      inputQty: inputs.rauMa.qty,
+      inputUnit: "kg",
+      outputCups: totalRauMaCups,
+      actualYield: rauMaYieldActual, // ly / kg
+      benchmarkYield: 5.0,           // lý thuyết: 5 ly / kg
+      variancePct: rauMaYieldActual > 0 ? Math.round(((rauMaYieldActual - 5.0) / 5.0) * 1000) / 10 : 0,
+    },
+    daVien: {
+      label: "Đá viên",
+      inputQty: inputs.daVien.qty,
+      inputUnit: "bao",
+      outputCups: outputs.tongLyBan,
+      actualYield: daYieldActual, // ly / bao
+      benchmarkYield: 30.0,
+      variancePct: daYieldActual > 0 ? Math.round(((daYieldActual - 30.0) / 30.0) * 1000) / 10 : 0,
+    },
+  };
+
+  // Đánh giá mức độ thu thập dữ liệu & tốc độ tiêu thụ (Velocity & Days to Empty)
+  const distinctDays = Math.max(1, new Set(validTx.map((t) => String(t.ngay || "").slice(0, 10))).size);
+  const progressPct = Math.min(100, Math.round((distinctDays / days) * 100));
+
+  // Tốc độ tiêu thụ trung bình mỗi ngày
+  const avgMiaPerDay = Math.round((inputs.mia.qty / distinctDays) * 10) / 10;
+  const avgCupsPerDay = Math.round((outputs.tongLyQuyDoiMia / distinctDays) * 10) / 10;
+  
+  // 1 bó mía bán trong bao lâu (tính theo giờ bán hàng ~12h/ngày hoặc theo ngày)
+  const daysPerBundle = avgMiaPerDay > 0 ? Math.round((1 / avgMiaPerDay) * 10) / 10 : 0;
+  const hoursPerBundle = avgMiaPerDay > 0 ? Math.round((12 / avgMiaPerDay) * 10) / 10 : 0;
+
+  benchmarks.mia.avgPerDay = avgMiaPerDay;
+  benchmarks.mia.daysPerBundle = daysPerBundle;
+  benchmarks.mia.hoursPerBundle = hoursPerBundle;
+  benchmarks.mia.avgCupsPerDay = avgCupsPerDay;
+
+  return {
+    days,
+    distinctDays,
+    progressPct,
+    cutoffDateStr,
+    branchName: branchName || "Toàn bộ chi nhánh",
+    inputs,
+    outputs,
+    benchmarks,
+    velocity: {
+      distinctDays,
+      avgMiaPerDay,
+      avgCupsPerDay,
+      daysPerBundle,
+      hoursPerBundle,
+    },
+    generatedAt: now.toISOString(),
+  };
+}
+
+// ----------------------------------------------------
+// QUẢN LÝ ĐỢT NHẬP MÍA & THEO DÕI TỶ LỆ SƠ CHẾ THEO LÔ
+// ----------------------------------------------------
+
+export async function taoDotNhapMia({ date, rawStalkBundles, costPerBundle = 90000, branch = "Quán Nhà (Chính)", note = "" }) {
+  const data = await docDuLieu();
+  if (!Array.isArray(data.sugarcaneBatches)) data.sugarcaneBatches = [];
+  
+  const rawQty = Math.max(1, Number(rawStalkBundles) || 1);
+  const cost = Number(costPerBundle) || 90000;
+  const totalCost = rawQty * cost;
+  const todayStr = date || new Date().toISOString().slice(0, 10);
+  const parts = todayStr.split("-");
+  const code = `DOT-${parts[2] || "01"}${parts[1] || "01"}`;
+  const id = `batch_${Date.now()}`;
+
+  const newBatch = {
+    id,
+    date: todayStr,
+    code,
+    name: `Đợt mía thô ${parts.reverse().join('/')} (${rawQty} bó 12 cây dài)`,
+    branch,
+    rawStalkBundles: rawQty,
+    costPerBundle: cost,
+    totalCost,
+    processedRawBundles: 0,
+    remainingRawBundles: rawQty,
+    yield10kgBundles: 0,
+    status: "active",
+    note,
+    history: [],
+    createdAt: new Date().toISOString(),
+  };
+
+  data.sugarcaneBatches.unshift(newBatch);
+  await luuDuLieu(data);
+  return newBatch;
+}
+
+export async function ghiNhanSoCheDotMia({ batchId, rawQty, yieldQty, note = "" }) {
+  const data = await docDuLieu();
+  if (!Array.isArray(data.sugarcaneBatches)) return null;
+
+  let batch = data.sugarcaneBatches.find(b => b.id === batchId);
+  if (!batch) {
+    batch = data.sugarcaneBatches.find(b => b.status === "active");
+  }
+  if (!batch) return null;
+
+  const raw = Number(rawQty) || 0;
+  const yld = Number(yieldQty) || 0;
+
+  batch.processedRawBundles = Math.round(((Number(batch.processedRawBundles) || 0) + raw) * 100) / 100;
+  batch.remainingRawBundles = Math.max(0, Math.round(((Number(batch.rawStalkBundles) || 0) - batch.processedRawBundles) * 100) / 100);
+  batch.yield10kgBundles = Math.round(((Number(batch.yield10kgBundles) || 0) + yld) * 100) / 100;
+
+  if (!Array.isArray(batch.history)) batch.history = [];
+  batch.history.push({
+    time: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) + " " + new Date().toLocaleDateString("vi-VN"),
+    rawQty: raw,
+    yieldQty: yld,
+    note,
+  });
+
+  if (batch.remainingRawBundles <= 0) {
+    batch.status = "completed";
+  }
+
+  await luuDuLieu(data);
+  return batch;
+}
+
+export async function dongDotNhapMia(batchId) {
+  const data = await docDuLieu();
+  if (!Array.isArray(data.sugarcaneBatches)) return null;
+  const batch = data.sugarcaneBatches.find(b => b.id === batchId);
+  if (batch) {
+    batch.status = "completed";
+    batch.closedAt = new Date().toLocaleString("vi-VN");
+    await luuDuLieu(data);
+  }
+  return batch;
+}
+
+export async function layDotMiaDangHoatDong(branch = null) {
+  const data = await docDuLieu();
+  if (!Array.isArray(data.sugarcaneBatches)) return null;
+  if (branch && branch !== "all") {
+    return data.sugarcaneBatches.find(b => b.status === "active" && b.branch === branch)
+      || data.sugarcaneBatches.find(b => b.status === "active");
+  }
+  return data.sugarcaneBatches.find(b => b.status === "active") || data.sugarcaneBatches[0];
+}
+
+export async function chuyenTatCaGiaoDichMua10kgThanhXuatDung() {
+  const data = await docDuLieu();
+  let convertedCount = 0;
+  if (Array.isArray(data.ds)) {
+    data.ds.forEach((item) => {
+      const checkStr = (String(item.danhMuc || "") + " " + String(item.ghiChu || "")).toLowerCase();
+      const isMuaMia10kg = (checkStr.includes("10kg") || checkStr.includes("10 kg")) &&
+        (checkStr.includes("mía") || checkStr.includes("mia") || checkStr.includes("bó") || checkStr.includes("bo")) &&
+        (item.loai === "chi" || checkStr.includes("mua") || checkStr.includes("nhập"));
+      if (isMuaMia10kg && item.loai !== "xuat_dung") {
+        item.loai = "xuat_dung";
+        item.soTien = 0;
+        item.danhMuc = "Bó mía 10kg bào sẵn (Bán hàng)";
+        item.giaCostDonVi = 0;
+        item.tongGiaCost = 0;
+        item.daSync = false;
+        convertedCount++;
+      }
+    });
+  }
+  if (convertedCount > 0) {
+    await luuDuLieu(data);
+  }
+  return convertedCount;
+}
+
+
 

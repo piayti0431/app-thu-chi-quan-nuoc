@@ -20,5 +20,7 @@ tests/*.png
 # Local editor/OS noise
 .DS_Store
 Thumbs.db
+*.jsonl
+file md/*.jsonl
 
 .vercel

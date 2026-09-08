@@ -47,8 +47,8 @@ console.log("Starting phase2-misa-bom-inventory.test.mjs...");
   assert.equal(mia.stockQty, 19.89);
   // 5 cups * 0.05kg = 0.25kg (10 - 0.25 = 9.75)
   assert.equal(tac.stockQty, 9.75);
-  // 5 cups (1000 - 5 = 995)
-  assert.equal(ly.stockQty, 995);
+  // 5 cups (2000 - 5 = 1995)
+  assert.equal(ly.stockQty, 1995);
   // 5 cups * 0.033 = 0.17 bao (10 - 0.17 = 9.83)
   assert.equal(da.stockQty, 9.83);
 
@@ -104,7 +104,8 @@ console.log("Starting phase2-misa-bom-inventory.test.mjs...");
 {
   const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
   // Reduce tac_tuoi to 1.5kg (min is 2.0kg)
-  state.inventoryStock["Quán Nhà (Chính)"][1].stockQty = 1.5;
+  const tacItem = state.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "tac_tuoi");
+  tacItem.stockQty = 1.5;
 
   const warnings = kiemTraCanhBaoTonKho(state, "Quán Nhà (Chính)");
   assert.equal(warnings.length, 1);

@@ -33,7 +33,7 @@ console.log("Starting inventory-tax.test.mjs...");
   const ly = b1Stock.find((i) => i.id === "ly_nhua");
 
   // 10 ly Mía tắc -> deducts 10 ly, 10 * 0.022 mia = 0.22 bó (20 - 0.22 = 19.78), 10 * 0.05 tac = 0.5kg (10 - 0.5 = 9.5)
-  assert.equal(ly.stockQty, 990);
+  assert.equal(ly.stockQty, 1990);
   assert.equal(mia.stockQty, 19.78);
   assert.equal(tac.stockQty, 9.5);
   console.log("PASS 2: truKhoNguyenLieuTheoDonHang -> deducted BOM ingredients (mía, tắc, ly nhựa)");
@@ -43,7 +43,8 @@ console.log("Starting inventory-tax.test.mjs...");
 {
   const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
   // artificially lower mia_cay stock to 3 (minQty is 5)
-  state.inventoryStock["Quán Nhà (Chính)"][0].stockQty = 3;
+  const miaCay = state.inventoryStock["Quán Nhà (Chính)"].find((i) => i.id === "mia_cay");
+  miaCay.stockQty = 3;
 
   const warnings = kiemTraCanhBaoTonKho(state, "Quán Nhà (Chính)");
   assert.equal(warnings.length, 1);
@@ -78,7 +79,7 @@ console.log("Starting inventory-tax.test.mjs...");
   const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
   const res1 = phanTichTaiChinhNoiBo("EV kiểm tra kho còn bao nhiêu mía?", state);
   assert.equal(res1.type, "inventory");
-  assert.ok(res1.reply.includes("Mía cây tươi"));
+  assert.ok(res1.reply.includes("Mía cây"));
 
   const res2 = phanTichTaiChinhNoiBo("EV báo cáo nguyên liệu sắp hết", state);
   assert.equal(res2.type, "inventory");
@@ -88,8 +89,9 @@ console.log("Starting inventory-tax.test.mjs...");
 // Test 6: EV Voice Queries for Tax & Loa Alert
 {
   const state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  const currentMonthDate = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
   state.ds = [
-    { id: "tx1", loai: "thu", soTien: 10000000, ngay: "2026-08-01", chiNhanh: "Quán Nhà (Chính)" },
+    { id: "tx1", loai: "thu", soTien: 10000000, ngay: currentMonthDate, chiNhanh: "Quán Nhà (Chính)" },
   ];
 
   const resTax = phanTichTaiChinhNoiBo("EV thuế tháng này hết bao nhiêu?", state);

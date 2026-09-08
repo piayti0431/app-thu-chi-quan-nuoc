@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cupGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/><stop offset="30%" stop-color="#e0f2fe" stop-opacity="0.6"/><stop offset="80%" stop-color="#ffffff" stop-opacity="0.8"/><stop offset="100%" stop-color="#bae6fd" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <circle cx="80" cy="80" r="74" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+  <!-- Stacked cups in background -->
+  <path d="M50 35 L110 35 L102 95 L58 95 Z" fill="url(#cupGrad)" stroke="#38bdf8" stroke-width="1.5" opacity="0.5"/>
+  <path d="M50 45 L110 45 L102 105 L58 105 Z" fill="url(#cupGrad)" stroke="#38bdf8" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Main front cup -->
+  <path d="M48 55 L112 55 L98 135 C97 140 92 144 87 144 L73 144 C68 144 63 140 62 135 Z" fill="url(#cupGrad)" stroke="#0284c7" stroke-width="2.5"/>
+
+  <!-- Cup Lip / Rolled rim -->
+  <rect x="44" y="50" width="72" height="7" rx="3.5" fill="#ffffff" stroke="#0284c7" stroke-width="2"/>
+
+  <!-- Dome lid on top -->
+  <path d="M48 50 C48 25 112 25 112 50 Z" fill="#ffffff" opacity="0.5" stroke="#0284c7" stroke-width="2"/>
+  <ellipse cx="80" cy="28" rx="12" ry="4" fill="#0284c7"/>
+
+  <!-- Cup lines & measurement marks -->
+  <line x1="56" y1="80" x2="68" y2="80" stroke="#38bdf8" stroke-width="2"/>
+  <line x1="58" y1="100" x2="70" y2="100" stroke="#38bdf8" stroke-width="2"/>
+  <line x1="60" y1="120" x2="72" y2="120" stroke="#38bdf8" stroke-width="2"/>
+
+  <text x="80" y="105" font-size="11" font-weight="900" fill="#0284c7" text-anchor="middle">500ml</text>
+</svg>

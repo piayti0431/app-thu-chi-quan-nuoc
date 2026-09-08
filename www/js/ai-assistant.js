@@ -1,6 +1,8 @@
+import { layDanhSachTonKho, kiemTraCanhBaoTonKho } from './logic/inventory.js';
+import { tinhBaoCaoThue, xuatToKhaiThue01CNKD, tinhBaoCaoPL, tinhDinhMucDauVaoDauRa } from './logic/tax.js';
 import { dailyReport, docSoTienTiengViet, formatReportDate } from "./report.js";
 import { phanTichChiTiet, phanTichNhieu, stripWakeWordAndBranch } from "./parser.js";
-import { luuKhachQuen, luuTriThucEV, layOverheadChoChiNhanh, tinhDiemHoaVonChiNhanh, luuOverheadChoChiNhanh, layDanhSachTonKho, kiemTraCanhBaoTonKho, tinhBaoCaoThue, xuatToKhaiThue01CNKD, tinhBaoCaoPL } from "./db.js";
+import { luuKhachQuen, luuTriThucEV, layOverheadChoChiNhanh, tinhDiemHoaVonChiNhanh, luuOverheadChoChiNhanh,       } from "./db.js";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   style: "currency",
@@ -37,6 +39,57 @@ function formatDateDisplay(dateKeyStr) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   return dateKeyStr;
+}
+
+export function extractSpecificDateFromQuery(query) {
+  if (!query) return null;
+  const q = query.toLowerCase();
+  const now = new Date();
+  const fallbackYear = now.getFullYear();
+  const fallbackMonth = now.getMonth() + 1;
+
+  // 1. Match DD/MM/YYYY or DD/MM (e.g., "30/08/2026", "30/8", "30-08-2026", "30-8")
+  const slashMatch = q.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{4}))?\b/);
+  if (slashMatch) {
+    const day = String(Number(slashMatch[1])).padStart(2, "0");
+    const month = String(Number(slashMatch[2])).padStart(2, "0");
+    const year = slashMatch[3] ? String(slashMatch[3]) : String(fallbackYear);
+    return `${year}-${month}-${day}`;
+  }
+
+  // 2. Match "ngày DD tháng MM" (e.g. "ngày 30 tháng 8", "ngay 30 thang 8", "30 tháng 8")
+  const dayMonthMatch = q.match(/(?:ngày|ngay)?\s*(\d{1,2})\s*(?:tháng|thang)\s*(\d{1,2})(?:\s*(?:năm|nam)\s*(\d{4}))?/i);
+  if (dayMonthMatch && !q.includes("tháng này") && !q.includes("tháng trước")) {
+    const day = String(Number(dayMonthMatch[1])).padStart(2, "0");
+    const month = String(Number(dayMonthMatch[2])).padStart(2, "0");
+    const year = dayMonthMatch[3] ? String(dayMonthMatch[3]) : String(fallbackYear);
+    return `${year}-${month}-${day}`;
+  }
+
+  // 3. Match "ngày DD" or "hôm DD" or "doanh số ngày DD" (e.g. "ngày 30", "doanh số ngày 30", "ngay 30 la bao nhieu")
+  const dayOnlyMatch = q.match(/(?:ngày|ngay|hôm|hom|ngày\s*mùng|mùng)\s*(\d{1,2})\b/i);
+  if (dayOnlyMatch) {
+    const dayNum = Number(dayOnlyMatch[1]);
+    if (dayNum >= 1 && dayNum <= 31) {
+      let m = fallbackMonth;
+      let y = fallbackYear;
+      // Nếu ngày được hỏi lớn hơn ngày hiện tại trong tháng (ví dụ hôm nay ngày 3 mà hỏi ngày 30),
+      // nghĩa là chủ quán đang truy vấn ngày 30 của tháng liền trước (tháng 8).
+      if (dayNum > now.getDate()) {
+        m = fallbackMonth - 1;
+        if (m < 1) {
+          m = 12;
+          y -= 1;
+        }
+      }
+      const day = String(dayNum).padStart(2, "0");
+      const month = String(m).padStart(2, "0");
+      const year = String(y);
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  return null;
 }
 
 function groupTransactionsByDate(transactions, targetBranch = null) {
@@ -173,12 +226,16 @@ export const conversationContext = {
   pendingQuestion: null,
   pendingDiscrepancy: null,
   pendingMissingItems: null,
+  pendingProcurementContext: null,
 };
 
 export function phanTichTaiChinhNoiBo(query, state) {
   const { branch: detectedBranch } = stripWakeWordAndBranch(query);
   const norm = normalizeQuery(query);
   const today = todayKey();
+  const querySpecificDate = extractSpecificDateFromQuery(query);
+  const activeDate = querySpecificDate || today;
+  const isAskingSpecificDate = Boolean(querySpecificDate);
   const transactions = (state.ds || []).filter((tx) => !tx.deleted);
   const customers = state.crmCustomers || [];
 
@@ -186,9 +243,13 @@ export function phanTichTaiChinhNoiBo(query, state) {
   const isAllBranches = norm.includes("2 chi nhanh") || norm.includes("ca 2 quan") || norm.includes("2 quan") || norm.includes("tat ca");
   const targetBranch = isAllBranches ? null : (detectedBranch || (norm.includes("chi nhanh 2") ? "Chi nhánh 2" : (norm.includes("chi nhanh 1") ? "Quán Nhà (Chính)" : null)));
 
-  const todayReport = dailyReport(transactions, today, targetBranch, state.defaultOpeningCash || 500000);
-  const b1Report = dailyReport(transactions, today, "Quán Nhà (Chính)", state.defaultOpeningCash || 500000);
-  const b2Report = dailyReport(transactions, today, "Chi nhánh 2", state.defaultOpeningCash || 500000);
+  const activeDateReport = dailyReport(transactions, activeDate, targetBranch, state.defaultOpeningCash || 50000);
+  const activeB1Report = dailyReport(transactions, activeDate, "Quán Nhà (Chính)", state.defaultOpeningCash || 50000);
+  const activeB2Report = dailyReport(transactions, activeDate, "Chi nhánh 2", state.defaultOpeningCash || 50000);
+
+  const todayReport = dailyReport(transactions, today, targetBranch, state.defaultOpeningCash || 50000);
+  const b1Report = dailyReport(transactions, today, "Quán Nhà (Chính)", state.defaultOpeningCash || 50000);
+  const b2Report = dailyReport(transactions, today, "Chi nhánh 2", state.defaultOpeningCash || 50000);
 
   // 0.0 TỰ SỬA SAI GIỮA CÂU & CHIẾT KHẤU / BỚT TIỀN CHO KHÁCH
   let effectiveQuery = query;
@@ -562,7 +623,6 @@ ${debtText}
 
     const updatedOverhead = { ...overhead, rentMonthly: newRent };
     const calc = tinhDiemHoaVonChiNhanh(updatedOverhead, 0.5);
-
     return {
       type: "action",
       action: "update_overhead",
@@ -601,7 +661,7 @@ ${debtText}
   // 1.6 PHẢN BIỆN, THẮC MẮC, BẮT LỖI TÍNH TOÁN / GIÁ VỐN / NGUỒN GỐC SỐ TIỀN
   // Ví dụ: "vốn nào mà 7k?", "ở đâu ra 7k vậy?", "sao tính kỳ vậy?", "sao không hỏi giá vốn mà tự ý điền vậy?", "tính kiểu gì vậy?"
   const isCritiqueOrExplanationQuery =
-    norm.includes("o dau ra") ||
+    (/\b(?:o|tu)\s+dau\s+ra\b/.test(norm) && !norm.includes("dau vao")) ||
     norm.includes("sao tinh") ||
     norm.includes("tinh kieu gi") ||
     norm.includes("sao ky vay") ||
@@ -696,13 +756,16 @@ Lý do EV tự động điền giá vốn và tính toán là:
         formText,
         reply: `📑 **Dạ EV đã lập Tờ khai Thuế Hộ Kinh Doanh (Mẫu 01/CNKD)**:
 - **Kỳ tính thuế**: ${periodType === "quarter" ? "Quý" : "Tháng"} ${taxReport.periodValue} (${taxReport.branchName})
-- **Doanh thu chịu thuế**: **${formatMoney(taxReport.revenue)}** (${taxReport.transactionCount} đơn bán)
-- **Thuế GTGT (3.0%)**: ${formatMoney(taxReport.vatTax)}
-- **Thuế TNCN (1.5%)**: ${formatMoney(taxReport.pitTax)}
+- **Doanh thu kỳ chọn**: **${formatMoney(taxReport.revenue)}** (${taxReport.transactionCount} đơn bán)
+- **Doanh thu ước tính cả năm**: **${formatMoney(taxReport.estimatedAnnualRevenue)}**
+- **Thuế GTGT định mức (3.0%)**: ${formatMoney(taxReport.vatTax)}
+- **Thuế TNCN định mức (1.5%)**: ${formatMoney(taxReport.pitTax)}
 --------------------------------------------------
-💰 **TỔNG THUẾ TẠM TÍNH (4.5%)**: **${formatMoney(taxReport.totalTax)}**
+${taxReport.isExempt
+  ? `🎉 **TRẠNG THÁI: MIỄN 100% THUẾ** (DT năm ≤ 200 triệu đ)\n💰 **SỐ THUẾ THỰC NỘP**: **0 đ**`
+  : `💰 **TỔNG NGHĨA VỤ THUẾ (4.5%)**: **${formatMoney(taxReport.actualTaxPayable)}**`}
 
-*(Biểu mẫu đã được chuẩn hóa theo Thông tư 40/2021/TT-BTC, sẵn sàng in hoặc nộp cơ quan thuế!)*`,
+*(Biểu mẫu đã được chuẩn hóa theo Thông tư 40/2021/TT-BTC & cập nhật ngưỡng miễn thuế 200 triệu/năm, sẵn sàng in hoặc nộp cơ quan thuế!)*`,
       };
     }
 
@@ -710,13 +773,14 @@ Lý do EV tự động điền giá vốn và tính toán là:
       type: "tax",
       taxReport,
       reply: `📊 **Dạ EV xin báo cáo Nghĩa vụ Thuế Hộ Kinh Doanh (${periodType === "quarter" ? "Quý" : "Tháng"} ${taxReport.periodValue} - ${taxReport.branchName})**:
-- **Tổng doanh thu bán hàng**: **${formatMoney(taxReport.revenue)}** (${taxReport.transactionCount} lượt khách)
-- **Thuế Giá trị gia tăng (GTGT 3.0%)**: ${formatMoney(taxReport.vatTax)}
-- **Thuế Thu nhập cá nhân (TNCN 1.5%)**: ${formatMoney(taxReport.pitTax)}
+- **Doanh thu kỳ chọn**: **${formatMoney(taxReport.revenue)}** (${taxReport.transactionCount} lượt khách)
+- **Doanh thu ước tính cả năm**: **${formatMoney(taxReport.estimatedAnnualRevenue)}**
+- **Thuế GTGT (3.0%)**: ${formatMoney(taxReport.vatTax)} | **Thuế TNCN (1.5%)**: ${formatMoney(taxReport.pitTax)}
+- **Tổng định mức thuế (4.5%)**: ${formatMoney(taxReport.totalTax)}
 --------------------------------------------------
-💰 **TỔNG NGHĨA VỤ THUẾ PHẢI NỘP**: **${formatMoney(taxReport.totalTax)}** (Tỷ lệ 4.5% theo Thông tư 40/2021/TT-BTC)
-
-${taxReport.isExempt ? "💡 *Lưu ý: Hộ kinh doanh có doanh thu năm ≤ 100 triệu thuộc diện miễn thuế theo luật!*" : "*Anh/Chị có thể bảo 'EV xuất mẫu tờ khai 01/CNKD' để lấy mẫu nộp thuế nhé!*"}`,
+${taxReport.isExempt
+  ? `🎉 **QUÁN ĐƯỢC MIỄN 100% THUẾ** (Doanh thu năm ≤ 200.000.000 đ theo Luật Thuế mới)\n🛡️ **Số thuế thực tế phải nộp**: **0 đ**\n💡 *Gợi ý: Khi làm việc với thuế phường, anh/chị chỉ cần kê khai DT năm dưới 200 triệu là được miễn nộp thuế hoàn toàn!*`
+  : `💰 **TỔNG THUẾ PHẢI NỘP (4.5%)**: **${formatMoney(taxReport.actualTaxPayable)}** (Thuế khoán/kê khai F&B)\n*Anh/Chị có thể bảo 'EV xuất mẫu tờ khai 01/CNKD' để lấy file nộp thuế nhé!*`}`,
     };
   }
 
@@ -774,6 +838,64 @@ ${lines}
 *Dữ liệu tồn kho được tự động trừ theo công thức định mức (BOM) mỗi ly nước bán ra!*`,
     };
   }
+
+  // 1.95 PHÂN TÍCH ĐẦU VÀO - ĐẦU RA & TỰ HỌC ĐỊNH MỨC THỰC TẾ 15 NGÀY (YIELD ADAPTATION & VELOCITY)
+  if (
+    norm.includes("dau vao dau ra") ||
+    norm.includes("dinh muc thuc te") ||
+    norm.includes("tong ket 15 ngay") ||
+    norm.includes("tong hop 15 ngay") ||
+    norm.includes("1 bo mia") ||
+    norm.includes("mot bo mia") ||
+    norm.includes("bao lau") ||
+    norm.includes("may ngay") ||
+    norm.includes("may tieng") ||
+    norm.includes("1kg tac") ||
+    norm.includes("1 kg tac") ||
+    norm.includes("1kg cam") ||
+    norm.includes("1 kg cam") ||
+    norm.includes("1kg rau ma") ||
+    norm.includes("1 kg rau ma") ||
+    (norm.includes("dinh muc") && (norm.includes("hoc") || norm.includes("thuc te") || norm.includes("phan tich") || norm.includes("bao nhieu ly")))
+  ) {
+    const branchToUse = targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+    const yieldReport = tinhDinhMucDauVaoDauRa(state.ds || [], 15, branchToUse);
+    const bm = yieldReport.benchmarks;
+    const vel = yieldReport.velocity || {};
+
+    const miaBundleDurationText = vel.daysPerBundle > 0
+      ? (vel.daysPerBundle < 1 ? `khoảng **${vel.hoursPerBundle} tiếng bán hàng** (~${vel.avgMiaPerDay} bó/ngày)` : `khoảng **${vel.daysPerBundle} ngày** (~${vel.hoursPerBundle} tiếng bán hàng)`)
+      : "khoảng **1 ngày** (~12 tiếng bán hàng)";
+
+    return {
+      type: "yield_analysis",
+      yieldReport,
+      reply: `🧠 **Dạ EV đã tổng hợp & phân tích Định Mức Đầu Vào - Đầu Ra & Thời Gian Bán (${branchToUse})**:
+📅 *Dữ liệu tích lũy: ${yieldReport.distinctDays}/15 ngày (${yieldReport.progressPct}% chu kỳ học)*
+
+1. 🎋 **Mía cây tươi**:
+   - Nhập vào: **${bm.mia.inputQty} bó** | Đã bán ra: **${bm.mia.outputCups} ly quy đổi**
+   - 🎯 **Sản lượng thực tế**: **1 bó mía ép được ~${bm.mia.actualYield > 0 ? bm.mia.actualYield : 45} ly nước** *(Lý thuyết: 45 ly/bó)*
+   - ⏱️ **Thời gian bán hết**: **1 bó mía bán trong ${miaBundleDurationText}**
+   - 📊 **Tốc độ tiêu thụ**: Quán đang ép bình quân **~${vel.avgMiaPerDay || 1} bó/ngày** (~${vel.avgCupsPerDay || 45} ly/ngày)
+   - 💵 **Giá vốn mía/ly**: **${formatMoney(bm.mia.actualUnitCost > 0 ? bm.mia.actualUnitCost : 1667)} / ly**
+
+2. 🍊 **Tắc tươi**:
+   - Nhập vào: **${bm.tac.inputQty} kg** | Đã bán ra: **${bm.tac.outputCups} ly (Trà tắc & Mía tắc)**
+   - 🎯 **Hiệu suất thực tế**: **1 kg tắc = ~${bm.tac.actualYield > 0 ? bm.tac.actualYield : 22} ly**
+
+3. 🍊 **Cam sành**:
+   - Nhập vào: **${bm.cam.inputQty} kg** | Đã bán ra: **${bm.cam.outputCups} ly (Nước cam & Mía cam)**
+   - 🎯 **Hiệu suất thực tế**: **1 kg cam = ~${bm.cam.actualYield > 0 ? bm.cam.actualYield : 3} ly**
+
+4. 🥬 **Rau má tươi**:
+   - Nhập vào: **${bm.rauMa.inputQty} kg** | Đã bán ra: **${bm.rauMa.outputCups} ly**
+   - 🎯 **Hiệu suất thực tế**: **1 kg rau má = ~${bm.rauMa.actualYield > 0 ? bm.rauMa.actualYield : 5} ly**
+
+💡 **EV Đánh Giá**: ${yieldReport.distinctDays < 15 ? `EV đang tiếp tục ghi nhớ từng đợt nhập chợ và lý do nhập của anh/chị. Đủ 15 ngày số liệu sẽ tự động đạt độ chuẩn xác 100% ạ!` : `Số liệu 15 ngày đã ổn định! Anh/chị có thể an tâm sử dụng định mức này để tối ưu nguyên liệu nhập nhé! ✨`}`,
+    };
+  }
+
 
   // 1.10 SO SÁNH HIỆU QUẢ KINH DOANH GIỮA CÁC NGÀY / KỲ (TỪ KNOTE)
   if (
@@ -1137,6 +1259,43 @@ ${ingredientDetail}
 *Dữ liệu đã được cập nhật chuẩn xác vào sổ doanh thu!*`,
         };
       }
+    }
+  }
+
+  // 3.0 XỬ LÝ CÂU TRẢ LỜI PHỎNG VẤN BỐI CẢNH NHẬP NGUYÊN LIỆU (PENDING PROCUREMENT CONTEXT RESOLUTION)
+  if (conversationContext.pendingProcurementContext) {
+    const pending = conversationContext.pendingProcurementContext;
+    const isNewCommand = (
+      ((norm.startsWith("ban") || norm.includes("ban ") || norm.includes("khach lay") || norm.includes("khach mua") || norm.includes("thu ")) && !norm.includes("ban het") && !norm.includes("chua ban het") && !norm.includes("het sach")) ||
+      (norm.includes("chi ") && !norm.includes("chi con")) ||
+      (norm.includes("nhap ") && !norm.includes("nhap them vi") && !norm.includes("nhap vi") && !norm.includes("nhap do") && !norm.includes("nhap de")) ||
+      (norm.includes("mua ") && !norm.includes("mua vi") && !norm.includes("mua de") && !norm.includes("mua them vi") && !norm.includes("mua do")) ||
+      norm.includes("tu van") || norm.includes("chien luoc") || norm.includes("loi khuyen") || norm.includes("bao cao") || norm.includes("doanh thu") || norm.includes("kiem tra")
+    );
+    
+    if (isNewCommand) {
+      conversationContext.pendingProcurementContext = null;
+    } else {
+      conversationContext.pendingProcurementContext = null;
+      const branchToUse = pending.branch || targetBranch || state.currentBranch || "Quán Nhà (Chính)";
+
+      return {
+        type: "action",
+        action: "save_procurement_context",
+        contextData: {
+          id: pending.id,
+          item: pending.item,
+          qty: pending.qty,
+          unit: pending.unit,
+          amount: pending.amount,
+          branch: branchToUse,
+          answer: query,
+          timestamp: new Date().toISOString(),
+        },
+        reply: `📝 **Dạ EV đã ghi nhớ bối cảnh nhập ${pending.item} vào Sổ Tri Thức!**
+- 📦 **Tình trạng đợt cũ & Lý do**: *"${query}"*
+- ⏱️ **Theo dõi chu kỳ**: EV đã bắt đầu bấm giờ theo dõi đợt **${pending.qty} ${pending.unit || "phần"} ${pending.item}** này. EV sẽ tổng hợp và báo cáo chính xác 1 ${pending.unit || "phần"} bán trong bao lâu và ép được bao nhiêu ly thực tế nhé! 🎋🚀`,
+      };
     }
   }
 
@@ -1654,6 +1813,38 @@ ${expText}
     };
   }
 
+  // ======================================================================
+  // GUARD: Các action sửa đổi Menu/Cài đặt chỉ thực thi khi có XÁC NHẬN
+  // EV không được tự ý thêm/sửa/xóa menu mà không có lệnh rõ ràng từ chủ
+  // Từ khóa xác nhận: "xác nhận", "đồng ý", "làm đi", "ok làm", "được rồi", "thêm luôn", "sửa luôn", "xóa luôn"
+  // ======================================================================
+  const hasMenuConfirm =
+    norm.includes("xac nhan") ||
+    norm.includes("dong y") ||
+    norm.includes("lam di") ||
+    norm.includes("ok lam") ||
+    norm.includes("duoc roi") ||
+    norm.includes("them luon") ||
+    norm.includes("sua luon") ||
+    norm.includes("xoa luon") ||
+    norm.includes("cap nhat luon") ||
+    norm.includes("doi luon") ||
+    norm.includes("them vao menu") ||
+    norm.includes("them vao thuc don") ||
+    norm.includes("doi gia") ||
+    norm.includes("sua gia") ||
+    norm.includes("chinh gia") ||
+    norm.includes("sua cost") ||
+    norm.includes("doi cost") ||
+    norm.includes("doi gia von") ||
+    norm.includes("thanh") ||
+    norm.includes("xoa mon") ||
+    norm.includes("xoa khoi menu") ||
+    norm.includes("bo mon") ||
+    norm.includes("them chi nhanh") ||
+    norm.includes("tao chi nhanh") ||
+    norm.includes("mo chi nhanh");
+
   // 12. LỆNH THÊM MÓN MỚI VÀO MENU
   if (
     norm.includes("them vao menu") ||
@@ -1679,6 +1870,13 @@ ${expText}
       voiceName: name.toLowerCase(),
       voiceUnit: "ly",
     };
+    if (!hasMenuConfirm) {
+      return {
+        type: "clarify",
+        reply: `📋 EV hiểu anh/chị muốn **thêm món "${name}"** vào Menu với giá **${formatMoney(price)}**. Để tránh thêm nhầm, xác nhận lại nhé:\n👉 *"EV thêm luôn ${name} giá ${formatMoney(price)}"*`,
+      };
+    }
+
 
     return {
       type: "action",
@@ -1722,6 +1920,13 @@ ${expText}
 
     if (matched && newAmount > 0) {
       if (isCostChange) {
+        if (!hasMenuConfirm) {
+          return {
+            type: "clarify",
+            reply: `🔔 EV hiểu anh/chị muốn **đổi giá vốn "${matched?.name}"** thành **${formatMoney(newAmount)}**. Xác nhận nhé:\n👉 *"EV sửa luôn"*`,
+          };
+        }
+
         return {
           type: "action",
           action: "update_menu_cost",
@@ -1734,6 +1939,13 @@ ${expText}
 - 💡 **Tự động hóa**: EV đã áp dụng giá vốn mới này vào tất cả các phép tính lợi nhuận gộp từ bây giờ ạ!`,
         };
       } else {
+        if (!hasMenuConfirm) {
+          return {
+            type: "clarify",
+            reply: `🔔 EV hiểu anh/chị muốn **đổi giá bán "${matched?.name}"** thành **${formatMoney(newAmount)}**. Xác nhận nhé:\n👉 *"EV sửa luôn"*`,
+          };
+        }
+
         return {
           type: "action",
           action: "update_menu_price",
@@ -1754,6 +1966,13 @@ ${expText}
     const quickItems = state.quickItems || [];
     const matched = quickItems.find((i) => norm.includes(normalizeQuery(i.name)) || (i.shortName && norm.includes(normalizeQuery(i.shortName))));
     if (matched) {
+      if (!hasMenuConfirm) {
+        return {
+          type: "clarify",
+          reply: `⚠️ EV hiểu anh/chị muốn **xóa món "${matched?.name}"** khỏi Menu. Xác nhận nhé:\n👉 *"EV xóa luôn"*`,
+        };
+      }
+
       return {
         type: "action",
         action: "delete_menu_item",
@@ -1812,6 +2031,13 @@ ${expText}
     if (nameMatch) {
       branchName = capitalizeWords(nameMatch[1].replace(/^(mới|moi|thêm|them|tên là|ten la|là|la)\s+/i, "").trim());
     }
+    if (!hasMenuConfirm) {
+      return {
+        type: "clarify",
+        reply: `🔔 EV hiểu anh/chị muốn **thêm chi nhánh "${branchName}"**. Xác nhận nhé:\n👉 *"EV thêm luôn"*`,
+      };
+    }
+
 
     return {
       type: "action",
@@ -1858,33 +2084,224 @@ ${expText}
     }
   }
 
-  // 13. BÁO CÁO TỔNG HỢP CẢ 2 CHI NHÁNH
+  // 12.8 HỎI VỀ HUẤN LUYỆN AI / TRAIN AI / FINE-TUNE MODEL / 6 CẤP ĐỘ AI / F&B AI
+  const isAITrainingQuery =
+    norm.includes("train ai") ||
+    norm.includes("huan luyen ai") ||
+    norm.includes("fine tune") ||
+    norm.includes("finetune") ||
+    norm.includes("tai lieu train") ||
+    norm.includes("cach train ai") ||
+    norm.includes("llama factory") ||
+    norm.includes("unsloth") ||
+    norm.includes("nanogpt") ||
+    norm.includes("deepspeed") ||
+    norm.includes("lora") ||
+    norm.includes("qlora") ||
+    norm.includes("hoc ai") ||
+    norm.includes("mo hinh ai") ||
+    norm.includes("train model") ||
+    norm.includes("6 cap do ai") ||
+    norm.includes("cap do ai") ||
+    norm.includes("ai f&b") ||
+    norm.includes("ai fb") ||
+    norm.includes("ai nha hang") ||
+    norm.includes("ai sales agent") ||
+    norm.includes("cai lo nuong") ||
+    norm.includes("ultralytics");
+
+  if (isAITrainingQuery) {
+    return {
+      type: "ai_knowledge",
+      reply: `🧠 **DẠ EV ĐÃ GHI NHỚ TOÀN BỘ TRI THỨC VỀ HUẤN LUYỆN AI & 6 CẤP ĐỘ ỨNG DỤNG AI F&B** 🚀
+
+🏆 **1. 6 CẤP ĐỘ ỨNG DỤNG AI VÀO DOANH NGHIỆP & F&B (LỘ TRÌNH CHUẨN)**:
+- **Cấp 1 - AI Chatbot & Prompting**: ChatGPT, Claude, Gemini hỗ trợ viết content, dịch thuật, soạn thảo.
+- **Cấp 2 - Công Cụ Chuyên Biệt**: Midjourney (ảnh menu), Descript/HeyGen (video đào tạo), Julius AI (phân tích data).
+- **Cấp 3 - Tự Động Hóa (Automation)**: Make.com, n8n, Zapier đồng bộ dữ liệu đa kênh 24/7 không cần bấm nút.
+- **Cấp 4 - Trợ Lý AI Agent Độc Lập**: AI Sales Agent tư vấn chốt đơn, Trợ lý CFO tự ra quyết định & gọi function/API.
+- **Cấp 5 - Modern Data Stack & Realtime Dashboard**: BigQuery/PostgreSQL gom dữ liệu POS - Kho - Kế toán về Dashboard cho CEO.
+- **Cấp 6 - Custom AI Model Chuyên Ngành**: Fine-tune mô hình AI riêng (Qwen 2.5, Llama 3) hiểu sâu nghiệp vụ chuỗi quán nước và giọng nói bán hàng.
+
+📚 **2. CÁC USE CASE AI F&B THỰC CHIẾN (TỪ CÁI LÒ NƯỚNG, BRANDS VN, CICC, BIZFLY)**:
+1. **Kiểm soát Giá vốn BOM & Food Cost**: Giảm 30% lãng phí, tự động trừ kho nguyên liệu tươi theo định lượng chuẩn.
+2. **Ghi đơn giọng nói siêu tốc**: Nói một câu ("2 mía tắc 1 má đậu 34k ck") AI tự bóc tách đơn hàng vào sổ trong 0.2s.
+3. **Executive Daily Briefing**: Tóm tắt báo cáo 10 dòng đầu/cuối ca, chỉ nêu ngoại lệ cần duyệt thay vì bảng số dài.
+4. **Trí nhớ khách quen (CRM Retention)**: Nhận diện khẩu vị khách quen để phục vụ tức thì.
+5. **Quản trị dòng tiền 4 Hũ**: Tách bạch điểm bán, hoàn vốn hàng $\\rightarrow$ bù mặt bằng $\\rightarrow$ dự phòng $\\rightarrow$ lợi nhuận sạch.
+
+🛠️ **3. QUY TRÌNH 7 BƯỚC HUẤN LUYỆN AI CHUẨN (ULTRALYTICS / UNSLOTH / LLAMA-FACTORY)**:
+1. *Use Case* $\\rightarrow$ 2. *Data Prep (JSONL/Images)* $\\rightarrow$ 3. *Chọn Model (Qwen/Llama/YOLO)* $\\rightarrow$ 4. *Môi trường (Google Colab/PyTorch)* $\\rightarrow$ 5. *Fine-tuning (LoRA/QLoRA)* $\\rightarrow$ 6. *Validation/Test* $\\rightarrow$ 7. *Deploy Edge/GGUF/vLLM*.
+
+✨ *Chủ quán cần tra cứu hoặc áp dụng use case nào vào quán, cứ nhắn EV hỗ trợ nhé!*`,
+    };
+  }
+
+  // 12.5 PHÂN BỔ HŨ TIỀN QUẢN TRỊ DÒNG TIỀN (CHIA TIỀN MẶT BẰNG, NGUYÊN LIỆU, LỢI NHUẬN)
+  const isJarQuery =
+    norm.includes("chia tien") ||
+    norm.includes("phan bo tien") ||
+    norm.includes("hu tien") ||
+    norm.includes("bo ong heo") ||
+    norm.includes("trich quy") ||
+    (norm.includes("chia") && (norm.includes("mat bang") || norm.includes("nguyen lieu") || norm.includes("loi")));
+
+  if (isJarQuery) {
+    const extractedAmount = extractMoneyFromText(query);
+    const numDaysMatch = norm.match(/(\d+)\s*ngay/i);
+    const numDays = numDaysMatch ? Number(numDaysMatch[1]) : 1;
+
+    // Use extracted amount or calculate from report
+    const targetRev = extractedAmount > 0 ? extractedAmount : (activeDateReport.income || 983000);
+    const estimatedCost = Math.round(targetRev * 0.45); // ~45% COGS
+
+    const ov1 = layOverheadChoChiNhanh(state, "Quán Nhà (Chính)");
+    const ov2 = layOverheadChoChiNhanh(state, "Chi nhánh 2");
+    const dailyFixed1 = ov1 ? Math.round(((ov1.rentMonthly || 0) + (ov1.electricityMonthly || 0) + (ov1.waterMonthly || 0) + (ov1.trashMonthly || 0)) / 30) : 20000;
+    const dailyFixed2 = ov2 ? Math.round(((ov2.rentMonthly || 0) + (ov2.electricityMonthly || 0) + (ov2.waterMonthly || 0) + (ov2.trashMonthly || 0)) / 30) : 245000;
+    const totalDailyOverhead = (targetBranch === "Quán Nhà (Chính)" ? dailyFixed1 : (targetBranch === "Chi nhánh 2" ? dailyFixed2 : (dailyFixed1 + dailyFixed2))) * numDays;
+
+    const netPocketProfit = targetRev - estimatedCost - totalDailyOverhead;
+
+    const negativeNote = netPocketProfit < 0
+      ? `\n\n⚠️ **GHI CHÚ DÒNG TIỀN ÂM (-${formatMoney(Math.abs(netPocketProfit))})**:
+- 🔴 **Tình trạng**: Doanh thu ${formatMoney(targetRev)} chưa đạt điểm hòa vốn, sau khi trích đủ tiền mua hàng (${formatMoney(estimatedCost)}) và tiền mặt bằng (${formatMoney(totalDailyOverhead)}) thì hũ lợi nhuận bị âm -${formatMoney(Math.abs(netPocketProfit))}.
+- 💡 **Cách xử lý**: Không rút tiền lời đợt này. Khoản hụt này sẽ tự động được bù lại vào những ngày bán đắt (trên 523k/ngày) tiếp theo!`
+      : `\n\n✅ **GHI CHÚ LỢI NHUẬN DƯƠNG (+${formatMoney(netPocketProfit)})**:
+- 🟢 **Đã hoàn thành nghĩa vụ**: Quán đã trích đủ ${formatMoney(estimatedCost)} tiền hàng và ${formatMoney(totalDailyOverhead)} tiền mặt bằng.
+- 💵 Số tiền **+${formatMoney(netPocketProfit)}** là tiền lời sạch của anh/chị!`;
+
+    return {
+      type: "cash_allocation",
+      reply: `📦 **Dạ EV xin gửi Bảng Phân Bổ 4 Hũ Tiền (Tổng doanh thu: ${formatMoney(targetRev)}${numDays > 1 ? ` trong ${numDays} ngày` : ""})**:
+
+1. 🧊 **HŨ 1: VỐN NGUYÊN LIỆU (Tái Nhập Hàng)**:
+   - Số tiền trích: **${formatMoney(estimatedCost)}** (~45% doanh thu)
+   - 🎯 *Mục đích: Giữ riêng tiền này để sáng mai mua đá, mía, tắc, ly, màng ép... Tuyệt đối không tiêu xài vào tiền này!*
+
+2. 🏢 **HŨ 2: QUỸ MẶT BẰNG & ĐIỆN NƯỚC (Duy Trì Quán)**:
+   - Số tiền trích: **${formatMoney(totalDailyOverhead)}** *(Trích ${formatMoney(dailyFixed2)}/ngày cho CN2 mặt bằng 6tr/tháng)*
+   - 🎯 *Mục đích: Bỏ riêng vào tài khoản/ống heo để cuối tháng gom đủ 6 triệu trả tiền chủ nhà và tiền điện, không bị hụt!*
+
+3. 💵 **HŨ 3: TIỀN THỐI ĐẦU NGÀY (Két Giữ Lại)**:
+   - Số tiền giữ lại trong két: **50.000 đ**
+   - 🎯 *Mục đích: Để sẵn trong két cho ca sáng mai thối tiền cho khách.*
+
+4. 💰 **HŨ 4: TIỀN LỜI RÒNG BỎ TÚI (Lợi Nhuận Thực Nhận)**:
+   - Số tiền tự do rút ra: **${netPocketProfit >= 0 ? `+${formatMoney(netPocketProfit)}` : `-${formatMoney(Math.abs(netPocketProfit))}`}** ${netPocketProfit >= 0 ? "🟢 (Có lời)" : "🔴 (ĐANG ÂM - CHƯA ĐỦ TRẢ MẶT BẰNG)"}${negativeNote}`,
+    };
+  }
+
+  // 13. BÁO CÁO & PHÂN TÍCH TỔNG HỢP CẢ 2 CHI NHÁNH
   if (isAllBranches || norm.includes("so sanh 2 quan") || norm.includes("2 chi nhanh")) {
+    const reportTitle = isAskingSpecificDate
+      ? `ngày ${formatDateDisplay(activeDate)}`
+      : `hôm nay (${todayReport.dateText})`;
+
+    if (isAskingSpecificDate && activeDateReport.income === 0 && activeDateReport.expense === 0) {
+      return {
+        type: "financial_multi_branch",
+        reply: `🏢 **Dạ EV kiểm tra & phân tích CẢ 2 CHI NHÁNH ${reportTitle}**:
+Hiện tại hệ thống chưa ghi nhận đơn bán hoặc khoản chi nào phát sinh trong ngày ${formatDateDisplay(activeDate)} ạ.`,
+      };
+    }
+
+    const totalRev = activeDateReport.income || 0;
+    const b1Rev = activeB1Report.income || 0;
+    const b2Rev = activeB2Report.income || 0;
+    const b1Pct = totalRev > 0 ? Math.round((b1Rev / totalRev) * 100) : 0;
+    const b2Pct = totalRev > 0 ? Math.round((b2Rev / totalRev) * 100) : 0;
+
+    // Overhead info
+    const ov1 = layOverheadChoChiNhanh(state, "Quán Nhà (Chính)");
+    const ov2 = layOverheadChoChiNhanh(state, "Chi nhánh 2");
+    const dailyFixed1 = ov1 ? Math.round(((ov1.rentMonthly || 0) + (ov1.electricityMonthly || 0) + (ov1.waterMonthly || 0) + (ov1.trashMonthly || 0)) / 30) : 20000;
+    const dailyFixed2 = ov2 ? Math.round(((ov2.rentMonthly || 0) + (ov2.electricityMonthly || 0) + (ov2.waterMonthly || 0) + (ov2.trashMonthly || 0)) / 30) : 245000;
+
+    // Gross profit and True Net Profit
+    const b1Gross = activeB1Report.grossProfit;
+    const b2Gross = activeB2Report.grossProfit;
+    const b1Net = b1Gross - dailyFixed1;
+    const b2Net = b2Gross - dailyFixed2;
+    const totalNet = b1Net + b2Net;
+
+    const b1GrossMargin = b1Rev > 0 ? Math.round((b1Gross / b1Rev) * 100) : 0;
+    const b2GrossMargin = b2Rev > 0 ? Math.round((b2Gross / b2Rev) * 100) : 0;
+
+    let branchNegativeNote = "";
+    if (b2Net < 0) {
+      branchNegativeNote = `\n\n⚠️ **GHI CHÚ QUAN TRỌNG KHI CÓ CHI NHÁNH ÂM TIỀN MẶT BẰNG**:
+- Chi nhánh 2 đang bị hụt **-${formatMoney(Math.abs(b2Net))}** tiền mặt bằng hôm nay (do bán dưới điểm hòa vốn 523k/ngày).
+- ${b1Net >= Math.abs(b2Net) ? `✅ Quán Nhà có lãi ròng **+${formatMoney(b1Net)}** đã bù đắp trọn vẹn khoản âm này, giúp toàn bộ hệ thống vẫn có lời dương **+${formatMoney(totalNet)}**.` : `🔴 Toàn hệ thống đang bị âm **-${formatMoney(Math.abs(totalNet))}**, sẽ được tự động bù lại vào ngày bán đông tiếp theo.`}`;
+    }
+
+    let analysisSection = "";
+    if (norm.includes("phan tich") || norm.includes("so sanh") || norm.includes("danh gia") || norm.includes("hieu qua")) {
+      analysisSection = `\n\n🧠 **PHÂN TÍCH CHUYÊN SÂU TỪ THƯ KÝ EV**:
+- 📊 **Tỷ trọng doanh thu**: Quán Nhà đóng góp **${b1Pct}%** | Chi nhánh 2 đóng góp **${b2Pct}%**.
+- 🏠 **Quán Nhà**: Lãi gộp nước ${formatMoney(b1Gross)}, trừ chi phí điện nước ~${formatMoney(dailyFixed1)} ➔ Lãi ròng thực nhận **+${formatMoney(b1Net)}** *(Rất an toàn)*.
+- 🏪 **Chi nhánh 2**: Lãi gộp nước ${formatMoney(b2Gross)}, trừ tiền mặt bằng & vận hành ~${formatMoney(dailyFixed2)}/ngày ➔ Kết quả: **${b2Net >= 0 ? `Lãi ròng +${formatMoney(b2Net)}` : `Thiếu ${formatMoney(Math.abs(b2Net))} tiền mặt bằng`}** ${b2Net >= 0 ? "✅ *(Đã vượt điểm hòa vốn)*" : "⚠️ *(Chưa đủ bù tiền mặt bằng ngày)*"}.
+- 💡 **Khuyến nghị**: ${b2Net < 0 ? "CN2 cần đẩy mạnh thêm khoảng 15-20 ly nữa hoặc bán thêm các món có biên lãi cao như Nước cam, Mía cam để cán mốc hòa vốn 523k nhé!" : "Duy trì phong độ bán hàng rất tốt!"}`;
+    }
+
     return {
       type: "financial_multi_branch",
-      reply: `🏢 **Dạ EV xin báo cáo tổng hợp CẢ 2 CHI NHÁNH hôm nay (${todayReport.dateText})**:
+      reply: `🏢 **Dạ EV xin báo cáo & phân tích CẢ 2 CHI NHÁNH ${reportTitle}**:
 
 🏠 **1. Quán Nhà (Chính)**:
-- Doanh thu: **${formatMoney(b1Report.income)}** (${b1Report.totalDrinks} ly)
-- Tiền chi: ${formatMoney(b1Report.expense)} | Vốn: ${formatMoney(b1Report.cost)}
-- 💰 Lời thực nhận: **${formatMoney(b1Report.balance)}**
+- Doanh thu: **${formatMoney(b1Rev)}** (${activeB1Report.totalDrinks} ly) | Giá vốn: ${formatMoney(activeB1Report.cost)}
+- 🥤 Lãi gộp bán nước: **+${formatMoney(b1Gross)}** (${b1GrossMargin}%)
+- 🏢 Chi phí điện nước ngày: -${formatMoney(dailyFixed1)} (Mặt bằng 0đ)
+- 💰 **LÃI RÒNG THỰC TẾ**: **${b1Net >= 0 ? `+${formatMoney(b1Net)}` : `-${formatMoney(Math.abs(b1Net))}`}** ${b1Net >= 0 ? "🟢 (Có lời)" : "🔴 (Lỗ)"}
+- *(Dư tiền mặt trong két hôm nay: ${formatMoney(activeB1Report.cashBalance)})*
 
 🏪 **2. Chi nhánh 2**:
-- Doanh thu: **${formatMoney(b2Report.income)}** (${b2Report.totalDrinks} ly)
-- Tiền chi: ${formatMoney(b2Report.expense)} | Vốn: ${formatMoney(b2Report.cost)}
-- 💰 Lời thực nhận: **${formatMoney(b2Report.balance)}**
+- Doanh thu: **${formatMoney(b2Rev)}** (${activeB2Report.totalDrinks} ly) | Giá vốn: ${formatMoney(activeB2Report.cost)}
+- 🥤 Lãi gộp bán nước: **+${formatMoney(b2Gross)}** (${b2GrossMargin}%)
+- 🏢 Tiền thuê mặt bằng & vận hành ngày: -${formatMoney(dailyFixed2)} (Mặt bằng 6tr/tháng)
+- 💰 **LÃI RÒNG THỰC TẾ**: **${b2Net >= 0 ? `+${formatMoney(b2Net)}` : `-${formatMoney(Math.abs(b2Net))}`}** ${b2Net >= 0 ? "🟢 (Đã có lời)" : "🔴 (CHƯA ĐỦ TRẢ MẶT BẰNG - Hụt " + formatMoney(Math.abs(b2Net)) + ")"}
+- *(Dư tiền mặt trong két hôm nay: ${formatMoney(activeB2Report.cashBalance)})*
 
 ===============================
-🌟 **TỔNG CỘNG 2 QUÁN**:
-- **Tổng doanh thu**: **${formatMoney(todayReport.income)}** (${todayReport.totalDrinks} ly)
-- **Tổng tiền chi**: ${formatMoney(todayReport.expense)}
-- 💵 **TỔNG LỢI NHUẬN RÒNG 2 QUÁN**: **+${formatMoney(todayReport.balance)}**`,
+🌟 **TỔNG KẾT TOÀN HỆ THỐNG**:
+- **Tổng doanh thu**: **${formatMoney(totalRev)}** (${activeDateReport.totalDrinks} ly)
+- **Tổng lãi gộp bán nước**: **+${formatMoney(b1Gross + b2Gross)}**
+- **Tổng định phí mặt bằng 2 quán**: **-${formatMoney(dailyFixed1 + dailyFixed2)}**
+- 💵 **TỔNG LỢI NHUẬN RÒNG 2 QUÁN**: **${totalNet >= 0 ? `+${formatMoney(totalNet)}` : `-${formatMoney(Math.abs(totalNet))}`}** ${totalNet >= 0 ? "🟢 (Tổng thể có lời)" : "🔴 (Chưa đủ bù mặt bằng)"}
+- 💳 **Tổng tiền mặt còn lại trong két**: ${formatMoney(activeDateReport.cashBalance)}${branchNegativeNote}${analysisSection}`,
     };
   }
 
   // 14. TRUY VẤN LỊCH SỬ THỜI GIAN & KHÁM PHÁ NGÀY THÁNG (HISTORICAL & TEMPORAL INTELLIGENCE)
   const historyByDate = groupTransactionsByDate(transactions, targetBranch);
   const daysWithRevenue = historyByDate.filter((d) => d.income > 0);
+
+  // 14.0 HỎI BÁO CÁO DOANH THU MỘT NGÀY CỤ THỂ ("doanh số ngày 30 là bao nhiêu", "doanh thu ngày 30/8", "ngày 30 bán được bao nhiêu")
+  if (isAskingSpecificDate && (norm.includes("doanh thu") || norm.includes("doanh so") || norm.includes("ban") || norm.includes("loi") || norm.includes("tong ket") || norm.includes("bao cao") || norm.includes("thu chi") || norm.includes("la bao nhieu") || norm.includes("nhu the nao"))) {
+    const reportTitle = `ngày ${formatDateDisplay(activeDate)}`;
+    if (activeDateReport.income === 0 && activeDateReport.expense === 0) {
+      return {
+        type: "financial_history",
+        reply: `🥤 **Dạ EV kiểm tra ${reportTitle} (${targetBranch || "Toàn bộ chi nhánh"})**:
+Hệ thống chưa ghi nhận đơn bán nước hoặc khoản chi nào phát sinh trong ngày ${formatDateDisplay(activeDate)} ạ.`,
+      };
+    }
+
+    const branchOv = layOverheadChoChiNhanh(state, targetBranch || "Quán Nhà (Chính)");
+    const dailyFixed = branchOv ? Math.round(((branchOv.rentMonthly || 0) + (branchOv.electricityMonthly || 0) + (branchOv.waterMonthly || 0) + (branchOv.trashMonthly || 0)) / 30) : 0;
+    const trueNet = activeDateReport.grossProfit - dailyFixed;
+
+    return {
+      type: "financial_history",
+      reply: `🥤 **Dạ EV xin báo cáo tài chính ${reportTitle} (${targetBranch || "Toàn bộ chi nhánh"})**:
+- **Tổng doanh thu**: **${formatMoney(activeDateReport.income)}** (${activeDateReport.totalDrinks} ly)
+- **Giá vốn nguyên liệu (COGS)**: -${formatMoney(activeDateReport.cost)}
+- **Lãi gộp bán nước**: +${formatMoney(activeDateReport.grossProfit)}
+- **Định phí mặt bằng & vận hành ngày**: -${formatMoney(dailyFixed)}
+- 💰 **LÃI RÒNG THỰC TẾ (P&L)**: **${trueNet >= 0 ? `+${formatMoney(trueNet)}` : `-${formatMoney(Math.abs(trueNet))}`}** ${trueNet >= 0 ? "🟢 (Có lời)" : "🔴 (Chưa đủ trả mặt bằng)"}
+- 💳 **Dư tiền mặt trong két**: ${formatMoney(activeDateReport.cashBalance)} (Gồm tiền mặt: ${formatMoney(activeDateReport.cashIncome)} | Chuyển khoản QR: ${formatMoney(activeDateReport.transferIncome)})`,
+    };
+  }
 
   // 14.1 HỎI DANH SÁCH CÁC NGÀY CÓ DOANH THU ("2 ngày có doanh thu là ngày mấy?", "những ngày nào có doanh thu?")
   const isDateDiscovery =
@@ -2290,6 +2707,41 @@ ${breakdownLines}
       ? ` (${parsed.soLuong} ${parsed.donViTinh} - ${formatMoney(parsed.slots.unitPrice)}/${parsed.donViTinh})`
       : ` (${parsed.soLuong} ${parsed.donViTinh})`;
 
+    const isRawMaterialProcurement = !isThu && (
+      norm.includes("mia") || norm.includes("cam") || norm.includes("tac") || norm.includes("rau ma") ||
+      norm.includes("thom") || norm.includes("khom") || norm.includes("dua") || norm.includes("dau xanh") ||
+      norm.includes("da") || norm.includes("ly") || norm.includes("ong hut") || norm.includes("boc") ||
+      norm.includes("nguyen lieu") || norm.includes("nhap") || norm.includes("mua")
+    );
+
+    if (isRawMaterialProcurement) {
+      conversationContext.pendingProcurementContext = {
+        id: parsed.id || Date.now(),
+        item: parsed.danhMuc,
+        qty: parsed.soLuong || 1,
+        unit: parsed.donViTinh || "phần",
+        amount: parsed.soTien,
+        branch: branchToUse,
+        timestamp: Date.now(),
+      };
+
+      return {
+        type: "command",
+        action: "add_transaction",
+        rawQuery: query,
+        branch: branchToUse,
+        parsed,
+        reply: `🛒 **Dạ EV đã ghi sổ chi tiền mua nguyên liệu**:
+- 🏷️ **Hạng mục**: **${parsed.danhMuc}** (${parsed.soLuong} ${parsed.donViTinh || "phần"})
+- 💵 **Số tiền**: **${formatMoney(parsed.soTien)}**${paymentText}
+- 📍 **Điểm bán**: **${branchToUse}**
+
+🧠 **Để EV học định mức & tính xem 1 ${parsed.donViTinh || "phần"} ${parsed.danhMuc} đợt này bán trong bao lâu và được bao nhiêu ly, anh/chị cho EV hỏi nhanh 2 câu ạ**:
+1️⃣ Đợt **${parsed.danhMuc} cũ** trước đó đã **bán hết sạch chưa**, hay còn tồn lại bao nhiêu ạ?
+2️⃣ **Lý do mình nhập thêm đợt này là gì** *(ví dụ: đã bán hết sạch, chuẩn bị bán cuối tuần đông khách, đợt cũ bị dập/hỏng, hay mua gom trước)*?`,
+      };
+    }
+
     return {
       type: "command",
       action: "add_transaction",
@@ -2357,7 +2809,8 @@ QUY TẮC ĐỊNH LƯỢNG & TÀI CHÍNH VẬN HÀNH THỰC TẾ:
    - Nếu câu nói có số tiền LỆCH BẤT THƯỜNG so với đơn giá Menu (ví dụ "2 ly mía 100k") -> Phải phản biện lịch sự, hỏi lại xem là khách mua nhiều ly, mua lít hay cho tiền boa (tip).
    - Nếu câu nói mua nguyên liệu mà CHƯA CÓ GIÁ (ví dụ "mua 2 bao đá") -> Phải hỏi lại giá tiền bao nhiêu.
 7. Khi gặp khách quen (Chú Ba, Anh B, Chị Lan...), tự động áp dụng món quen và hình thức thanh toán.
-8. Trả lời bằng Markdown ngắn gọn, ấm áp, logic, phản biện sắc bén, chuẩn xác số liệu tài chính, xưng "EV" hoặc "Dạ EV".`;
+8. Ngoài quản lý tài chính chuỗi quán, EV còn là chuyên gia AI am hiểu sâu về Huấn luyện mô hình (AI Training, Fine-tuning, LoRA/QLoRA, LLaMA-Factory, Unsloth, nanoGPT, DeepSpeed, MLOps) để tư vấn kỹ thuật khi chủ quán hỏi.
+9. Trả lời bằng Markdown ngắn gọn, ấm áp, logic, phản biện sắc bén, chuẩn xác số liệu tài chính, xưng "EV" hoặc "Dạ EV".`;
 
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
@@ -2397,3 +2850,4 @@ QUY TẮC ĐỊNH LƯỢNG & TÀI CHÍNH VẬN HÀNH THỰC TẾ:
     return localAnalysis;
   }
 }
+

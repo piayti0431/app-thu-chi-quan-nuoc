@@ -1,12 +1,33 @@
 export function toBaseRemoteTransaction(item, deviceId = "local", userId = "") {
+  const realLoai = item.loai;
+  const isSpecialLoai = realLoai && realLoai !== 'thu' && realLoai !== 'chi';
+  const dbLoai = isSpecialLoai ? 'chi' : realLoai;
+
   const extMeta = {
     cn: item.chiNhanh,
     sl: item.soLuong,
     dvt: item.donViTinh,
     pt: item.phuongThuc,
+    ntc: item.nguonTienChi,
     gc: item.giaCostDonVi,
     tgc: item.tongGiaCost,
   };
+  
+  if (isSpecialLoai) {
+    extMeta.loai = realLoai;
+    if (item.fund) extMeta.fund = item.fund;
+    if (item.type) extMeta.type = item.type;
+    if (item.refId) extMeta.refId = item.refId;
+  }
+
+  const realSoTien = Number(item.soTien) || 0;
+  // Supabase check constraint: check (so_tien > 0).
+  // Giao dịch 0đ (như xuất dùng 0đ) lưu so_tien = 1 trên DB và lưu st: realSoTien trong extMeta
+  const dbSoTien = realSoTien > 0 ? realSoTien : 1;
+  if (realSoTien <= 0) {
+    extMeta.st = realSoTien;
+  }
+
   const cleanGhiChu = String(item.ghiChu || "").replace(/\s*\[EXT:.*?\]\s*/g, "").trim();
   const packedGhiChu = cleanGhiChu
     ? `${cleanGhiChu} [EXT:${JSON.stringify(extMeta)}]`
@@ -17,8 +38,8 @@ export function toBaseRemoteTransaction(item, deviceId = "local", userId = "") {
     device_id: item.deviceId || deviceId,
     ngay: item.ngay,
     gio: item.gio,
-    loai: item.loai,
-    so_tien: Number(item.soTien) || 0,
+    loai: dbLoai,
+    so_tien: dbSoTien,
     danh_muc: item.danhMuc || "",
     ghi_chu: packedGhiChu,
     cau_noi_goc: item.cauNoiGoc || "",
@@ -32,15 +53,42 @@ export function toBaseRemoteTransaction(item, deviceId = "local", userId = "") {
 
 export function toRemoteTransaction(item, deviceId = "local", useExtended = true, userId = "") {
   if (!useExtended) return toBaseRemoteTransaction(item, deviceId, userId);
+  
+  const realLoai = item.loai;
+  const isSpecialLoai = realLoai && realLoai !== 'thu' && realLoai !== 'chi';
+  const dbLoai = isSpecialLoai ? 'chi' : realLoai;
+
+  const extMeta = {};
+  if (item.nguonTienChi) extMeta.ntc = item.nguonTienChi;
+  if (isSpecialLoai) {
+    extMeta.loai = realLoai;
+    if (item.fund) extMeta.fund = item.fund;
+    if (item.type) extMeta.type = item.type;
+    if (item.refId) extMeta.refId = item.refId;
+  }
+
+  const realSoTien = Number(item.soTien) || 0;
+  // Supabase check constraint: check (so_tien > 0).
+  // Giao dịch 0đ (như xuất dùng 0đ) lưu so_tien = 1 trên DB và lưu st: realSoTien trong extMeta
+  const dbSoTien = realSoTien > 0 ? realSoTien : 1;
+  if (realSoTien <= 0) {
+    extMeta.st = realSoTien;
+  }
+  
+  const cleanGhiChu = String(item.ghiChu || "").replace(/\s*\[EXT:.*?\]\s*/g, "").trim();
+  const packedGhiChu = Object.keys(extMeta).length > 0
+    ? (cleanGhiChu ? `${cleanGhiChu} [EXT:${JSON.stringify(extMeta)}]` : `[EXT:${JSON.stringify(extMeta)}]`)
+    : cleanGhiChu;
+
   const payload = {
     id: item.id,
     device_id: item.deviceId || deviceId,
     ngay: item.ngay,
     gio: item.gio,
-    loai: item.loai,
-    so_tien: Number(item.soTien) || 0,
+    loai: dbLoai,
+    so_tien: dbSoTien,
     danh_muc: item.danhMuc || "",
-    ghi_chu: item.ghiChu || "",
+    ghi_chu: packedGhiChu,
     cau_noi_goc: item.cauNoiGoc || "",
     da_sua_tay: Boolean(item.daSuaTay),
     chi_nhanh: item.chiNhanh || "Quán Nhà (Chính)",
@@ -74,15 +122,21 @@ export function fromRemoteTransaction(row) {
   const soLuong = Number(row.so_luong) || Number(extMeta.sl) || 1;
   const donViTinh = String(row.don_vi_tinh || extMeta.dvt || (row.loai === "thu" ? "ly" : "kg"));
   const phuongThuc = String(row.phuong_thuc || extMeta.pt || "tien_mat");
+  const nguonTienChi = extMeta.ntc;
   const giaCostDonVi = Number(row.gia_cost_don_vi) || Number(extMeta.gc) || 0;
   const tongGiaCost = Number(row.tong_gia_cost) || Number(extMeta.tgc) || 0;
+  
+  const loai = extMeta.loai || row.loai;
+  const soTien = extMeta.st !== undefined
+    ? Number(extMeta.st)
+    : (loai === 'xuat_dung' ? 0 : (Number(row.so_tien) || 0));
 
-  return {
+  const result = {
     id: Number(row.id),
     ngay: String(row.ngay || ""),
     gio: row.gio || "",
-    loai: row.loai,
-    soTien: Number(row.so_tien) || 0,
+    loai: loai,
+    soTien,
     danhMuc: row.danh_muc || "",
     ghiChu,
     cauNoiGoc: row.cau_noi_goc || "",
@@ -91,6 +145,7 @@ export function fromRemoteTransaction(row) {
     soLuong,
     donViTinh,
     phuongThuc,
+    nguonTienChi,
     giaCostDonVi,
     tongGiaCost,
     daSync: true,
@@ -98,6 +153,12 @@ export function fromRemoteTransaction(row) {
     updatedAt: row.updated_at || new Date().toISOString(),
     deviceId: row.device_id || "",
   };
+  
+  if (extMeta.fund) result.fund = extMeta.fund;
+  if (extMeta.type) result.type = extMeta.type;
+  if (extMeta.refId) result.refId = extMeta.refId;
+  
+  return result;
 }
 
 function timeValue(value) {

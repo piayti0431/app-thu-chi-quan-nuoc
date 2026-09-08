@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./css/style.css">
+    <link rel="stylesheet" href="./css/style.css?v=20260903_01">
   </head>
   <body>
     <!-- MÀN HÌNH ĐĂNG NHẬP -->
@@ -40,9 +40,10 @@
             <input id="authPassword" type="password" autocomplete="current-password" enterkeyhint="done" required placeholder="Nhập ít nhất 6 ký tự">
           </div>
           <div class="auth-actions">
-            <button class="primary-action auth-submit-btn" id="authLoginBtn" type="submit">Đăng nhập</button>
+            <button class="primary-action auth-submit-btn" id="authLoginBtn" type="submit">Đăng nhập đồng bộ Cloud</button>
             <button class="ghost-button auth-secondary-btn" id="authSignupBtn" type="button">Tạo tài khoản mới</button>
           </div>
+          <button class="ghost-button" id="authOfflineBypassBtn" type="button" style="margin-top: 0.6rem; width: 100%; border: 1px dashed #cbd5e1; color: #64748b; font-size: 0.85rem; padding: 0.45rem;">⚡ Sử dụng ngay không cần đăng nhập</button>
         </form>
         <div class="auth-note-box">
           <span class="auth-note-icon">☁️</span>
@@ -102,6 +103,56 @@
           <div class="breakeven-footer">
             <small id="breakevenStatusText">Cần thêm 628.000 đ doanh thu để hòa vốn tiền mặt bằng & điện nước hôm nay.</small>
           </div>
+
+          <!-- 4 HŨ TIỀN TRỰC QUAN TRÊN TRANG CHỦ -->
+          <div class="mini-jars-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem; margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px dashed rgba(0,0,0,0.08); font-size: 0.72rem; text-align: center;">
+            <div id="miniJarCostCard" style="background: rgba(234, 88, 12, 0.08); border: 1px solid rgba(234, 88, 12, 0.2); border-radius: var(--radius-sm); padding: 0.25rem 0.15rem; transition: all 0.2s ease;">
+              <span id="miniJarCostLabel" style="color: #c2410c; display: block; font-weight: 700; font-size: 0.68rem;">🧊 Hũ 1: Vốn BOM</span>
+              <strong id="miniJarCost" style="color: #ea580c; font-size: 0.76rem; display: block;">0 đ</strong>
+            </div>
+            <div id="miniJarRentCard" style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: var(--radius-sm); padding: 0.25rem 0.15rem; transition: all 0.2s ease;">
+              <span id="miniJarRentLabel" style="color: #0369a1; display: block; font-weight: 700; font-size: 0.68rem;">🏢 Hũ 2: Mặt Bằng</span>
+              <strong id="miniJarRent" style="color: #0284c7; font-size: 0.76rem; display: block;">0 đ</strong>
+            </div>
+            <div id="miniJarCashCard" style="background: rgba(100, 116, 139, 0.08); border: 1px solid rgba(100, 116, 139, 0.2); border-radius: var(--radius-sm); padding: 0.25rem 0.15rem; transition: all 0.2s ease;">
+              <span id="miniJarCashLabel" style="color: #475569; display: block; font-weight: 700; font-size: 0.68rem;">💵 Hũ 3: Tiền Két</span>
+              <strong id="miniJarCash" style="color: #334155; font-size: 0.76rem; display: block;">50.000 đ</strong>
+            </div>
+            <div id="miniJarProfitCard" style="background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.2); border-radius: var(--radius-sm); padding: 0.25rem 0.15rem; transition: all 0.2s ease;">
+              <span id="miniJarProfitLabel" style="color: #047857; display: block; font-weight: 700; font-size: 0.68rem;">💰 Hũ 4: Lời Sạch</span>
+              <strong id="miniJarProfit" style="color: #059669; font-size: 0.76rem; display: block;">0 đ</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- SỔ QUỸ (VÍ CÁ NHÂN & QUỸ LŨY KẾ TOÀN HỆ THỐNG) -->
+        <div class="breakeven-progress-card" id="fundsCard" title="Số dư thực tế trong ví cá nhân và các quỹ lũy kế">
+          <div class="breakeven-header">
+            <div class="breakeven-title">
+              <span class="breakeven-icon">🏦</span>
+              <strong style="color: #0f172a; font-size: 0.9rem;">SỔ QUỸ & VÍ CÁ NHÂN</strong>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span style="font-size: 0.75rem; color: #64748b; font-style: italic;">(Lũy kế)</span>
+              <button id="editFundsBtn" type="button" style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 4px; color: #3b82f6; font-size: 0.75rem; padding: 0.2rem 0.5rem; font-weight: 600; cursor: pointer;">
+                ✏️ Sửa
+              </button>
+            </div>
+          </div>
+          <div class="mini-jars-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; margin-top: 0.55rem; font-size: 0.72rem; text-align: center;">
+            <div style="background: rgba(234, 88, 12, 0.08); border: 1px solid rgba(234, 88, 12, 0.2); border-radius: var(--radius-sm); padding: 0.35rem 0.15rem; cursor: pointer;" onclick="if(window.openWalletLedger) window.openWalletLedger()">
+              <span style="color: #c2410c; display: block; font-weight: 700; font-size: 0.68rem; text-transform: uppercase;">👛 Ví Tiền Vốn</span>
+              <strong id="fundWalletBalance" style="color: #ea580c; font-size: 0.85rem; display: block; margin-top: 2px;">0 đ</strong>
+            </div>
+            <div style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: var(--radius-sm); padding: 0.35rem 0.15rem;">
+              <span style="color: #0369a1; display: block; font-weight: 700; font-size: 0.68rem; text-transform: uppercase;">🏢 Quỹ Mặt Bằng</span>
+              <strong id="fundRentBalance" style="color: #0284c7; font-size: 0.85rem; display: block; margin-top: 2px;">0 đ</strong>
+            </div>
+            <div style="background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(5, 150, 105, 0.2); border-radius: var(--radius-sm); padding: 0.35rem 0.15rem;">
+              <span style="color: #047857; display: block; font-weight: 700; font-size: 0.68rem; text-transform: uppercase;">🎉 Quỹ Lãi Ròng</span>
+              <strong id="fundProfitBalance" style="color: #059669; font-size: 0.85rem; display: block; margin-top: 2px;">0 đ</strong>
+            </div>
+          </div>
         </div>
 
         <!-- NÚT TỔNG KẾT NGÀY & ĐỌC LOA BÁO CÁO & RESTART NGÀY & KHO & THUẾ & LOA QR -->
@@ -138,6 +189,18 @@
             <span class="tab-icon">🥤</span>
             <span class="tab-label">Bán hàng</span>
           </button>
+          <button class="tab" data-view="materials">
+            <span class="tab-icon">📦</span>
+            <span class="tab-label">Nguyên Liệu</span>
+          </button>
+          <button class="tab" data-view="jars">
+            <span class="tab-icon">🏺</span>
+            <span class="tab-label">4 Hũ Tiền</span>
+          </button>
+          <button class="tab" data-view="closings">
+            <span class="tab-icon">📋</span>
+            <span class="tab-label">Chốt Ca</span>
+          </button>
           <button class="tab" data-view="history">
             <span class="tab-icon">📜</span>
             <span class="tab-label">Lịch sử</span>
@@ -146,7 +209,8 @@
             <span class="tab-icon">📊</span>
             <span class="tab-label">Thống kê</span>
           </button>
-          <button class="tab" data-view="ai">
+          <!-- Tạm thời ẩn Thư Ký AI EV để tối ưu diện tích cho Mobile -->
+          <button class="tab" data-view="ai" style="display: none !important;">
             <span class="tab-icon">🤖</span>
             <span class="tab-label">Thư Ký EV</span>
           </button>
@@ -161,17 +225,68 @@
           <div class="today-grid-layout">
             <!-- CỘT TRÁI (POS TERMINAL): TIỀN THỐI + NÚT MÓN + MIC + FORM NHẬP -->
             <div class="today-pos-col">
+              <!-- BANNER TRỢ LÝ NHẮC NHỞ NHỊP NGÀY THÔNG MINH (SÁNG / TRƯA / TỐI) -->
+              <div class="daily-routine-banner theme-morning" id="dailyRoutineBanner">
+                <div class="routine-icon-wrap" id="routineBannerIcon">🌅</div>
+                <div class="routine-content-wrap">
+                  <div class="routine-title-row">
+                    <strong id="routineBannerTitle">Chào ngày mới!</strong>
+                    <span class="routine-badge" id="routineBannerBadge">Ca Sáng</span>
+                  </div>
+                  <p class="routine-desc" id="routineBannerDesc">Kiểm tra và cập nhật tiền thối két đầu ngày (mặc định 50k).</p>
+                </div>
+                <button class="routine-action-btn" id="routineBannerActionBtn" type="button">Xử lý ngay</button>
+              </div>
+
               <!-- BANNER TIỀN THỐI ĐẦU CA SÁNG -->
               <div class="opening-cash-banner">
                 <div class="opening-cash-info">
                   <span>💵 Tiền thối đầu ngày:</span>
-                  <strong id="todayOpeningCashDisplay">500.000 đ</strong>
+                  <strong id="todayOpeningCashDisplay">50.000 đ</strong>
                 </div>
                 <button class="ghost-button" id="editOpeningCashBtn" type="button" style="min-height: 2rem; padding: 0.2rem 0.6rem; font-size: 0.8rem;">✏️ Đổi số tiền</button>
               </div>
 
+              <!-- CHUYỂN ĐỔI CHẾ ĐỘ: BÁN NƯỚC (POS BILL) VS NHẬP NGUYÊN LIỆU (1 CHẠM) -->
+              <div class="pos-mode-bar" role="tablist" aria-label="Chế độ làm việc">
+                <button class="pos-mode-tab is-active" id="posModeDrinkTab" type="button" role="tab" aria-selected="true">
+                  <span class="pos-mode-icon">🥤</span>
+                  <span class="pos-mode-text">Món Bán (Đồ Uống)</span>
+                </button>
+                <button class="pos-mode-tab" id="posModeIngredientTab" type="button" role="tab" aria-selected="false">
+                  <span class="pos-mode-icon">🛒</span>
+                  <span class="pos-mode-text">Mua Nguyên Liệu (Ghi Chi)</span>
+                </button>
+              </div>
+
               <!-- LƯỚI NÚT MÓN BÁN NHANH 1 CHẠM -->
               <div class="quick-row" id="quickButtons"></div>
+
+              <!-- LƯỚI NÚT NGUYÊN LIỆU NHẬP HÀNG / XUẤT DÙNG 1 CHẠM -->
+              <div class="quick-row" id="quickIngredientButtons" style="display: none;"></div>
+
+              <!-- THANH CHỐT BILL NHANH KHÔNG IN GIẤY (DIGITAL FAST POS ORDER BAR) -->
+              <div class="fast-pos-bill-bar" id="fastPosBillBar" style="display: none;">
+                <div class="pos-bill-summary">
+                  <div class="pos-bill-badge-wrap">
+                    <span class="pos-bill-icon">🥤</span>
+                    <strong class="pos-bill-count" id="posBillItemCount">0</strong>
+                  </div>
+                  <div class="pos-bill-price-info">
+                    <span class="pos-bill-label">Tổng</span>
+                    <strong class="pos-bill-total" id="posBillTotalAmount">0 đ</strong>
+                  </div>
+                </div>
+                <div class="pos-bill-actions">
+                  <button class="pos-bill-clear-btn" id="clearPosBillBtn" type="button" title="Xóa Bill" aria-label="Hủy Bill">
+                    <span class="pos-bill-clear-icon">🗑️</span>
+                  </button>
+                  <button class="pos-bill-checkout-btn" id="openCheckoutBillBtn" type="button" aria-label="Chốt đơn">
+                    <span class="pos-bill-checkout-icon">✅</span>
+                    <span class="pos-bill-checkout-label">Chốt</span>
+                  </button>
+                </div>
+              </div>
 
               <!-- NÚT BẤM NÓI GIỌNG NÓI TIẾNG VIỆT -->
               <button class="mic-button" id="micBtn" type="button" aria-label="Bấm để nói thu chi">
@@ -196,6 +311,15 @@
                   <label><input type="radio" name="phuongThuc" value="chuyen_khoan"> <span>📱 Chuyển khoản (QR)</span></label>
                 </div>
 
+                <!-- Nguồn tiền chi (chỉ hiện khi Chi) -->
+                <div id="expenseSourceGroup" style="display: none; margin-bottom: 0.8rem; background: #fdf4ff; padding: 0.5rem; border-radius: var(--radius-sm); border: 1px dashed #f0abfc;">
+                  <span style="display: block; font-size: 0.75rem; font-weight: 700; color: #a21caf; margin-bottom: 0.35rem;">Nguồn tiền mua hàng (Lấy từ đâu?)</span>
+                  <div class="segmented" role="group" aria-label="Nguồn tiền chi">
+                    <label><input type="radio" name="nguonTienChi" value="tien_von" checked> <span>👛 Từ Ví (Tiền vốn)</span></label>
+                    <label><input type="radio" name="nguonTienChi" value="tien_ket"> <span>💵 Rút Két Quán</span></label>
+                  </div>
+                </div>
+
                 <!-- Tên món / Danh mục tự gõ hoặc chọn -->
                 <label>
                   Tên món nước hoặc Khoản chi (chọn hoặc tự gõ)
@@ -210,23 +334,53 @@
                   </label>
                   <label>
                     Đơn vị tính
-                    <select id="manualUnitSelect" aria-label="Đơn vị tính">
-                      <option value="ly" selected>ly</option>
-                      <option value="kg">kg (ký)</option>
-                      <option value="chai">chai</option>
-                      <option value="bao">bao</option>
-                      <option value="bó">bó</option>
-                      <option value="lon">lon</option>
-                      <option value="bọc">bọc / túi</option>
-                      <option value="hộp">hộp</option>
-                      <option value="thùng">thùng</option>
-                      <option value="lít">lít</option>
-                      <option value="lần">lần</option>
-                    </select>
+                    <input id="manualUnitSelect" list="unitDatalist" autocomplete="off" placeholder="ly, bao, kg, chai..." aria-label="Đơn vị tính" value="ly">
+                    <datalist id="unitDatalist">
+                      <option value="ly">
+                      <option value="bao">
+                      <option value="kg">
+                      <option value="chai">
+                      <option value="bó">
+                      <option value="lon">
+                      <option value="bọc">
+                      <option value="hộp">
+                      <option value="thùng">
+                      <option value="lít">
+                      <option value="lần">
+                      <option value="phần">
+                      <option value="cái">
+                      <option value="cuộn">
+                      <option value="tờ">
+                      <option value="kw">
+                      <option value="m³">
+                    </datalist>
                   </label>
                   <label>
                     Tổng số tiền (đ)
                     <input id="manualAmount" inputmode="numeric" autocomplete="off" placeholder="Ví dụ: 40000" required>
+                  </label>
+                </div>
+
+                <!-- Ô BỐI CẢNH NGUYÊN LIỆU ĐẦU VÀO (TỰ ĐỘNG HIỂN THỊ KHI LÀ CHI TIỀN) -->
+                <div class="two-col" id="manualExpenseContextGroup" style="display: none; background: #fffbeb; padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid #fef3c7;">
+                  <label style="margin: 0; font-size: 0.8rem; color: #92400e; font-weight: 700;">
+                    📦 Đợt cũ đã hết sạch chưa?
+                    <select id="manualOldStockStatus" style="width: 100%; padding: 0.45rem; border-radius: var(--radius-sm); border: 1px solid #fde68a; font-size: 0.85rem; background: #fff; margin-top: 0.2rem;">
+                      <option value="Đã hết sạch đợt cũ">✅ Đã hết sạch đợt cũ</option>
+                      <option value="Còn ít (mua bổ sung)">⚠️ Còn ít (mua bổ sung)</option>
+                      <option value="Đợt cũ bị hỏng/dập">❌ Đợt cũ bị dập/hỏng</option>
+                      <option value="Còn nhiều (mua trữ/gom giá rẻ)">📦 Còn nhiều (mua gom/trữ)</option>
+                    </select>
+                  </label>
+                  <label style="margin: 0; font-size: 0.8rem; color: #92400e; font-weight: 700;">
+                    🎯 Lý do nhập thêm đợt này
+                    <select id="manualProcurementReason" style="width: 100%; padding: 0.45rem; border-radius: var(--radius-sm); border: 1px solid #fde68a; font-size: 0.85rem; background: #fff; margin-top: 0.2rem;">
+                      <option value="Hết hàng nên nhập mới">🛒 Hết hàng nên nhập mới</option>
+                      <option value="Chuẩn bị bán cuối tuần đông khách">🔥 Chuẩn bị bán cuối tuần</option>
+                      <option value="Mua trữ trước vì dự báo thời tiết nắng">☀️ Mua trữ trước đón nắng</option>
+                      <option value="Mua giá rẻ ở chợ đầu mối">💰 Tranh thủ giá rẻ chợ sỉ</option>
+                      <option value="Bù phần bị hỏng/dập">🛠️ Bù phần hỏng/dập</option>
+                    </select>
                   </label>
                 </div>
 
@@ -260,15 +414,592 @@
           </div>
         </section>
 
-        <!-- TAB 2: LỊCH SỬ GIAO DỊCH -->
-        <section class="view" id="view-history">
-          <section class="panel">
-            <div class="panel-title">
-              <h2>Lịch sử giao dịch</h2>
-              <button class="ghost-button" id="backupBtn" type="button">Sao lưu dữ liệu</button>
+        <!-- TAB RIÊNG: QUẢN LÝ NGUYÊN VẬT LIỆU, XUẤT DÙNG & TỒN KHO -->
+        <section class="view" id="view-materials">
+          <div class="materials-container">
+            
+            <!-- HEADER: TIÊU ĐỀ & ĐIỀU KHIỂN NHANH -->
+            <div class="materials-header-card">
+              <div class="materials-header-top">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.6rem;">📦</span>
+                    <h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">Quản Lý Nguyên Vật Liệu &amp; Xuất Dùng</h2>
+                  </div>
+                  <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: #ccfbf1;">Theo dõi tồn kho thực tế, xuất dùng pha chế trong ca và ghi sổ nhật ký tiêu hao chi tiết.</p>
+                </div>
+
+                <div class="materials-header-controls">
+                  <select id="materialsBranchSelect" class="materials-branch-select" title="Chọn điểm bán xem kho NVL">
+                    <option value="Quán Nhà (Chính)" selected>🏠 Quán Nhà (Chính)</option>
+                    <option value="Chi nhánh 2">🏪 Chi nhánh 2</option>
+                  </select>
+                  <button id="materialsAddStockBtn" type="button" class="materials-action-btn" style="background: linear-gradient(135deg, #ea580c, #c2410c); color: #fff;">
+                    <span>🛒</span>
+                    <span>Nhập Mua Hàng</span>
+                  </button>
+                  <button id="materialsStockCheckBtn" type="button" class="materials-action-btn" style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.35);">
+                    <span>🔄</span>
+                    <span>Kiểm Kê Kho</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 3 THẺ TỔNG QUAN KPI NVL -->
+              <div class="materials-summary-grid">
+                <div class="mat-summary-item">
+                  <span class="mat-sum-label">🧊 TỔNG NVL THEO DÕI</span>
+                  <strong class="mat-sum-val" id="matTotalItemsCount">14 loại</strong>
+                  <small class="mat-sum-sub">Mía, Đá, Tắc, Thơm, Cam, Ly...</small>
+                </div>
+                <div class="mat-summary-item">
+                  <span class="mat-sum-label">⚠️ NGUYÊN LIỆU SẮP HẾT</span>
+                  <strong class="mat-sum-val" id="matLowStockCount" style="color: #fef08a;">0 loại</strong>
+                  <small class="mat-sum-sub" id="matLowStockText">Tồn kho đang ở mức an toàn</small>
+                </div>
+                <div class="mat-summary-item">
+                  <span class="mat-sum-label">📦 ĐÃ XUẤT DÙNG HÔM NAY</span>
+                  <strong class="mat-sum-val" id="matTodayUsedCount" style="color: #a7f3d0;">0 lượt</strong>
+                  <small class="mat-sum-sub" id="matTodayUsedText">Chưa có lượt xuất dùng nào</small>
+                </div>
+              </div>
+
+            <!-- KHỐI ĐẶC TRÙ: QUY TRÌNH SƠ CHẾ & ĐIỀU CHUYỂN MÍA GIỮA CÁC CHI NHÁNH -->
+            <div class="materials-card" style="border: 2px solid #10b981; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); margin-bottom: 1rem;">
+              <div class="materials-card-header" style="border-bottom: 1px solid #a7f3d0; padding-bottom: 0.6rem;">
+                <div>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 900; color: #065f46; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>🎋</span>
+                    <span>Quy Trình Sơ Chế &amp; Xuất Bán Mía (Tự Cung Tự Cấp)</span>
+                  </h3>
+                  <p style="margin: 0.2rem 0 0; font-size: 0.8rem; color: #047857;">Bào mía thô 12 cây ra bó 10kg, xuất mía sang Chi nhánh 2 và kiểm kê số mía chưa bán hết cuối ngày.</p>
+                </div>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem; padding: 0.85rem 0.25rem 0.25rem;">
+                <!-- HÀNH ĐỘNG 1: BÀO MÍA SƠ CHẾ -->
+                <button type="button" class="mia-flow-action-btn" id="miaActionSocheBtn" style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: #ffffff; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 0.85rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s ease;">
+                  <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.35rem;">
+                    <span style="font-size: 1.35rem;">🔄</span>
+                    <strong style="font-size: 0.92rem; color: #065f46;">1. Bào Mía Sơ Chế</strong>
+                  </div>
+                  <span style="font-size: 0.78rem; color: #047857; line-height: 1.35;">Bào X bó 12 cây dài ➔ thu được Y kg (1 bó = 10kg) sạch cất kho mát (Tự động trừ kho 12 cây, tăng kho thành phẩm).</span>
+                  <span style="font-size: 0.7rem; font-weight: 800; background: #d1fae5; color: #065f46; padding: 0.15rem 0.45rem; border-radius: 4px; margin-top: 0.5rem;">[ Bào 4 bó 12 cây ➔ 60kg (6 bó) ]</span>
+                </button>
+
+                <!-- HÀNH ĐỘNG 2: XUẤT MÍA SANG CHI NHÁNH 2 -->
+                <button type="button" class="mia-flow-action-btn" id="miaActionTransferBtn" style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: #ffffff; border: 1.5px solid #fed7aa; border-radius: 12px; padding: 0.85rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s ease;">
+                  <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.35rem;">
+                    <span style="font-size: 1.35rem;">🚚</span>
+                    <strong style="font-size: 0.92rem; color: #9a3412;">2. Xuất Mía Sang Chi Nhánh 2</strong>
+                  </div>
+                  <span style="font-size: 0.78rem; color: #c2410c; line-height: 1.35;">Xuất X bó 10kg từ Quán Nhà sang bán ở Chi nhánh 2 (Trừ kho Quán Nhà, tăng kho Chi nhánh 2).</span>
+                  <span style="font-size: 0.7rem; font-weight: 800; background: #ffedd5; color: #9a3412; padding: 0.15rem 0.45rem; border-radius: 4px; margin-top: 0.5rem;">[ Xuất 2 bó (20kg) sang CN2 ]</span>
+                </button>
+
+                <!-- HÀNH ĐỘNG 3: KIỂM KÊ MÍA DƯ CUỐI NGÀY -->
+                <button type="button" class="mia-flow-action-btn" id="miaActionRemainingBtn" style="display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: #ffffff; border: 1.5px solid #ddd6fe; border-radius: 12px; padding: 0.85rem; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.03); transition: all 0.2s ease;">
+                  <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.35rem;">
+                    <span style="font-size: 1.35rem;">🌙</span>
+                    <strong style="font-size: 0.92rem; color: #6d28d9;">3. Kiểm Kê Mía Dư Cuối Ngày</strong>
+                  </div>
+                  <span style="font-size: 0.78rem; color: #7c3aed; line-height: 1.35;">Chi nhánh 2 hôm nay chưa bán hết: còn dư khoảng bao nhiêu ly hoặc ký mía chuyển sang mai.</span>
+                  <span style="font-size: 0.7rem; font-weight: 800; background: #f3e8ff; color: #6d28d9; padding: 0.15rem 0.45rem; border-radius: 4px; margin-top: 0.5rem;">[ CN2 còn dư ... ly / kg ]</span>
+                </button>
+              </div>
+
+              <!-- KHỐI THEO DÕI THEO ĐỢT / LÔ NHẬP MÍA THÔ -->
+              <div id="miaActiveBatchCard" style="margin: 0.85rem 0.25rem 0.25rem; background: #ffffff; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 0.85rem; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem;">
+                  <div style="display: flex; align-items: center; gap: 0.45rem;">
+                    <span style="font-size: 1.25rem;">📊</span>
+                    <strong style="font-size: 0.9rem; color: #065f46;" id="batchCurrentTitle">ĐỢT MÍA HIỆN TẠI: Đợt 02/09 (20 bó 12 cây)</strong>
+                    <span class="badge" id="batchCurrentStatusBadge" style="background: #d1fae5; color: #065f46; font-size: 0.7rem; font-weight: 800; border: 1px solid #10b981; border-radius: 4px; padding: 0.1rem 0.4rem;">Đang Bào</span>
+                  </div>
+                  <div style="display: flex; gap: 0.4rem;">
+                    <button type="button" id="btnOpenNewBatchDialog" style="background: #f0fdf4; border: 1px solid #10b981; color: #065f46; padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">➕ Nhập Đợt Mới</button>
+                    <button type="button" id="btnOpenBatchReportDialog" style="background: #059669; color: #fff; border: none; padding: 0.3rem 0.65rem; border-radius: 6px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">📈 Tổng Kết Đợt</button>
+                  </div>
+                </div>
+
+                <!-- 4 CHỈ SỐ LÔ MÍA -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.5rem; background: #f8fafc; padding: 0.65rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                  <div>
+                    <span style="font-size: 0.7rem; color: #64748b; display: block;">🎋 Tổng bó 12 cây nhập</span>
+                    <strong style="font-size: 1rem; color: #0f172a;" id="batchRawTotalVal">20 bó</strong>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.7rem; color: #64748b; display: block;">✂️ Đã bào / Còn lại</span>
+                    <strong style="font-size: 1rem; color: #059669;" id="batchProcessedVal">5 / 15 bó thô</strong>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.7rem; color: #64748b; display: block;">📦 Đã thu được</span>
+                    <strong style="font-size: 1rem; color: #0284c7;" id="batchYieldTotalVal">14.5 bó 10kg</strong>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.7rem; color: #64748b; display: block;">📈 Hiệu suất sơ chế</span>
+                    <strong style="font-size: 1rem; color: #d97706;" id="batchRatioVal">1 ➔ 2.9 bó</strong>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div id="historyList"></div>
-          </section>
+
+            <!-- PHẦN 1: LƯỚI NÚT XUẤT DÙNG NHANH 1 CHẠM TRONG CA -->
+            <div class="materials-card">
+              <div class="materials-card-header">
+                <div>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>⚡</span>
+                    <span>Xuất Dùng Pha Chế Trong Ca (Bấm 1 Chạm Để Xuất)</span>
+                  </h3>
+                  <p style="margin: 0.2rem 0 0; font-size: 0.78rem; color: #64748b;">Nhân viên lấy đá, mía, tắc, ly ra quầy: Bấm vào nguyên liệu để trừ tồn kho và ghi nhật ký có note chi tiết (0 đ phát sinh).</p>
+                </div>
+              </div>
+              <div class="materials-quick-grid" id="materialsQuickButtons"></div>
+            </div>
+
+            <!-- PHẦN 2: BẢNG TỒN KHO & ĐỊNH MỨC NGUYÊN VẬT LIỆU CHI TIẾT -->
+            <div class="materials-card">
+              <div class="materials-card-header">
+                <div>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>📊</span>
+                    <span>Bảng Tồn Kho &amp; Định Mức Chi Tiết</span>
+                  </h3>
+                  <p style="margin: 0.2rem 0 0; font-size: 0.78rem; color: #64748b;">Theo dõi số lượng tồn thực tế, định mức ly nước làm ra và giá vốn tiêu chuẩn.</p>
+                </div>
+              </div>
+              <div class="stats-table-wrap">
+                <table class="stats-table materials-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 32%;">Nguyên Liệu</th>
+                      <th style="width: 14%; text-align: center;">ĐVT</th>
+                      <th style="width: 18%; text-align: right;">Tồn Kho</th>
+                      <th style="width: 16%; text-align: right;">Định Mức (Ly)</th>
+                      <th style="width: 20%; text-align: center;">Thao Tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="materialsTableBody">
+                    <!-- Rendered by JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PHẦN 3: NHẬT KÝ XUẤT DÙNG & MUA HÀNG -->
+            <div class="materials-card">
+              <div class="materials-card-header" style="flex-wrap: wrap; gap: 0.6rem;">
+                <div>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>📜</span>
+                    <span>Nhật Ký Xuất Dùng &amp; Mua Hàng</span>
+                  </h3>
+                  <p style="margin: 0.2rem 0 0; font-size: 0.78rem; color: #64748b;">Lịch sử chi tiết các lần xuất dùng NVL ra quầy và các lần chi tiền mua hàng.</p>
+                </div>
+                <div class="materials-log-filters">
+                  <div class="segmented" role="group" id="materialsLogTypeGroup">
+                    <label><input type="radio" name="matLogFilter" value="all" checked> <span>Tất cả</span></label>
+                    <label><input type="radio" name="matLogFilter" value="use"> <span>📦 Xuất dùng</span></label>
+                    <label><input type="radio" name="matLogFilter" value="buy"> <span>🛒 Mua hàng</span></label>
+                  </div>
+                </div>
+              </div>
+              <div class="materials-log-list" id="materialsLogList"></div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- TAB: QUẢN LÝ & THEO DÕI 4 HŨ TIỀN QUẢN TRỊ DÒNG TIỀN -->
+        <section class="view" id="view-jars">
+          <div class="jars-container">
+            
+            <!-- HEADER: TIÊU ĐỀ & BỘ LỌC THỜI GIAN / ĐIỂM BÁN -->
+            <div class="jars-header-card">
+              <div class="jars-header-top">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.6rem;">📦</span>
+                    <h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">Quản Trị Dòng Tiền 4 Hũ</h2>
+                  </div>
+                  <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: #c7d2fe;">Phân bổ dòng tiền thực tế theo chuẩn F&B: Tách bạch vốn nguyên liệu, quỹ mặt bằng, tiền thối và lãi ròng.</p>
+                </div>
+
+                <!-- BỘ CHỌN ĐIỂM BÁN & THỜI GIAN & NÚT PHÁT LOA -->
+                <div class="jars-header-controls">
+                  <select id="jarsBranchSelect" class="jars-period-select" title="Chọn điểm bán xem 4 Hũ Tiền" style="border-color: #818cf8; background: rgba(99, 102, 241, 0.25);">
+                    <option value="all">🏢 Tất cả điểm bán</option>
+                    <option value="Quán Nhà (Chính)">🏠 Quán Nhà (Chính)</option>
+                    <option value="Chi nhánh 2">🏪 Chi nhánh 2</option>
+                  </select>
+                  <select id="jarsPeriodSelect" class="jars-period-select">
+                    <option value="today" selected>📅 Hôm nay</option>
+                    <option value="yesterday">📅 Hôm qua</option>
+                    <option value="7days">📅 7 ngày qua</option>
+                    <option value="30days">📅 30 ngày qua</option>
+                    <option value="this_month">📅 Tháng này</option>
+                    <option value="custom">📅 Tùy chỉnh ngày...</option>
+                  </select>
+                  <button id="jarsQuickVoiceBtn" type="button" class="jars-voice-btn">
+                    <span>🔊</span>
+                    <span>Nghe EV Đọc</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- DẢI CHỌN NGÀY TÙY CHỈNH (CUSTOM DATE RANGE) -->
+              <div id="jarsCustomDateRange" style="display: none; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.15); padding: 0.45rem 0.75rem; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.3); margin-top: 0.65rem; flex-wrap: wrap;">
+                <span style="font-size: 0.82rem; font-weight: 800; color: #ffffff;">Từ ngày:</span>
+                <input type="date" id="jarsStartDate" style="padding: 0.3rem 0.5rem; font-size: 0.85rem; font-weight: 800; border-radius: var(--radius-sm); border: none; outline: none; background: #ffffff; color: #0f172a;">
+                <span style="font-size: 0.82rem; font-weight: 800; color: #ffffff;">Đến ngày:</span>
+                <input type="date" id="jarsEndDate" style="padding: 0.3rem 0.5rem; font-size: 0.85rem; font-weight: 800; border-radius: var(--radius-sm); border: none; outline: none; background: #ffffff; color: #0f172a;">
+                <button id="jarsApplyCustomDateBtn" type="button" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 800; border-radius: var(--radius-sm); background: #34d399; color: #064e3b; border: none; cursor: pointer; transition: transform 0.12s ease;">
+                  🔍 Xem Phân Bổ
+                </button>
+              </div>
+
+              <!-- TỔNG DOANH THU & TỶ LỆ PHÂN BỔ TRONG KỲ -->
+              <div class="jars-summary-grid">
+                <div>
+                  <span style="font-size: 0.76rem; color: #a5b4fc; text-transform: uppercase; font-weight: 800; letter-spacing: 0.04em;">Tổng Doanh Thu Trong Kỳ</span>
+                  <strong id="jarsTotalRevenue" style="font-size: 1.55rem; color: #ffffff; display: block; margin-top: 0.2rem; font-weight: 900;">0 đ</strong>
+                  <small id="jarsTotalDrinks" style="color: #c7d2fe; font-size: 0.8rem; font-weight: 700;">0 ly nước</small>
+                </div>
+                <div>
+                  <span style="font-size: 0.76rem; color: #a5b4fc; text-transform: uppercase; font-weight: 800; letter-spacing: 0.04em;">💵 Két Mặt / 📱 QR Bank</span>
+                  <div style="font-size: 0.92rem; color: #ffffff; margin-top: 0.35rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <span style="background: rgba(16, 185, 129, 0.25); border: 1px solid rgba(52, 211, 153, 0.3); padding: 0.2rem 0.55rem; border-radius: var(--radius-sm); font-weight: 800;">💵 <strong id="jarsCashRev" style="color: #6ee7b7;">0 đ</strong></span>
+                    <span style="background: rgba(14, 165, 233, 0.25); border: 1px solid rgba(56, 189, 248, 0.3); padding: 0.2rem 0.55rem; border-radius: var(--radius-sm); font-weight: 800;">📱 <strong id="jarsBankRev" style="color: #7dd3fc;">0 đ</strong></span>
+                  </div>
+                </div>
+                <div>
+                  <span style="font-size: 0.76rem; color: #a5b4fc; text-transform: uppercase; font-weight: 800; letter-spacing: 0.04em;">Trạng Thái Lãi Ròng (Hũ 4)</span>
+                  <strong id="jarsNetProfitSummary" style="font-size: 1.55rem; color: #34d399; display: block; margin-top: 0.2rem; font-weight: 900;">+0 đ</strong>
+                  <small id="jarsNetProfitStatus" style="color: #a7f3d0; font-size: 0.8rem; font-weight: 700;">🟢 Đạt hòa vốn và có lời</small>
+                </div>
+              </div>
+            </div>
+
+            <!-- LƯỚI 4 THẺ HŨ TIỀN CHI TIẾT (4 CỘT CÂN ĐỐI TRÊN DESKTOP, 2x2 TRÊN TABLET, 1 CỘT TRÊN MOBILE) -->
+            <div class="jars-cards-grid">
+              
+              <!-- HŨ 1: HOÀN VỐN NGUYÊN LIỆU THỰC TẾ (BOM) -->
+              <div class="jar-card jar-1">
+                <div class="jar-card-head">
+                  <div class="jar-card-title" style="color: #c2410c;">
+                    <span style="font-size: 1.35rem;">🧊</span>
+                    <span>HŨ 1: Hoàn Vốn Hàng</span>
+                  </div>
+                  <span style="background: #fff7ed; color: #ea580c; border: 1.5px solid #fdba74; padding: 0.15rem 0.55rem; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem;">Vốn Thật BOM</span>
+                </div>
+                <div class="jar-amount-box">
+                  <span>Số tiền vốn lấy lại:</span>
+                  <strong id="jar1Amount" style="color: #ea580c;">0 đ</strong>
+                </div>
+                <div class="jar-note-card" style="background: #fff7ed; color: #9a3412; border: 1px solid #ffedd5;">
+                  <p style="margin: 0 0 0.35rem; font-weight: 800;">🎯 Mục đích & Quy tắc:</p>
+                  <p style="margin: 0;">Lấy đúng <strong>100% tiền vốn thực tế đã bỏ ra</strong> của các ly nước đã bán (mía, đá 21k, tắc, cam, ly, màng ép...) cất riêng để sáng mai mua hàng, <strong>tuyệt đối không tiêu xài</strong>.</p>
+                </div>
+                <div class="jar-footer-meta">
+                  <span style="color: #64748b;">Giá vốn thực tế ly nước:</span>
+                  <strong id="jar1ActualCost" style="color: #c2410c; font-weight: 800;">0 đ</strong>
+                </div>
+              </div>
+
+              <!-- HŨ 2: QUỸ MẶT BẰNG & ĐIỆN NƯỚC (ƯU TIÊN ĐÓNG ĐỦ TRƯỚC KHI TÍNH LỜI) -->
+              <div class="jar-card jar-2">
+                <div class="jar-card-head">
+                  <div class="jar-card-title" style="color: #0369a1;">
+                    <span style="font-size: 1.35rem;">🏢</span>
+                    <span>HŨ 2: Quỹ Mặt Bằng</span>
+                  </div>
+                  <span id="jar2Badge" style="background: #f0f9ff; color: #0284c7; border: 1.5px solid #7dd3fc; padding: 0.15rem 0.55rem; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem;">Ưu Tiên Số 1</span>
+                </div>
+                <div class="jar-amount-box">
+                  <span>Số tiền trích bỏ ống heo:</span>
+                  <strong id="jar2Amount" style="color: #0284c7;">0 đ</strong>
+                </div>
+                <div class="jar-note-card" style="background: #f0f9ff; color: #075985; border: 1px solid #e0f2fe;">
+                  <p style="margin: 0 0 0.35rem; font-weight: 800;">🎯 Mục đích & Quy tắc:</p>
+                  <p id="jar2NoteText" style="margin: 0;">Ưu tiên gom đủ tiền mặt bằng & điện nước theo số ngày trong tháng (30 hoặc 31 ngày) để <strong>cuối tháng gom đủ 6.000.000 đ trả chủ nhà</strong>.</p>
+                </div>
+                <div class="jar-footer-meta">
+                  <span style="color: #64748b;">Mục tiêu mặt bằng kỳ:</span>
+                  <strong id="jar2DailyOverhead" style="color: #0369a1; font-weight: 800;">245.000 đ/ngày</strong>
+                </div>
+              </div>
+
+              <!-- HŨ 3: QUỸ XOAY VÒNG & CHI PHÍ PHÁT SINH (5% + 5% = 10% SỐ TIỀN CÒN LẠI) -->
+              <div class="jar-card jar-3">
+                <div class="jar-card-head">
+                  <div class="jar-card-title" style="color: #334155;">
+                    <span style="font-size: 1.35rem;">🔄</span>
+                    <span>HŨ 3: Quỹ Xoay Vòng</span>
+                  </div>
+                  <span style="background: #f8fafc; color: #475569; border: 1.5px solid #cbd5e1; padding: 0.15rem 0.55rem; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem;">5% PS + 5% Vốn</span>
+                </div>
+                <div class="jar-amount-box">
+                  <span>Số tiền trích tích lũy:</span>
+                  <strong id="jar3Amount" style="color: #334155;">0 đ</strong>
+                </div>
+                <div class="jar-note-card" style="background: #f8fafc; color: #475569; border: 1px solid #f1f5f9;">
+                  <p style="margin: 0 0 0.35rem; font-weight: 800;">🎯 Mục đích & Quy tắc:</p>
+                  <p style="margin: 0;">Trích từ tiền sau vốn gồm: <strong>5% Chi phí phát sinh</strong> (sửa máy, phụ kiện) + <strong>5% Xoay vòng vốn</strong> (dự trữ nhập mía số lượng lớn). Két luôn có sẵn 50k tiền thối.</p>
+                </div>
+                <div class="jar-footer-meta">
+                  <span style="color: #64748b;">Tiền thối két có sẵn:</span>
+                  <strong id="jar3OpeningCash" style="font-weight: 800;">50.000 đ</strong>
+                </div>
+              </div>
+
+              <!-- HŨ 4: TIỀN LỜI RÒNG BỎ TÚI (CHỈ TÍNH SAU KHI ĐÃ ĐẠT ĐỦ TIỀN MẶT BẰNG) -->
+              <div class="jar-card jar-4" id="jar4CardElement">
+                <div class="jar-card-head">
+                  <div class="jar-card-title" style="color: #047857;">
+                    <span style="font-size: 1.35rem;">💰</span>
+                    <span>HŨ 4: Tiền Lời Bỏ Túi</span>
+                  </div>
+                  <span id="jar4Badge" style="background: #ecfdf5; color: #059669; border: 1.5px solid #6ee7b7; padding: 0.15rem 0.55rem; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.75rem;">Sau Khi Đủ MB</span>
+                </div>
+                <div class="jar-amount-box">
+                  <span>Tiền lời thực nhận (P&L):</span>
+                  <strong id="jar4Amount" style="color: #059669;">+0 đ</strong>
+                </div>
+                <div id="jar4NoteBox" class="jar-note-card" style="background: #ecfdf5; color: #065f46; border: 1px solid #d1fae5;">
+                  <p style="margin: 0 0 0.35rem; font-weight: 800;">🎯 Mục đích & Quy tắc:</p>
+                  <p id="jar4NoteText" style="margin: 0;">Chỉ bắt đầu tính tiền lời khi <strong>đã đạt đủ tiền mặt bằng và tích lũy quỹ xoay vòng</strong>, đảm bảo an toàn tuyệt đối cho dòng tiền kinh doanh!</p>
+                </div>
+                <div class="jar-footer-meta">
+                  <span style="color: #64748b;">Tỷ suất lời trên doanh thu:</span>
+                  <strong id="jar4MarginPct" style="color: #047857; font-weight: 800;">0%</strong>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- CÔNG CỤ TÍNH NHANH CHIA TIỀN (SIMULATOR) -->
+            <div class="jars-simulator-card">
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                <span style="font-size: 1.3rem;">🧮</span>
+                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 900; color: #312e81;">
+                  Công Cụ Tự Tính Nhanh Phân Bổ 4 Hũ Tiền
+                </h3>
+              </div>
+              <p style="margin: 0 0 0.85rem; font-size: 0.84rem; color: #64748b;">Nhập số tiền doanh thu bất kỳ (ví dụ: 983k trong 2 ngày) để hệ thống tự chia tiền ngay lập tức:</p>
+              
+              <div class="jars-sim-inputs">
+                <div class="jars-sim-input-box">
+                  <label for="jarSimRevenue">🔢 Doanh thu cần chia (đ):</label>
+                  <div class="modern-money-field-wrap">
+                    <input id="jarSimRevenue" type="number" inputmode="numeric" placeholder="983000" value="983000" class="modern-money-input" style="font-size: 1.15rem; padding: 0.6rem 2.8rem 0.6rem 0.85rem;">
+                    <span class="modern-money-unit">đ</span>
+                  </div>
+                </div>
+
+                <div class="jars-sim-input-box">
+                  <label for="jarSimDays">📅 Số ngày bán:</label>
+                  <input id="jarSimDays" type="number" inputmode="numeric" placeholder="2" value="2" class="jars-sim-field" style="text-align: center;">
+                </div>
+
+                <button id="jarSimulateBtn" type="button" class="jars-sim-btn">
+                  ⚡ Tính Phân Bổ Ngay
+                </button>
+              </div>
+
+              <!-- KẾT QUẢ TÍNH NHANH (4 HŨ) -->
+              <div id="jarSimResult" class="jars-sim-results-grid">
+                <div style="background: #fff7ed; padding: 0.65rem 0.5rem; border-radius: var(--radius-md); border: 1.5px solid #fdba74;">
+                  <span style="font-size: 0.74rem; color: #c2410c; font-weight: 800; display: block;">🧊 Hũ Vốn 45%</span>
+                  <strong id="simCost" style="color: #ea580c; font-size: 1.08rem; display: block; margin-top: 0.2rem;">442.350 đ</strong>
+                </div>
+                <div style="background: #f0f9ff; padding: 0.65rem 0.5rem; border-radius: var(--radius-md); border: 1.5px solid #7dd3fc;">
+                  <span style="font-size: 0.74rem; color: #0369a1; font-weight: 800; display: block;">🏢 Hũ Mặt Bằng</span>
+                  <strong id="simRent" style="color: #0284c7; font-size: 1.08rem; display: block; margin-top: 0.2rem;">490.000 đ</strong>
+                </div>
+                <div style="background: #f8fafc; padding: 0.65rem 0.5rem; border-radius: var(--radius-md); border: 1.5px solid #cbd5e1;">
+                  <span style="font-size: 0.74rem; color: #475569; font-weight: 800; display: block;">💵 Hũ Tiền Thối</span>
+                  <strong id="simOpening" style="color: #334155; font-size: 1.08rem; display: block; margin-top: 0.2rem;">50.000 đ</strong>
+                </div>
+                <div style="background: #ecfdf5; padding: 0.65rem 0.5rem; border-radius: var(--radius-md); border: 1.5px solid #6ee7b7;">
+                  <span style="font-size: 0.74rem; color: #047857; font-weight: 800; display: block;">💰 Hũ Lời Ròng</span>
+                  <strong id="simProfit" style="color: #059669; font-size: 1.08rem; display: block; margin-top: 0.2rem;">+50.650 đ</strong>
+                </div>
+              </div>
+              <div id="simNoteBox" style="margin-top: 0.65rem; font-size: 0.82rem; color: #065f46; background: #ecfdf5; padding: 0.5rem 0.8rem; border-radius: var(--radius-sm); border: 1px solid #a7f3d0; line-height: 1.45;">
+                ✅ <strong>Ghi chú:</strong> Doanh thu 983k trong 2 ngày đã đủ bù tiền mặt bằng 2 ngày (490k) và tiền hàng, dôi ra <strong>+50.650 đ</strong> tiền lời sạch.
+              </div>
+            </div>
+
+            <!-- DANH SÁCH GIAO DỊCH CHI TIẾT TRONG KỲ (SHOW LIST) -->
+            <div class="jars-transactions-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.45rem;">
+                  <span style="font-size: 1.3rem;">📋</span>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 900; color: #0f172a;">
+                    Danh Sách Đơn Hàng & Ly Nước Đã Bán Trong Kỳ
+                  </h3>
+                </div>
+                <span id="jarsTxListCountBadge" style="background: #f1f5f9; color: #334155; padding: 0.2rem 0.65rem; border-radius: var(--radius-pill); font-weight: 800; font-size: 0.78rem; border: 1px solid #cbd5e1;">0 đơn</span>
+              </div>
+              <div id="jarsTransactionsList" class="modern-tx-list-wrap">
+                <!-- Danh sách đơn hàng được hiển thị tự động -->
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- TAB 3: DANH SÁCH & QUẢN LÝ CÁC PHIẾU CHỐT CA -->
+        <section class="view" id="view-closings">
+          <div class="closings-container">
+            
+            <!-- HEADER: TIÊU ĐỀ, BỘ LỌC ĐIỂM BÁN & THỜI GIAN, NÚT CHỐT CA HÔM NAY -->
+            <div class="closings-header-card">
+              <div class="closings-header-top">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.6rem;">📋</span>
+                    <h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">Sổ Phiếu Chốt Ca & Tổng Kết Ngày</h2>
+                  </div>
+                  <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: #c7d2fe;">Lưu trữ, tra cứu và đối soát toàn bộ phiếu chốt ca, két tiền mặt và phân bổ dòng tiền 4 hũ theo từng ngày.</p>
+                </div>
+
+                <div class="closings-header-controls">
+                  <select id="closingsBranchSelect" class="closings-filter-select" title="Lọc điểm bán">
+                    <option value="all">🏢 Tất cả điểm bán</option>
+                    <option value="Quán Nhà (Chính)">🏠 Quán Nhà (Chính)</option>
+                    <option value="Chi nhánh 2">🏪 Chi nhánh 2</option>
+                  </select>
+                  <select id="closingsPeriodSelect" class="closings-filter-select" title="Lọc thời gian">
+                    <option value="all">📅 Tất cả thời gian</option>
+                    <option value="this_month" selected>📅 Tháng này</option>
+                    <option value="7days">📅 7 ngày qua</option>
+                    <option value="30days">📅 30 ngày qua</option>
+                  </select>
+                  <button id="closingsQuickClosingBtn" type="button" class="closings-action-btn primary">
+                    <span>⚡ Chốt Ca Hôm Nay</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- TỔNG HỢP NHANH CÁC PHIẾU ĐÃ CHỐT -->
+              <div class="closings-summary-grid">
+                <div class="closings-sum-item">
+                  <span>Tổng số phiếu chốt</span>
+                  <strong id="closingsTotalTickets">0 phiếu</strong>
+                </div>
+                <div class="closings-sum-item">
+                  <span>Tổng doanh thu các ca</span>
+                  <strong id="closingsTotalRevenue" style="color: #34d399;">0 đ</strong>
+                </div>
+                <div class="closings-sum-item">
+                  <span>Tổng tiền lời sạch (Hũ 4)</span>
+                  <strong id="closingsTotalProfit" style="color: #a7f3d0;">+0 đ</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- DANH SÁCH CÁC PHIẾU CHỐT CA -->
+            <div class="closings-list-panel">
+              <div class="closings-list-head">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 1.25rem;">📑</span>
+                  <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;">Danh Sách Phiếu Chốt Ca</h3>
+                </div>
+                <div class="closings-branch-pills" id="closingsBranchPills">
+                  <button type="button" class="closings-pill-btn is-active" data-branch="all">🏢 Tất cả điểm bán</button>
+                  <button type="button" class="closings-pill-btn" data-branch="Quán Nhà (Chính)">🏠 Quán Nhà (Chính)</button>
+                  <button type="button" class="closings-pill-btn" data-branch="Chi nhánh 2">🏪 Chi nhánh 2</button>
+                </div>
+                <span id="closingsCountBadge" class="closings-count-badge">0 phiếu</span>
+              </div>
+
+              <div id="closingsCardsList" class="closings-cards-list">
+                <!-- Danh sách phiếu chốt ca được render tự động -->
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- TAB 4: LỊCH SỬ GIAO DỊCH -->
+        <section class="view" id="view-history">
+          <div class="history-container">
+            
+            <!-- HEADER LỊCH SỬ: BỘ LỌC ĐIỂM BÁN, KỲ THỜI GIAN & SAO LƯU -->
+            <div class="history-header-card">
+              <div class="history-header-top">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-size: 1.5rem;">📜</span>
+                    <h2 style="margin: 0; font-size: 1.3rem; font-weight: 900; color: #ffffff;">Sổ Lịch Sử Giao Dịch</h2>
+                  </div>
+                  <p style="margin: 0.35rem 0 0; font-size: 0.85rem; color: #c7d2fe;">Tra cứu, xem lại và phân bổ toàn bộ đơn bán nước và phiếu chi theo từng ngày.</p>
+                </div>
+
+                <div class="history-header-controls">
+                  <select id="historyBranchSelect" class="history-filter-select" title="Lọc điểm bán">
+                    <option value="all">🏢 Tất cả điểm bán</option>
+                    <option value="Quán Nhà (Chính)">🏠 Quán Nhà (Chính)</option>
+                    <option value="Chi nhánh 2">🏪 Chi nhánh 2</option>
+                  </select>
+                  <button class="ghost-button" id="backupBtn" type="button" style="color: #ffffff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.12);">
+                    📥 Sao lưu dữ liệu
+                  </button>
+                </div>
+              </div>
+
+              <!-- BỘ LỌC THỜI GIAN DẠNG PILLS -->
+              <div class="history-period-pills" id="historyPeriodPills">
+                <button type="button" class="history-pill-btn is-active" data-period="today">🌟 Hôm nay</button>
+                <button type="button" class="history-pill-btn" data-period="yesterday">📅 Hôm qua</button>
+                <button type="button" class="history-pill-btn" data-period="last_week">🗓️ Tuần trước</button>
+                <button type="button" class="history-pill-btn" data-period="this_month">📆 Tháng này</button>
+                <button type="button" class="history-pill-btn" data-period="all">♾️ Tất cả</button>
+                <button type="button" class="history-pill-btn" data-period="custom">🔍 Tùy chỉnh</button>
+              </div>
+
+              <!-- KHUNG CHỌN NGÀY TÙY CHỈNH -->
+              <div class="history-custom-range" id="historyCustomRange" style="display: none;">
+                <div class="history-custom-field">
+                  <label for="historyStartDate">Từ ngày:</label>
+                  <input type="date" id="historyStartDate" class="history-date-input">
+                </div>
+                <div class="history-custom-field">
+                  <label for="historyEndDate">Đến ngày:</label>
+                  <input type="date" id="historyEndDate" class="history-date-input">
+                </div>
+                <button type="button" id="historyApplyCustomBtn" class="history-apply-btn">Áp Dụng</button>
+              </div>
+
+              <!-- TỔNG KẾT NHANH TRONG KỲ LỌC -->
+              <div class="history-summary-grid">
+                <div class="history-sum-item">
+                  <span>Số giao dịch</span>
+                  <strong id="historySumCount">0 đơn</strong>
+                </div>
+                <div class="history-sum-item revenue">
+                  <span>+ Tổng Tiền Thu</span>
+                  <strong id="historySumIncome" style="color: #34d399;">0 đ</strong>
+                </div>
+                <div class="history-sum-item expense">
+                  <span>- Tổng Tiền Chi</span>
+                  <strong id="historySumExpense" style="color: #f87171;">0 đ</strong>
+                </div>
+                <div class="history-sum-item profit">
+                  <span>= Lợi Nhuận Gộp</span>
+                  <strong id="historySumBalance" style="color: #67e8f9;">0 đ</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- DANH SÁCH GIAO DỊCH PHÂN THEO NGÀY -->
+            <div class="history-list-panel">
+              <div id="historyList" class="history-grouped-list"></div>
+            </div>
+
+          </div>
         </section>
 
         <!-- TAB 3: THỐNG KÊ ĐA CHIỀU (NGÀY / TUẦN / THÁNG) -->
@@ -399,8 +1130,8 @@
           </section>
         </section>
 
-        <!-- TAB 4: THƯ KÝ AI EV (QUẢN LÝ 2 CHI NHÁNH) -->
-        <section class="view" id="view-ai" hidden>
+        <!-- TAB 4: THƯ KÝ AI EV (QUẢN LÝ 2 CHI NHÁNH) - TẠM ẨN ĐỂ TỐI ƯU MOBILE -->
+        <section class="view" id="view-ai" hidden style="display: none !important;">
           <div class="ai-container">
             <div class="ai-header-card">
               <div class="ai-avatar-wrap">
@@ -474,6 +1205,23 @@
                   🧮 Bảng Tính Giá Vốn (Cost) Món Chi Tiết
                 </button>
               </div>
+            </div>
+
+            <!-- BỘ QUẢN LÝ BẢNG GIÁ NGUYÊN LIỆU (QUICK INGREDIENTS MANAGER) -->
+            <div class="settings-card full-width" id="ingredientSettingsCard" style="border: 2px solid #ea580c; background: #fff7ed;">
+              <div class="card-head" style="border-bottom: 1px solid #fed7aa; padding-bottom: 0.6rem; margin-bottom: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+                  <div>
+                    <h2 style="color: #9a3412;">🛒 Bảng Giá &amp; Định Mức Nguyên Liệu Nhập Hàng</h2>
+                    <p class="subtitle" style="color: #7c2d12;">Tùy chỉnh đơn giá nhập chuẩn, đơn vị tính và số lượng mặc định cho từng loại nguyên liệu (Mía, Đá, Tắc, Thơm, Cam, Sữa, Ly, Bịch, Màng ép...).</p>
+                  </div>
+                  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="ghost-button" id="addNewIngredientItemBtn" type="button" style="color: #ea580c; border-color: #fdba74; background: #ffffff; font-weight: 700;">+ Thêm nguyên liệu</button>
+                    <button class="primary-action slim" id="saveIngredientsBtn" type="button" style="background: linear-gradient(135deg, #ea580c, #c2410c);">Lưu bảng giá nguyên liệu</button>
+                  </div>
+                </div>
+              </div>
+              <div class="ingredient-items-editor" id="ingredientItemsEditor"></div>
             </div>
 
             <!-- BỘ QUẢN LÝ ĐỊNH PHÍ MẶT BẰNG, ĐIỆN NƯỚC RÁC & VẬT TƯ BAO BÌ (MÀNG ÉP CUỘN, LY, BỌC, ỐNG HÚT) -->
@@ -649,6 +1397,9 @@
                 <span>Phiên bản hiện tại</span>
                 <strong id="appVersionText">Phiên bản 2.0 (Toàn diện)</strong>
               </div>
+              <button class="ghost-button" id="clearAppCacheBtn" type="button" style="margin-top: 0.65rem; width: 100%; border: 1.5px solid #0d9488; color: #0f766e; font-weight: 700; background: #f0fdfa; border-radius: var(--radius-md); padding: 0.5rem;">
+                🧹 Xóa Bộ Nhớ Cache &amp; Tải Lại Giao Diện Mới
+              </button>
             </div>
 
             <!-- SAO LƯU, KHÔI PHỤC & XÓA DỮ LIỆU -->
@@ -844,6 +1595,34 @@
     </dialog>
 
     <!-- HỘP THOẠI PHIẾU TỔNG KẾT NGÀY CHI TIẾT -->
+    <!-- SỬA SỐ DƯ QUỸ (EDIT FUNDS DIALOG) -->
+    <dialog id="editFundsDialog" style="border: none; border-radius: 12px; padding: 0; max-width: 400px; width: 90vw; margin: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+      <div style="padding: 1rem; background: linear-gradient(to right, #f8fafc, #f1f5f9);">
+        <h3 style="margin: 0; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
+          <span>🏦</span> Cập Nhật Số Dư Sổ Quỹ
+        </h3>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; color: #64748b;">Điền số dư thực tế hiện tại để phần mềm tạo giao dịch điều chỉnh (Cân bằng quỹ).</p>
+      </div>
+      <div style="padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; color: #475569; margin-bottom: 0.25rem; font-weight: 600;">👛 Ví Tiền Vốn</label>
+          <input type="number" inputmode="numeric" id="editFundWallet" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; color: #475569; margin-bottom: 0.25rem; font-weight: 600;">🏢 Quỹ Mặt Bằng</label>
+          <input type="number" inputmode="numeric" id="editFundRent" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; color: #475569; margin-bottom: 0.25rem; font-weight: 600;">🎉 Quỹ Lãi Ròng</label>
+          <input type="number" inputmode="numeric" id="editFundProfit" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem;">
+        </div>
+      </div>
+      <div style="padding: 1rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.5rem; background: #f8fafc; border-radius: 0 0 12px 12px;">
+        <button id="cancelEditFundsBtn" type="button" style="padding: 0.5rem 1rem; border: 1px solid #cbd5e1; background: white; border-radius: 6px; color: #475569; cursor: pointer;">Hủy</button>
+        <button id="saveEditFundsBtn" type="button" style="padding: 0.5rem 1rem; border: none; background: #3b82f6; color: white; border-radius: 6px; font-weight: 600; cursor: pointer;">Lưu Thay Đổi</button>
+      </div>
+    </dialog>
+
     <dialog class="closing-dialog" id="dailyClosingDialog">
       <div class="closing-modal-content">
         <div class="closing-header">
@@ -884,8 +1663,48 @@
           </div>
 
           <div class="closing-net-box">
-            <span>💵 TIỀN LỜI THỰC NHẬN CUỐI CÙNG:</span>
+            <span>🌟 LÃI RÒNG THỰC TẾ (P&L SAU MẶT BẰNG):</span>
             <strong id="closingNetProfit">0 đ</strong>
+          </div>
+
+          <!-- KHU VỰC PHÂN CHIA HŨ TIỀN QUẢN TRỊ DÒNG TIỀN -->
+          <div class="money-jars-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.65rem; border-bottom: 1px solid #e0e7ff; padding-bottom: 0.4rem;">
+              <h3 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #4338ca; display: flex; align-items: center; gap: 0.4rem;">
+                <span>📦 Bảng Phân Chia Hũ Tiền (Sau Khi Chốt Ca)</span>
+              </h3>
+              <span style="font-size: 0.76rem; background: #e0e7ff; color: #4338ca; padding: 0.15rem 0.5rem; border-radius: var(--radius-pill); font-weight: 700;">Tự động chia tiền</span>
+            </div>
+
+            <div class="closing-jars-grid">
+              <!-- Hũ 1: Vốn nhập hàng -->
+              <div class="jar-box" style="background: #fff7ed; border: 1.5px solid #fdba74;">
+                <span style="color: #c2410c;">🧊 1. Vốn Nhập Hàng</span>
+                <strong id="jarCost" style="color: #ea580c;">0 đ</strong>
+                <small style="color: #9a3412;">Giữ lại mua đá, mía, tắc...</small>
+              </div>
+
+              <!-- Hũ 2: Quỹ Mặt Bằng & Điện Nước -->
+              <div class="jar-box" style="background: #f0f9ff; border: 1.5px solid #7dd3fc;">
+                <span style="color: #0369a1;">🏢 2. Quỹ Mặt Bằng</span>
+                <strong id="jarRent" style="color: #0284c7;">0 đ</strong>
+                <small style="color: #075985;">Trích trả tiền nhà & điện</small>
+              </div>
+
+              <!-- Hũ 3: Tiền thối sáng mai -->
+              <div class="jar-box" style="background: #f8fafc; border: 1.5px solid #cbd5e1;">
+                <span style="color: #475569;">💵 3. Tiền Thối Sáng</span>
+                <strong id="jarOpeningCash" style="color: #334155;">50.000 đ</strong>
+                <small style="color: #64748b;">Để lại két sáng mai</small>
+              </div>
+
+              <!-- Hũ 4: Tiền Lời Ròng Bỏ Túi -->
+              <div class="jar-box" style="background: #ecfdf5; border: 1.5px solid #6ee7b7;">
+                <span style="color: #047857;">💰 4. Tiền Lời Bỏ Túi</span>
+                <strong id="jarNetProfit" style="color: #059669;">0 đ</strong>
+                <small id="jarNetProfitHint" style="color: #065f46;">Lãi ròng sau mọi chi phí</small>
+              </div>
+            </div>
           </div>
 
           <!-- Bảng kê chi tiết từng món nước bán trong ngày -->
@@ -924,35 +1743,140 @@
             </div>
           </div>
 
-          <!-- Khu vực Đối Soát Tiền Mặt Cuối Ngày -->
+          <!-- Khu vực Đối Soát Song Song Tiền Mặt Két & Ngân Hàng/MoMo Cuối Ngày -->
           <div class="cash-reconcile-card">
-            <h4>🧮 Đối soát tiền mặt trong két cuối ngày</h4>
-            <div class="reconcile-breakdown">
-              <div class="reconcile-row">
-                <span>💵 Tiền vốn thối bỏ vào sáng sớm:</span>
-                <strong id="closingOpeningCash">500.000 đ</strong>
+            <h4>🧮 Đối Soát Song Song Sổ Sách & Thực Tế (Két + Ngân Hàng)</h4>
+            
+            <div class="reconcile-dual-grid">
+              <!-- CỘT 1: TIỀN MẶT TRONG KÉT -->
+              <div class="reconcile-channel-box" style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: var(--radius-md); padding: 0.85rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                  <strong style="color: #0f172a; font-size: 0.92rem;">💵 KÊNH TIỀN MẶT (KÉT)</strong>
+                  <span style="font-size: 0.76rem; background: #e2e8f0; padding: 0.1rem 0.4rem; border-radius: var(--radius-pill); font-weight: 700;">Tại Quán</span>
+                </div>
+                <div class="reconcile-breakdown">
+                  <div class="reconcile-row" style="font-size: 0.82rem;">
+                    <span>Tiền thối sáng:</span>
+                    <strong id="closingOpeningCash">50.000 đ</strong>
+                  </div>
+                  <div class="reconcile-row" style="font-size: 0.82rem;">
+                    <span>+ Thu tiền mặt:</span>
+                    <strong id="closingCashIncomeReconcile" style="color: var(--green-dark);">+0 đ</strong>
+                  </div>
+                  <div class="reconcile-row" style="font-size: 0.82rem;">
+                    <span>− Chi phát sinh:</span>
+                    <strong id="closingExpenseReconcile" style="color: var(--red);">−0 đ</strong>
+                  </div>
+                  <div class="reconcile-row total-expected" style="margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1.5px dashed #cbd5e1;">
+                    <span style="font-weight: 800; font-size: 0.86rem;">🎯 Sổ tính cần có:</span>
+                    <strong id="closingExpectedCash" style="color: #2563eb; font-size: 1.05rem;">50.000 đ</strong>
+                  </div>
+                </div>
+
+
+
+                <div class="reconcile-input-group">
+                  <label for="closingCashActual" class="reconcile-input-label">
+                    <span>🔢 Tiền mặt thực đếm trong két:</span>
+                  </label>
+                  <div class="modern-money-field-wrap">
+                    <input id="closingCashActual" type="text" inputmode="numeric" placeholder="Nhập số tiền đếm được..." class="modern-money-input">
+                    <span class="modern-money-unit">đ</span>
+                  </div>
+                </div>
+                <div class="reconcile-result" id="closingCashResult" style="margin-top: 0.45rem; font-size: 0.86rem;"></div>
+                <!-- Gợi ý nguyên nhân dư/thiếu -->
+                <div id="cashDiscrepancyHints" style="display: none; margin-top: 0.45rem; padding: 0.55rem 0.65rem; border-radius: var(--radius-sm); font-size: 0.78rem; line-height: 1.55;"></div>
               </div>
-              <div class="reconcile-row">
-                <span>🟢 + Tiền mặt bán được trong ngày:</span>
-                <strong id="closingCashIncomeReconcile" style="color: var(--green-dark);">+0 đ</strong>
+
+              <!-- CỘT 2: TIỀN CHUYỂN KHOẢN / MOMO -->
+              <div class="reconcile-channel-box" style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: var(--radius-md); padding: 0.85rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                  <strong style="color: #0369a1; font-size: 0.92rem;">📲 KÊNH CHUYỂN KHOẢN (MOMO/QR)</strong>
+                  <span style="font-size: 0.76rem; background: #e0f2fe; color: #0284c7; padding: 0.1rem 0.4rem; border-radius: var(--radius-pill); font-weight: 700;">Tài Khoản</span>
+                </div>
+                <div class="reconcile-breakdown">
+                  <div class="reconcile-row" style="font-size: 0.82rem;">
+                    <span>Tổng đơn quét QR / MoMo:</span>
+                    <strong id="closingTransferCountHint">0 bill</strong>
+                  </div>
+                  <div class="reconcile-row total-expected" style="margin-top: 1.25rem; padding-top: 0.35rem; border-top: 1.5px dashed #bae6fd;">
+                    <span style="font-weight: 800; font-size: 0.86rem; color: #0369a1;">🎯 Sổ tính đã nhận:</span>
+                    <strong id="closingTransferHint" style="color: #0284c7; font-size: 1.05rem;">0 đ</strong>
+                  </div>
+                </div>
+                <div class="reconcile-input-group">
+                  <label for="closingBankActual" class="reconcile-input-label" style="color: #0369a1;">
+                    <span>🔢 Tiền trên App Ngân Hàng / MoMo:</span>
+                  </label>
+                  <div class="modern-money-field-wrap bank-theme">
+                    <input id="closingBankActual" type="text" inputmode="numeric" placeholder="Nhập số tiền trên App..." class="modern-money-input">
+                    <span class="modern-money-unit">đ</span>
+                  </div>
+                </div>
+                <div class="reconcile-result" id="closingBankResult" style="margin-top: 0.45rem; font-size: 0.86rem;"></div>
               </div>
-              <div class="reconcile-row">
-                <span>🔴 − Tiền chi phát sinh hôm nay:</span>
-                <strong id="closingExpenseReconcile" style="color: var(--red);">−0 đ</strong>
-              </div>
-              <div class="reconcile-row total-expected">
-                <span>🎯 TỔNG TIỀN MẶT CẦN CÓ TRONG KÉT:</span>
-                <strong id="closingExpectedCash">500.000 đ</strong>
-              </div>
-              <p style="margin: 0.25rem 0 0; font-size: 0.78rem; color: var(--muted);">*(Tiền chuyển khoản <span id="closingTransferHint" style="font-weight: 700; color: #0284c7;">0 đ</span> đã vào tài khoản ngân hàng, không nằm trong két).*</p>
             </div>
-            <div class="reconcile-input-row">
-              <label>
-                Số tiền mặt thực đếm được trong két (đ):
-                <input id="closingCashActual" inputmode="numeric" placeholder="Ví dụ: 1000000">
-              </label>
+
+            <div class="reconcile-overall-box" id="closingOverallBox" style="display: none; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: var(--radius-md); padding: 0.75rem 1rem; margin-top: 0.5rem; text-align: center;">
+              <strong id="closingOverallTitle" style="font-size: 0.95rem; color: #166534; display: block;">🎉 KẾT QUẢ ĐỐI SOÁT: HOÀN TOÀN KHỚP 100%!</strong>
+              <span id="closingOverallDetail" style="font-size: 0.82rem; color: #15803d; margin-top: 0.2rem; display: block;">Tổng doanh thu thực nhận đã được kiểm chứng chuẩn xác.</span>
             </div>
-            <div class="reconcile-result" id="closingCashResult" hidden></div>
+          </div>
+
+          <!-- 📦 THỰC HÀNH RÚT TIỀN (ACTION PLAN) -->
+          <div style="background: #fff; border: 1.5px solid #e2e8f0; border-radius: var(--radius-md); padding: 1rem; margin-top: 1rem;">
+            <h4 style="margin: 0 0 0.75rem; font-size: 0.95rem; font-weight: 800; color: #0f172a; text-transform: uppercase;">
+              📦 Hướng Dẫn Rút Tiền Từ Két Đóng Quán
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px dashed #cbd5e1;">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span style="font-size: 1.1rem;">💰</span>
+                  <span style="font-size: 0.85rem; font-weight: 700; color: #475569;">1. Giữ lại làm Tiền Thối (sáng mai)</span>
+                </div>
+                <strong style="color: #0f172a;" id="actionKeepBase">50.000 đ</strong>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px dashed #cbd5e1;">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span style="font-size: 1.1rem;">🧊</span>
+                  <div style="display: flex; flex-direction: column;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #475569;">2. Rút Vốn BOM trả lại Ví</span>
+                    <span style="font-size: 0.7rem; color: #94a3b8;">Tiền vốn nguyên liệu của các ly đã bán hôm nay</span>
+                  </div>
+                </div>
+                <strong style="color: #ea580c; font-size: 1.1rem;" id="actionExtractBOM">0 đ</strong>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 0.5rem; border-bottom: 1px dashed #cbd5e1;">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span style="font-size: 1.1rem;">🏢</span>
+                  <span style="font-size: 0.85rem; font-weight: 700; color: #475569;">3. Rút cất Quỹ Mặt Bằng</span>
+                </div>
+                <strong style="color: #0284c7;" id="actionExtractRent">0 đ</strong>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #f0fdf4; border-radius: 6px; border: 1px solid #bbf7d0;">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span style="font-size: 1.1rem;">🎉</span>
+                  <span style="font-size: 0.85rem; font-weight: 800; color: #166534;">4. Rút Tiền Lời Cất Đi (Lãi Ròng)</span>
+                </div>
+                <strong style="color: #15803d; font-size: 1.1rem;" id="actionExtractProfit">0 đ</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- 📋 SAO KÊ KÉT TIỀN CHI TIẾT (Standalone Card) -->
+          <div style="margin-top: 1rem;">
+            <details id="cashFlowDetails" style="background: #fff; border: 1.5px solid #e2e8f0; border-radius: var(--radius-md); overflow: hidden;">
+              <summary style="cursor: pointer; padding: 0.8rem 1rem; background: linear-gradient(135deg, #f8fafc, #f1f5f9); font-weight: 800; font-size: 0.9rem; color: #334155; display: flex; align-items: center; gap: 0.5rem; user-select: none;">
+                📋 Xem Sao Kê Két Tiền Chi Tiết (Từng Dòng Thu Chi)
+              </summary>
+              <div id="cashFlowDetailBody" style="padding: 1rem; font-size: 0.85rem; max-height: 400px; overflow-y: auto; background: #fff; border-top: 1px solid #e2e8f0;">
+                <p style="color: #94a3b8; text-align: center;">Đang tải...</p>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -963,8 +1887,14 @@
           <button class="ghost-button" id="copyClosingSummaryBtn" type="button">
             📋 Sao chép báo cáo
           </button>
-          <button class="primary-action slim" id="closeDailyClosingBtn" type="button">
-            Hoàn tất / Đóng
+          <button class="ghost-button" id="uncloseDailyClosingBtn" type="button" style="display: none; color: #dc2626; border-color: #fecaca; background: #fef2f2;">
+            🔓 Hủy Chốt Ca (Mở Lại Ca)
+          </button>
+          <button class="ghost-button" id="closeDailyClosingBtn" type="button">
+            Đóng
+          </button>
+          <button class="primary-action slim" id="confirmDailyClosingBtn" type="button">
+            ✅ Xác Nhận Chốt Ca
           </button>
         </div>
       </div>
@@ -1011,14 +1941,45 @@
     <dialog class="confirm-dialog" id="editOpeningCashDialog">
       <form method="dialog" id="editOpeningCashForm">
         <h2>💵 Đổi Tiền Vốn Thối Đầu Ngày</h2>
-        <p class="subtitle" style="margin: 0.2rem 0 0.8rem; font-size: 0.86rem; color: var(--muted);">Nhập số tiền lẻ bạn bỏ vào két sáng nay để thối cho khách.</p>
+        <p class="subtitle" style="margin: 0.2rem 0 0.8rem; font-size: 0.86rem; color: var(--muted);">Nhập số tiền lẻ bạn bỏ vào két sáng nay để thối cho khách (mặc định 50k).</p>
         <label>
           Số tiền thối đầu ngày (đ):
-          <input id="todayOpeningCashInput" inputmode="numeric" placeholder="500000" required>
+          <input id="todayOpeningCashInput" inputmode="numeric" placeholder="50000" required>
         </label>
+        <div class="routine-preset-grid">
+          <button class="routine-preset-btn" type="button" data-val="50000">50k</button>
+          <button class="routine-preset-btn" type="button" data-val="100000">100k</button>
+          <button class="routine-preset-btn" type="button" data-val="200000">200k</button>
+          <button class="routine-preset-btn" type="button" data-val="500000">500k</button>
+        </div>
         <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
           <button class="ghost-button" id="cancelOpeningCashBtn" type="button">Hủy bỏ</button>
           <button class="primary-action" id="saveTodayOpeningCashBtn" type="button">Lưu số tiền</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- HỘP THOẠI TRỢ LÝ NHẮC NHỞ NHỊP VẬN HÀNH NGÀY (SÁNG / TRƯA / TỐI) -->
+    <dialog class="confirm-dialog modern-modal" id="dailyRoutineModal" style="max-width: 520px; width: 95vw;">
+      <form method="dialog" id="dailyRoutineForm">
+        <div class="modal-header-modern" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div class="modal-title-wrap" style="display: flex; align-items: center; gap: 0.6rem;">
+            <span class="modal-icon-badge" id="routineModalIconBadge" style="font-size: 2rem;">🌅</span>
+            <div>
+              <h2 id="routineModalTitle" style="margin: 0; font-size: 1.15rem; font-weight: 800;">Khởi Động Ca Sáng</h2>
+              <p class="subtitle" id="routineModalSubtitle" style="margin: 0.15rem 0 0; font-size: 0.84rem; color: var(--muted);">EV đồng hành cùng quán mỗi ngày</p>
+            </div>
+          </div>
+          <button class="ghost-button" id="closeRoutineModalBtn" type="button" aria-label="Đóng" style="padding: 0.2rem 0.55rem; font-size: 0.9rem;">✕</button>
+        </div>
+
+        <div class="routine-modal-body" id="routineModalBody">
+          <!-- Nội dung động: Sáng (mở két), Trưa (kiểm đá mía), Tối (chốt két) -->
+        </div>
+
+        <div class="confirm-actions" id="routineModalActions" style="display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.2rem;">
+          <button class="ghost-button" id="dismissRoutineModalBtn" type="button">Để sau</button>
+          <button class="primary-action" id="submitRoutineModalBtn" type="button">✅ Xác nhận</button>
         </div>
       </form>
     </dialog>
@@ -1080,6 +2041,41 @@
     </dialog>
 
     <!-- HỘP THOẠI CÀI ĐẶT GIỌNG ĐỌC THƯ KÝ EV -->
+    
+    <!-- Wallet Ledger Dialog -->
+    
+    <!-- Wallet Ledger Dialog (Modern UI) -->
+    <dialog class="confirm-dialog modern-modal" id="walletLedgerDialog" style="max-width: 580px; width: 95vw; border-radius: 1.25rem; overflow: hidden; padding: 0; box-shadow: 0 25px 50px -12px rgba(234, 88, 12, 0.25);">
+      <!-- Header Gradient -->
+      <div style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); color: #fff; padding: 1.1rem 1.35rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="width: 2.75rem; height: 2.75rem; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">👛</div>
+          <div>
+            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: 0.01em; color: #fff;">Sao Kê Ví Tiền Vốn</h2>
+            <p style="margin: 0.15rem 0 0; font-size: 0.8rem; opacity: 0.9; font-weight: 500;">Lịch sử thu chi nguồn vốn</p>
+          </div>
+        </div>
+        <button type="button" onclick="document.getElementById('walletLedgerDialog').close()" style="background: transparent; border: none; color: white; opacity: 0.8; font-size: 1.5rem; cursor: pointer; padding: 0.25rem; line-height: 1;">✕</button>
+      </div>
+      
+      <div style="padding: 1.25rem; background: #f8fafc;">
+        <div class="table-container" style="max-height: 400px; overflow-y: auto; background: white; border-radius: var(--radius-md); border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <table class="data-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead style="position: sticky; top: 0; background: #f1f5f9; z-index: 10;">
+              <tr>
+                <th style="padding: 0.75rem 1rem; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #e2e8f0; min-width: 80px;">Thời gian</th>
+                <th style="padding: 0.75rem 1rem; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #e2e8f0;">Phát sinh</th>
+                <th style="padding: 0.75rem 1rem; font-weight: 700; color: #475569; font-size: 0.85rem; border-bottom: 2px solid #e2e8f0; text-align: right;">Số dư</th>
+              </tr>
+            </thead>
+            <tbody id="walletLedgerBody">
+              <!-- JS rendered -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </dialog>
+
     <dialog class="confirm-dialog voice-settings-dialog" id="voiceSettingsDialog">
       <form method="dialog" id="voiceSettingsForm">
         <h2>🎙️ Cài Đặt Giọng Đọc Thư Ký EV</h2>
@@ -1117,134 +2113,166 @@
     </dialog>
 
     <!-- HỘP THOẠI QUẢN LÝ TỒN KHO & ĐỊNH MỨC NGUYÊN LIỆU (BOM) -->
-    <dialog class="confirm-dialog" id="inventoryDialog" style="max-width: 650px; width: 95vw;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.5rem;">📦</span>
+    <dialog class="confirm-dialog modern-modal" id="inventoryDialog" style="max-width: 680px; width: 95vw; border-radius: 1.25rem; overflow: hidden; padding: 0; box-shadow: 0 20px 40px -15px rgba(15, 118, 110, 0.2);">
+      <!-- Header Gradient -->
+      <div style="background: linear-gradient(135deg, #0f766e 0%, #115e59 100%); color: #fff; padding: 1.1rem 1.35rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 1.35rem;">📦</div>
           <div>
-            <h2 style="margin: 0; font-size: 1.2rem; color: #0f766e;">Quản Lý Tồn Kho Nguyên Liệu (BOM)</h2>
-            <p style="margin: 0; font-size: 0.8rem; color: var(--muted);">Tự động trừ kho theo công thức định lượng mỗi ly nước bán ra</p>
+            <h2 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">Quản Lý Tồn Kho Nguyên Liệu (BOM)</h2>
+            <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: #ccfbf1; opacity: 0.9;">Tự động trừ kho theo công thức định lượng chuẩn từng ly nước</p>
           </div>
         </div>
-        <select id="inventoryBranchSelect" style="padding: 0.35rem 0.6rem; font-size: 0.85rem; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #f0fdfa; color: #0f766e;">
-          <!-- Populated by JS -->
-        </select>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <select id="inventoryBranchSelect" style="padding: 0.35rem 0.65rem; font-size: 0.82rem; font-weight: 700; border-radius: 9999px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.2); color: #fff; cursor: pointer;">
+            <!-- Populated by JS -->
+          </select>
+          <button class="ghost-button" id="closeInventoryHeaderBtn" type="button" style="width: 2rem; height: 2rem; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); font-size: 1rem; cursor: pointer;">✕</button>
+        </div>
       </div>
 
-      <div id="inventoryWarningBanner" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 0.6rem 0.85rem; margin-bottom: 0.75rem; color: #991b1b; font-size: 0.85rem;">
-        ⚠️ <strong id="inventoryWarningText">Có nguyên liệu sắp hết!</strong>
-      </div>
+      <div style="padding: 1.15rem 1.35rem 1.25rem;">
+        <div id="inventoryWarningBanner" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-md); padding: 0.65rem 0.9rem; margin-bottom: 0.9rem; color: #991b1b; font-size: 0.84rem; display: flex; align-items: center; gap: 0.4rem;">
+          <span>⚠️</span> <strong id="inventoryWarningText">Có nguyên liệu sắp hết!</strong>
+        </div>
 
-      <!-- DANH SÁCH TỒN KHO NGUYÊN LIỆU -->
-      <div style="max-height: 40vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); margin-bottom: 0.85rem;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
-          <thead style="background: #f8fafc; position: sticky; top: 0; border-bottom: 1px solid #cbd5e1;">
-            <tr>
-              <th style="padding: 0.5rem 0.6rem;">Nguyên liệu</th>
-              <th style="padding: 0.5rem 0.6rem;">Đơn vị</th>
-              <th style="padding: 0.5rem 0.6rem; text-align: right;">Tồn kho</th>
-              <th style="padding: 0.5rem 0.6rem; text-align: right;">Định mức an toàn</th>
-              <th style="padding: 0.5rem 0.6rem; text-align: center;">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody id="inventoryTableBody">
-            <!-- Rendered by JS -->
-          </tbody>
-        </table>
-      </div>
+        <!-- DANH SÁCH TỒN KHO NGUYÊN LIỆU (MODERN TABLE) -->
+        <div style="max-height: 38vh; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: var(--radius-md); margin-bottom: 1rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left;">
+            <thead style="background: #f8fafc; position: sticky; top: 0; border-bottom: 1px solid #e2e8f0; z-index: 2;">
+              <tr>
+                <th style="padding: 0.6rem 0.75rem; font-weight: 700; color: #475569;">Nguyên liệu</th>
+                <th style="padding: 0.6rem 0.75rem; font-weight: 700; color: #475569;">Đơn vị</th>
+                <th style="padding: 0.6rem 0.75rem; font-weight: 700; color: #475569; text-align: right;">Tồn kho</th>
+                <th style="padding: 0.6rem 0.75rem; font-weight: 700; color: #475569; text-align: right;">Định mức an toàn</th>
+                <th style="padding: 0.6rem 0.75rem; font-weight: 700; color: #475569; text-align: center;">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
 
-      <!-- FORM NHẬP KHO / KIỂM KHO NHANH -->
-      <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-sm); padding: 0.6rem; margin-bottom: 0.75rem; font-size: 0.85rem;">
-        <summary style="font-weight: 700; color: #0369a1; cursor: pointer;">➕ Nhập thêm hàng vào kho / Kiểm kê điều chỉnh kho</summary>
-        <form id="inventoryQuickActionForm" style="margin-top: 0.6rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-          <label style="margin: 0;">
-            <span>Nguyên liệu:</span>
-            <select id="quickStockItemSelect" style="width: 100%; padding: 0.4rem; font-weight: 600;">
-              <!-- Populated by JS -->
-            </select>
-          </label>
-          <label style="margin: 0;">
-            <span>Hành động:</span>
-            <select id="quickStockActionType" style="width: 100%; padding: 0.4rem; font-weight: 600;">
-              <option value="nhap">+ Nhập thêm hàng (Cộng dồn)</option>
-              <option value="kiem">🔄 Kiểm kho thực tế (Ghi đè số lượng)</option>
-            </select>
-          </label>
-          <label style="margin: 0;">
-            <span>Số lượng:</span>
-            <input type="number" step="0.1" id="quickStockQtyInput" placeholder="Ví dụ: 5" required style="width: 100%; padding: 0.4rem;">
-          </label>
-          <label style="margin: 0;">
-            <span>Tiền chi mua (đ - nếu là nhập hàng):</span>
-            <input type="number" id="quickStockCostInput" placeholder="Ví dụ: 75000" style="width: 100%; padding: 0.4rem;">
-          </label>
-          <div style="grid-column: span 2; display: flex; justify-content: flex-end; margin-top: 0.4rem;">
-            <button class="primary-action slim" type="submit" style="background: #0f766e; border-color: #0d9488;">Lưu cập nhật kho</button>
+        <!-- FORM NHẬP KHO / KIỂM KHO NHANH (ELEGANT CARD) -->
+        <div style="background: #f0fdfa; border: 1px solid #ccfbf1; border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.6rem;">
+            <span style="color: #0f766e; font-size: 1.05rem;">✨</span>
+            <strong style="font-size: 0.88rem; color: #0f766e;">Nhập Thêm Hàng / Kiểm Kê Điều Chỉnh Kho</strong>
           </div>
-        </form>
-      </details>
+          <form id="inventoryQuickActionForm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+            <label style="margin: 0; font-size: 0.8rem; color: #334155; font-weight: 600;">
+              <span>Nguyên liệu:</span>
+              <select id="quickStockItemSelect" style="width: 100%; padding: 0.45rem 0.6rem; font-size: 0.85rem; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff; margin-top: 0.2rem;">
+                <!-- Populated by JS -->
+              </select>
+            </label>
+            <label style="margin: 0; font-size: 0.8rem; color: #334155; font-weight: 600;">
+              <span>Hành động:</span>
+              <select id="quickStockActionType" style="width: 100%; padding: 0.45rem 0.6rem; font-size: 0.85rem; font-weight: 600; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff; margin-top: 0.2rem;">
+                <option value="nhap">+ Nhập thêm hàng (Chi tiền mua mới)</option>
+                <option value="xuat">− Xuất dùng (Lấy ra pha chế / Trừ kho)</option>
+                <option value="kiem">🔄 Kiểm kho thực tế (Ghi đè số lượng)</option>
+              </select>
+            </label>
+            <label style="margin: 0; font-size: 0.8rem; color: #334155; font-weight: 600;">
+              <span>Số lượng:</span>
+              <input type="number" step="0.1" id="quickStockQtyInput" placeholder="Ví dụ: 5" required style="width: 100%; padding: 0.45rem 0.6rem; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff; margin-top: 0.2rem;">
+            </label>
+            <label style="margin: 0; font-size: 0.8rem; color: #334155; font-weight: 600;">
+              <span>Tiền chi mua (đ - nếu nhập):</span>
+              <input type="number" id="quickStockCostInput" placeholder="Ví dụ: 75000" style="width: 100%; padding: 0.45rem 0.6rem; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff; margin-top: 0.2rem;">
+            </label>
+            <div style="grid-column: span 2; display: flex; justify-content: flex-end; margin-top: 0.2rem;">
+              <button class="primary-action slim" type="submit" style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); border: none; border-radius: 9999px; padding: 0.45rem 1.25rem; font-weight: 700; font-size: 0.85rem;">Lưu Cập Nhật Kho</button>
+            </div>
+          </form>
+        </div>
 
-      <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-        <button class="ghost-button" id="closeInventoryBtn" type="button">Đóng</button>
+        <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;">
+          <button class="ghost-button" id="closeInventoryBtn" type="button" style="font-weight: 600; padding: 0.45rem 1.2rem;">Đóng</button>
+        </div>
       </div>
     </dialog>
 
     <!-- HỘP THOẠI BÁO CÁO THUẾ & MẪU TỜ KHAI 01/CNKD -->
-    <dialog class="confirm-dialog" id="taxReportDialog" style="max-width: 600px; width: 95vw;">
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem; margin-bottom: 0.75rem;">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.5rem;">📑</span>
+    <dialog class="confirm-dialog modern-modal" id="taxReportDialog" style="max-width: 620px; width: 95vw; border-radius: 1.25rem; overflow: hidden; padding: 0; box-shadow: 0 20px 40px -15px rgba(30, 58, 138, 0.2);">
+      <!-- Header Gradient -->
+      <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); color: #fff; padding: 1.1rem 1.35rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="width: 2.5rem; height: 2.5rem; border-radius: 50%; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 1.35rem;">📑</div>
           <div>
-            <h2 style="margin: 0; font-size: 1.2rem; color: #1e3a8a;">Báo Cáo Thuế Hộ Kinh Doanh (01/CNKD)</h2>
-            <p style="margin: 0; font-size: 0.8rem; color: var(--muted);">Ước tính nghĩa vụ thuế F&B (GTGT 3% + TNCN 1.5% theo TT 40/2021/TT-BTC)</p>
+            <h2 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">Báo Cáo Thuế Hộ Kinh Doanh (01/CNKD)</h2>
+            <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: #bfdbfe; opacity: 0.9;">Ước tính thuế F&B (Ngưỡng miễn thuế 200tr/năm • Thuế 4.5% khi vượt ngưỡng)</p>
           </div>
         </div>
+        <button class="ghost-button" id="closeTaxReportHeaderBtn" type="button" style="width: 2rem; height: 2rem; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); font-size: 1rem; cursor: pointer;">✕</button>
       </div>
 
-      <!-- BỘ LỌC KỲ THUẾ -->
-      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.85rem; background: #f8fafc; padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid #e2e8f0;">
-        <label style="margin: 0; flex: 1; font-size: 0.82rem;">
-          <span>Kỳ tính thuế:</span>
-          <select id="taxPeriodTypeSelect" style="width: 100%; padding: 0.35rem; font-weight: 700;">
-            <option value="month" selected>Theo Tháng</option>
-            <option value="quarter">Theo Quý</option>
-            <option value="year">Cả Năm</option>
-          </select>
-        </label>
-        <label style="margin: 0; flex: 1; font-size: 0.82rem;">
-          <span>Điểm bán:</span>
-          <select id="taxBranchSelect" style="width: 100%; padding: 0.35rem; font-weight: 700;">
-            <!-- Populated by JS -->
-          </select>
-        </label>
-      </div>
+      <div style="padding: 1.15rem 1.35rem 1.25rem;">
+        <!-- BỘ LỌC KỲ THUẾ -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-bottom: 0.9rem; background: #f8fafc; padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid #e2e8f0;">
+          <label style="margin: 0; font-size: 0.8rem; font-weight: 600; color: #334155;">
+            <span>Kỳ tính thuế:</span>
+            <select id="taxPeriodTypeSelect" style="width: 100%; padding: 0.45rem 0.6rem; font-size: 0.85rem; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff; margin-top: 0.2rem;">
+              <option value="month" selected>📅 Theo Tháng</option>
+              <option value="quarter">📊 Theo Quý</option>
+              <option value="year">🗓️ Cả Năm</option>
+            </select>
+          </label>
+          <label style="margin: 0; font-size: 0.8rem; font-weight: 600; color: #334155;">
+            <span>Điểm bán:</span>
+            <select id="taxBranchSelect" style="width: 100%; padding: 0.45rem 0.6rem; font-size: 0.85rem; font-weight: 700; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; background: #fff; margin-top: 0.2rem;">
+              <!-- Populated by JS -->
+            </select>
+          </label>
+        </div>
 
-      <!-- THẺ KẾT QUẢ TÍNH THUẾ -->
-      <div id="taxResultCard" style="background: #ffffff; border: 2px solid #3b82f6; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
-          <span>💰 Tổng doanh thu bán hàng:</span>
-          <strong id="taxTotalRevenueDisplay" style="font-size: 1.05rem; color: #1e3a8a;">0 đ</strong>
+        <!-- BANNER TRẠNG THÁI MIỄN GIẢM THUẾ (DYNAMIC) -->
+        <div id="taxExemptionStatusBanner" style="border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 0.9rem; display: flex; align-items: flex-start; gap: 0.75rem; transition: all 0.2s ease;">
+          <!-- Populated by JS -->
         </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; font-size: 0.85rem; color: #475569;">
-          <span>- Thuế Giá trị gia tăng (GTGT 3.0%):</span>
-          <strong id="taxVatDisplay">0 đ</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; margin-bottom: 0.6rem; font-size: 0.85rem; color: #475569;">
-          <span>- Thuế Thu nhập cá nhân (TNCN 1.5%):</span>
-          <strong id="taxPitDisplay">0 đ</strong>
-        </div>
-        <div style="border-top: 1px dashed #cbd5e1; padding-top: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-weight: 700; color: #b91c1c; font-size: 0.95rem;">🎯 TỔNG NGHĨA VỤ THUẾ TẠM TÍNH (4.5%):</span>
-          <strong id="taxTotalAmountDisplay" style="font-size: 1.25rem; color: #b91c1c;">0 đ</strong>
-        </div>
-      </div>
 
-      <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
-        <button class="ghost-button" id="copyTaxFormBtn" type="button" style="font-weight: 700;">📋 Sao chép Mẫu 01/CNKD</button>
-        <button class="primary-action slim" id="downloadTaxFormBtn" type="button" style="background: #1e3a8a; border-color: #1e40af;">📥 Tải Tờ Khai Thuế</button>
-        <button class="ghost-button" id="closeTaxReportBtn" type="button">Đóng</button>
+        <!-- THẺ KẾT QUẢ TÍNH THUẾ (PREMIUM CARD) -->
+        <div id="taxResultCard" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: var(--radius-lg); padding: 1.1rem; margin-bottom: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.6rem; border-bottom: 1px solid #f1f5f9;">
+            <span style="font-size: 0.9rem; font-weight: 600; color: #475569;">💰 Doanh thu kỳ chọn:</span>
+            <strong id="taxTotalRevenueDisplay" style="font-size: 1.25rem; font-weight: 800; color: #1e3a8a;">0 đ</strong>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.75rem;">
+            <div style="background: #f8fafc; padding: 0.55rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid #f1f5f9;">
+              <span style="display: block; font-size: 0.75rem; color: var(--muted);">Thuế GTGT (3.0%):</span>
+              <strong id="taxVatDisplay" style="font-size: 0.95rem; color: #334155;">0 đ</strong>
+            </div>
+            <div style="background: #f8fafc; padding: 0.55rem 0.75rem; border-radius: var(--radius-sm); border: 1px solid #f1f5f9;">
+              <span style="display: block; font-size: 0.75rem; color: var(--muted);">Thuế TNCN (1.5%):</span>
+              <strong id="taxPitDisplay" style="font-size: 0.95rem; color: #334155;">0 đ</strong>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 0.55rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid #f1f5f9; margin-bottom: 0.85rem; font-size: 0.8rem;">
+            <span style="color: #64748b;">📈 Doanh thu ước tính cả năm:</span>
+            <strong id="taxAnnualEstDisplay" style="color: #1e293b; font-weight: 700;">0 đ</strong>
+          </div>
+
+          <div id="taxPayableCard" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #a7f3d0; border-radius: var(--radius-md); padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span id="taxPayableTitle" style="font-weight: 800; color: #065f46; font-size: 0.88rem; display: block;">🛡️ SỐ THUẾ THỰC NỘP SAU MIỄN TRỪ:</span>
+              <span id="taxPayableSub" style="font-size: 0.72rem; color: #047857; opacity: 0.9;">Được miễn 100% thuế nếu DT năm ≤ 200 triệu đ</span>
+            </div>
+            <strong id="taxTotalAmountDisplay" style="font-size: 1.35rem; font-weight: 900; color: #065f46;">0 đ</strong>
+          </div>
+        </div>
+
+        <div class="confirm-actions" style="display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
+          <button class="ghost-button" id="copyTaxFormBtn" type="button" style="font-weight: 700; padding: 0.45rem 0.9rem; font-size: 0.82rem;">📋 Sao chép Mẫu 01/CNKD</button>
+          <button class="primary-action slim" id="downloadTaxFormBtn" type="button" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); border: none; border-radius: 9999px; padding: 0.45rem 1.1rem; font-weight: 700; font-size: 0.82rem;">📥 Tải Tờ Khai Thuế</button>
+          <button class="ghost-button" id="closeTaxReportBtn" type="button" style="font-weight: 600; padding: 0.45rem 0.9rem; font-size: 0.82rem;">Đóng</button>
+        </div>
       </div>
     </dialog>
+
 
     <!-- HỘP THOẠI QUÉT MÃ VẠCH BARCODE & CHỤP HÓA ĐƠN OCR -->
     <dialog class="confirm-dialog" id="scannerDialog" style="max-width: 500px; width: 95vw;">
@@ -1298,10 +2326,507 @@
       </div>
     </dialog>
 
+    <!-- HỘP THOẠI CHỐT BILL NHANH KHÔNG IN GIẤY (DIGITAL FAST POS CHECKOUT) -->
+    <dialog class="confirm-dialog modern-modal" id="fastCheckoutDialog" style="max-width: 540px; width: 95vw; border-radius: 1.25rem; overflow: hidden; padding: 0; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);">
+      <!-- Header Gradient - Icon-First -->
+      <div style="background: linear-gradient(135deg, #059669 0%, #0d9488 100%); color: #fff; padding: 0.85rem 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div style="width: 2.75rem; height: 2.75rem; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🧾</div>
+          <div>
+            <h2 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #ffffff;">Chốt Đơn</h2>
+            <p style="margin: 0.1rem 0 0; font-size: 0.72rem; color: #ccfbf1;">⚡ Bill điện tử — không in giấy</p>
+          </div>
+        </div>
+        <button class="ghost-button" id="closeFastCheckoutBtn" type="button" style="width: 2.5rem; height: 2.5rem; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); font-size: 1.25rem; cursor: pointer;" aria-label="Đóng">✕</button>
+      </div>
+
+      <div style="padding: 1rem 1.1rem 1.15rem; max-height: 80vh; overflow-y: auto;">
+        <!-- DANH SÁCH MÓN ĐÃ CHỌN TRONG BILL -->
+        <div style="margin-bottom: 0.75rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+            <strong style="font-size: 0.82rem; color: #334155;">🥤 Các món:</strong>
+            <span style="font-size: 0.72rem; color: var(--muted);" id="fastCheckoutBranchLabel">Quán Nhà</span>
+          </div>
+          <div id="fastCheckoutItemList" style="display: flex; flex-direction: column; gap: 0.4rem; max-height: 180px; overflow-y: auto; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); padding: 0.5rem;">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- TỔNG TIỀN CỦA BILL - Icon to, font to -->
+        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); border: 1.5px solid #a7f3d0; border-radius: var(--radius-md); padding: 0.75rem 1rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.4rem;">
+            <span style="font-size: 1.5rem;">💰</span>
+            <span style="font-size: 0.78rem; font-weight: 700; color: #065f46;">TỔNG</span>
+          </div>
+          <strong style="font-size: 1.6rem; font-weight: 900; color: #059669;" id="fastCheckoutTotalAmount">0 đ</strong>
+        </div>
+
+        <!-- TÍNH TIỀN KHÁCH ĐƯA & TIỀN THỐI LẠI -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 0.75rem; margin-bottom: 0.75rem;">
+          <label style="margin: 0 0 0.45rem; font-size: 0.82rem; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 0.35rem;">
+            <span style="font-size: 1.25rem;">🤑</span>
+            <span>Khách đưa:</span>
+          </label>
+          <input type="text" inputmode="numeric" id="fastCheckoutTenderedInput" placeholder="Nhập số tiền..." style="width: 100%; padding: 0.65rem 0.75rem; font-size: 1.25rem; font-weight: 800; border-radius: var(--radius-sm); border: 1.5px solid #cbd5e1; background: #fff; margin-bottom: 0.5rem; color: #0f172a;">
+
+          <!-- CÁC NÚT BẤM TIỀN MẶT NHANH - MÃ MÀU MỆNH GIÁ POLYMER VN -->
+          <div class="fast-tender-preset-grid" id="fastTenderPresetButtons">
+            <button class="fast-tender-btn is-exact" data-amount="exact" type="button">
+              <span class="tender-icon">✅</span>
+              <span class="tender-amount">Đủ</span>
+            </button>
+            <button class="fast-tender-btn denom-20k" data-amount="20000" type="button">
+              <span class="tender-icon">💵</span>
+              <span class="tender-amount">20k</span>
+            </button>
+            <button class="fast-tender-btn denom-50k" data-amount="50000" type="button">
+              <span class="tender-icon">💵</span>
+              <span class="tender-amount">50k</span>
+            </button>
+            <button class="fast-tender-btn denom-100k" data-amount="100000" type="button">
+              <span class="tender-icon">💰</span>
+              <span class="tender-amount">100k</span>
+            </button>
+            <button class="fast-tender-btn denom-200k" data-amount="200000" type="button">
+              <span class="tender-icon">💸</span>
+              <span class="tender-amount">200k</span>
+            </button>
+            <button class="fast-tender-btn denom-500k" data-amount="500000" type="button">
+              <span class="tender-icon">💎</span>
+              <span class="tender-amount">500k</span>
+            </button>
+          </div>
+
+          <!-- KẾT QUẢ TIỀN THỐI LẠI - Icon lớn + font to -->
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 2px dashed #cbd5e1; padding-top: 0.65rem;">
+            <div style="display: flex; align-items: center; gap: 0.35rem;">
+              <span style="font-size: 1.35rem;">🔄</span>
+              <span style="font-size: 0.78rem; font-weight: 700; color: #475569;">Thối lại</span>
+            </div>
+            <strong style="font-size: 1.5rem; font-weight: 900; color: #0284c7;" id="fastCheckoutChangeDisplay">0 đ</strong>
+          </div>
+        </div>
+
+        <!-- 2 NÚT CHỐT BILL (TIỀN MẶT / QR) - ICON TO, CHỮ PHỤ NHỎ -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+          <button class="primary-action confirm-bill-cta cta-cash" id="confirmCashBillBtn" type="button">
+            <span class="cta-icon">💵</span>
+            <span class="cta-label">Tiền mặt</span>
+          </button>
+          <button class="primary-action confirm-bill-cta cta-qr" id="confirmQrBillBtn" type="button">
+            <span class="cta-icon">📱</span>
+            <span class="cta-label">QR</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- HỘP THOẠI THAO TÁC NGUYÊN LIỆU: NHẬP HÀNG & XUẤT DÙNG (QUICK INGREDIENT DIALOG) -->
+    <dialog class="confirm-dialog modern-modal" id="quickIngredientDialog" style="max-width: 520px; width: 95vw; border-radius: 1.25rem; overflow: hidden; padding: 0; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);">
+      <!-- Header Gradient -->
+      <div id="ingModalHeader" style="background: linear-gradient(135deg, #ea580c 0%, #d97706 100%); color: #fff; padding: 0.85rem 1.1rem; display: flex; justify-content: space-between; align-items: center; transition: background 0.3s ease;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div style="width: 2.75rem; height: 2.75rem; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;" id="ingModalIcon">🛒</div>
+          <div>
+            <h2 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #ffffff;" id="ingModalTitle">Thao Tác Nguyên Liệu</h2>
+            <p style="margin: 0.1rem 0 0; font-size: 0.72rem; color: #fef08a;" id="ingModalSubtitle">Ghi sổ chi mua hàng &amp; Xuất dùng quầy</p>
+          </div>
+        </div>
+        <button class="ghost-button" id="closeQuickIngredientBtn" type="button" style="width: 2.5rem; height: 2.5rem; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); font-size: 1.25rem; cursor: pointer;" aria-label="Đóng">✕</button>
+      </div>
+
+      <div style="padding: 1rem 1.15rem 1.25rem; max-height: 80vh; overflow-y: auto;">
+        <!-- Card Chi Tiết Nguyên Liệu (Ảnh to + Đơn giá chuẩn + Tồn kho) -->
+        <div class="ing-detail-card" style="display: flex; align-items: center; gap: 0.85rem; background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: var(--radius-md); padding: 0.75rem; margin-bottom: 0.85rem;">
+          <div class="ing-detail-img-box" style="width: 4.25rem; height: 4.25rem; border-radius: var(--radius-md); overflow: hidden; background: #fff; border: 1px solid #ffedd5; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <img id="ingModalImage" src="./assets/ingredients/bo_mia.jpg" alt="Nguyên liệu" style="width: 100%; height: 100%; object-fit: contain;" />
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.35rem;">
+              <strong id="ingModalItemName" style="display: block; font-size: 1.05rem; font-weight: 900; color: #9a3412; line-height: 1.25;">Bó mía cây</strong>
+              <span id="ingModalStockBadge" style="font-size: 0.72rem; font-weight: 800; background: #e0f2fe; color: #0369a1; padding: 0.12rem 0.45rem; border-radius: var(--radius-pill); border: 1px solid #bae6fd; white-space: nowrap;">Tồn: 0</span>
+            </div>
+            <span id="ingModalUnitCost" style="font-size: 0.84rem; color: #c2410c; font-weight: 700; display: block; margin-top: 0.15rem;">90.000 đ / bó</span>
+            <small id="ingModalNote" style="display: block; font-size: 0.73rem; color: #64748b; margin-top: 0.15rem;">1 bó 12 cây ~45 ly</small>
+          </div>
+        </div>
+
+        <!-- 2 TAB CHUYỂN ĐỔI CHẾ ĐỘ: 🛒 GHI MUA HÀNG (CHI TIỀN) vs 📦 XUẤT DÙNG (PHA CHẾ) -->
+        <div class="segmented" role="tablist" style="margin-bottom: 0.85rem;" id="ingActionTabGroup">
+          <label style="flex: 1; text-align: center;">
+            <input type="radio" name="ingActionTab" value="buy" checked>
+            <span style="font-size: 0.82rem; font-weight: 800; padding: 0.45rem 0.3rem;">🛒 Mua Hàng (Ghi Chi)</span>
+          </label>
+          <label style="flex: 1; text-align: center;">
+            <input type="radio" name="ingActionTab" value="use">
+            <span style="font-size: 0.82rem; font-weight: 800; padding: 0.45rem 0.3rem;">📦 Xuất Dùng (Pha Chế)</span>
+          </label>
+        </div>
+
+        <!-- Bộ Đếm Số Lượng To Rõ (Quantity Stepper + Presets) -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 0.75rem 0.85rem; margin-bottom: 0.85rem;">
+          <label style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span style="font-size: 0.85rem; font-weight: 800; color: #334155;">🔢 Số lượng:</span>
+            <span id="ingModalUnitLabel" style="font-size: 0.8rem; font-weight: 700; color: #0284c7; background: #e0f2fe; padding: 0.15rem 0.5rem; border-radius: var(--radius-pill);">bó</span>
+          </label>
+
+          <!-- Stepper +/- to bản -->
+          <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-bottom: 0.65rem;">
+            <button class="ing-step-btn" id="ingQtyDecBtn" type="button" style="width: 3rem; height: 3rem; border-radius: 12px; font-size: 1.5rem; font-weight: 900; background: #ffffff; border: 2px solid #cbd5e1; color: #334155; cursor: pointer;">-</button>
+            <input type="number" id="ingQtyInput" min="1" max="9999" value="1" style="width: 5.5rem; height: 3rem; font-size: 1.5rem; font-weight: 900; text-align: center; border-radius: 12px; border: 2px solid #0284c7; background: #ffffff; color: #0f172a;" />
+            <button class="ing-step-btn" id="ingQtyIncBtn" type="button" style="width: 3rem; height: 3rem; border-radius: 12px; font-size: 1.5rem; font-weight: 900; background: #ffffff; border: 2px solid #cbd5e1; color: #334155; cursor: pointer;">+</button>
+          </div>
+
+          <!-- Nút chọn nhanh số lượng: 1, 2, 3, 5, 10, 20 -->
+          <div class="ing-qty-presets" id="ingQtyPresets" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.35rem;">
+            <button class="ing-preset-btn" data-qty="1" type="button">1</button>
+            <button class="ing-preset-btn" data-qty="2" type="button">2</button>
+            <button class="ing-preset-btn" data-qty="3" type="button">3</button>
+            <button class="ing-preset-btn" data-qty="5" type="button">5</button>
+            <button class="ing-preset-btn" data-qty="10" type="button">10</button>
+            <button class="ing-preset-btn" data-qty="20" type="button">20</button>
+          </div>
+        </div>
+
+        <!-- PHẦN 1: DÀNH RIÊNG CHO MUA HÀNG (GHI CHI) & SƠ CHẾ NHẬP KHO -->
+        <div id="ingBuySection">
+          <!-- KHỐI CHUYỂN ĐỔI SƠ CHẾ MÍA (DÀNH CHO BÓ 10KG BÀO SẴN TỰ CUNG TỰ CẤP) -->
+          <div id="miaSocheConverterBox" style="display: none; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: var(--radius-md); padding: 0.75rem 0.85rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+              <strong style="font-size: 0.82rem; color: #065f46;">🎋 Liên kết sơ chế từ mía cây 12 cây dài:</strong>
+              <span style="font-size: 0.72rem; color: #047857; font-weight: 700;">(Tự động trừ kho mía thô)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+              <span style="font-size: 0.8rem; color: #065f46; font-weight: 700;">Bào từ:</span>
+              <input type="number" id="ingFromRawQtyInput" min="0.5" step="0.5" value="1" style="width: 4.5rem; text-align: center; font-weight: 800; padding: 0.35rem; border: 1.5px solid #10b981; border-radius: 6px; background: #fff;" />
+              <span style="font-size: 0.8rem; color: #065f46; font-weight: 700;">bó 12 cây dài</span>
+              <span style="font-size: 0.85rem; color: #059669;">➔</span>
+              <span style="font-size: 0.8rem; color: #047857; font-weight: 800;" id="miaYieldCalcText">thu được 1 bó 10kg</span>
+            </div>
+          </div>
+
+          <!-- Ô Tổng Tiền Vốn (Có thể chạm để chỉnh nếu giá chợ tăng giảm) -->
+          <div id="ingTotalCostBox" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1.5px solid #fdba74; border-radius: var(--radius-md); padding: 0.75rem 0.9rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+              <span style="font-size: 0.82rem; font-weight: 800; color: #9a3412;">💵 TỔNG TIỀN VỐN (CHI):</span>
+              <small style="font-size: 0.7rem; color: #c2410c;">(Tự tính hoặc chạm để sửa)</small>
+            </div>
+            <input type="text" inputmode="numeric" id="ingTotalCostInput" style="width: 100%; font-size: 1.4rem; font-weight: 900; color: #c2410c; background: #ffffff; border: 2px solid #f97316; border-radius: var(--radius-sm); padding: 0.45rem 0.65rem;" />
+          </div>
+
+          <!-- Nguồn tiền chi (Mặc định Từ Ví) -->
+          <div id="quickExpenseSourceGroup" style="margin-bottom: 0.75rem; background: #fdf4ff; padding: 0.65rem 0.75rem; border-radius: var(--radius-md); border: 1.5px dashed #f0abfc;">
+            <span style="display: block; font-size: 0.78rem; font-weight: 800; color: #a21caf; margin-bottom: 0.35rem;">Nguồn tiền mua hàng (Lấy từ đâu?)</span>
+            <div class="segmented" role="group" aria-label="Nguồn tiền chi">
+              <label><input type="radio" name="quickNguonTienChi" value="tien_von" checked> <span style="font-size: 0.8rem;">👛 Từ Ví (Vốn)</span></label>
+              <label><input type="radio" name="quickNguonTienChi" value="tien_ket"> <span style="font-size: 0.8rem;">💵 Rút Két Quán</span></label>
+            </div>
+          </div>
+
+          <!-- Ghi chú mua hàng chi tiết -->
+          <div style="margin-bottom: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+              <label for="ingBuyNoteInput" style="font-size: 0.8rem; font-weight: 800; color: #334155;">📝 Ghi chú chi tiết mua hàng:</label>
+            </div>
+            <input type="text" id="ingBuyNoteInput" placeholder="Ví dụ: Mua mía chợ đầu mối, 2 bó mía ngọt..." style="width: 100%; padding: 0.5rem 0.65rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1; border-radius: var(--radius-sm); background: #fff;" />
+            <div class="ing-quick-tags" id="ingBuyQuickTags" style="display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.35rem;">
+              <button class="ing-tag-btn" type="button" data-tag="Mua chợ sáng">+ Chợ sáng</button>
+              <button class="ing-tag-btn" type="button" data-tag="Giao tận nơi">+ Giao tận nơi</button>
+              <button class="ing-tag-btn" type="button" data-tag="Mua bổ sung gấp">+ Bổ sung gấp</button>
+            </div>
+          </div>
+
+          <!-- Nút Xác nhận Mua Hàng -->
+          <button class="primary-action" id="confirmBuyIngredientBtn" type="button" style="width: 100%; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); border: none; padding: 0.85rem; font-weight: 900; font-size: 1rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(234, 88, 12, 0.4);">
+            <span>🛒 Xác Nhận Chi Tiền &amp; Nhập Kho</span>
+          </button>
+        </div>
+
+        <!-- PHẦN 2: DÀNH RIÊNG CHO XUẤT DÙNG (PHA CHẾ / QUẦY) -->
+        <div id="ingUseSection" style="display: none;">
+          <!-- Card Thông Tin Định Mức Pha Chế -->
+          <div style="background: #f5f3ff; border: 1.5px solid #ddd6fe; border-radius: var(--radius-md); padding: 0.75rem 0.9rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 0.82rem; font-weight: 800; color: #6d28d9;">🥤 Ước tính pha chế:</span>
+              <strong id="ingEstimatedYield" style="font-size: 0.95rem; font-weight: 900; color: #7c3aed;">~45 ly</strong>
+            </div>
+            <p style="margin: 0.25rem 0 0; font-size: 0.73rem; color: #7c3aed; line-height: 1.35;">Xuất nguyên liệu ra quầy pha chế sẽ tự động trừ tồn kho và ghi nhật ký hoạt động trong ngày.</p>
+          </div>
+
+          <!-- Lý do / Mục đích xuất dùng -->
+          <div style="margin-bottom: 0.75rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 0.35rem;">📋 Mục đích xuất dùng:</label>
+            <div class="ing-quick-tags" id="ingUseQuickTags" style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.45rem;">
+              <button class="ing-tag-btn is-active" type="button" data-tag="Pha chế bán hàng">🍹 Pha chế bán hàng</button>
+              <button class="ing-tag-btn" type="button" data-tag="Lấy ra quầy ca sáng">🌅 Ca sáng</button>
+              <button class="ing-tag-btn" type="button" data-tag="Lấy ra quầy ca chiều">🌇 Ca chiều</button>
+              <button class="ing-tag-btn" type="button" data-tag="Hao hụt / Hư hỏng">⚠️ Hao hụt/hỏng</button>
+              <button class="ing-tag-btn" type="button" data-tag="Tự dùng / Mời khách">☕ Tự dùng/mời</button>
+            </div>
+          </div>
+
+          <!-- Ghi chú chi tiết xuất dùng -->
+          <div style="margin-bottom: 0.85rem;">
+            <label for="ingUseNoteInput" style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 0.3rem;">📝 Ghi chú chi tiết xuất dùng:</label>
+            <input type="text" id="ingUseNoteInput" placeholder="Ví dụ: Lấy 1 bao đá đổ thùng quầy 1, 2 bó mía ép ca sáng..." style="width: 100%; padding: 0.5rem 0.65rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1; border-radius: var(--radius-sm); background: #fff;" />
+          </div>
+
+          <!-- Nút Xác nhận Xuất Dùng -->
+          <button class="primary-action" id="confirmUseIngredientBtn" type="button" style="width: 100%; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); border: none; padding: 0.85rem; font-weight: 900; font-size: 1rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);">
+            <span>📦 Xác Nhận Xuất Dùng (Lưu Ghi Chú)</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- HỘP THOẠI ĐẶC TRÙ: VẬN HÀNH SƠ CHẾ & ĐIỀU CHUYỂN MÍA (TỰ CUNG TỰ CẤP) -->
+    <dialog class="confirm-dialog modern-modal" id="miaOperationsDialog" style="max-width: 520px; width: 95vw; border-radius: 1.25rem; overflow: hidden; padding: 0; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);">
+      <!-- Header Gradient -->
+      <div id="miaOpModalHeader" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; padding: 0.85rem 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div style="width: 2.75rem; height: 2.75rem; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;" id="miaOpModalIcon">🎋</div>
+          <div>
+            <h2 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #ffffff;" id="miaOpModalTitle">Sơ Chế &amp; Điều Chuyển Mía</h2>
+            <p style="margin: 0.1rem 0 0; font-size: 0.72rem; color: #a7f3d0;" id="miaOpModalSubtitle">Bào vỏ 12 cây ➔ Bó 10kg ➔ Xuất CN2 ➔ Kiểm kê cuối ngày</p>
+          </div>
+        </div>
+        <button class="ghost-button" id="closeMiaOpDialogBtn" type="button" style="width: 2.5rem; height: 2.5rem; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); font-size: 1.25rem; cursor: pointer;" aria-label="Đóng">✕</button>
+      </div>
+
+      <div style="padding: 1rem 1.15rem 1.25rem; max-height: 80vh; overflow-y: auto;">
+        <!-- 5 TAB CHUYỂN ĐỔI CHỨC NĂNG VẬN HÀNH MÍA -->
+        <div class="segmented" role="tablist" style="margin-bottom: 0.9rem; flex-wrap: wrap; gap: 0.2rem;" id="miaOpTabGroup">
+          <label style="flex: 1; min-width: 75px; text-align: center;">
+            <input type="radio" name="miaOpTab" value="soche" checked>
+            <span style="font-size: 0.74rem; font-weight: 800; padding: 0.35rem 0.15rem;">🔄 Bào Mía</span>
+          </label>
+          <label style="flex: 1; min-width: 75px; text-align: center;">
+            <input type="radio" name="miaOpTab" value="transfer">
+            <span style="font-size: 0.74rem; font-weight: 800; padding: 0.35rem 0.15rem;">🚚 Xuất CN2</span>
+          </label>
+          <label style="flex: 1; min-width: 75px; text-align: center;">
+            <input type="radio" name="miaOpTab" value="remaining">
+            <span style="font-size: 0.74rem; font-weight: 800; padding: 0.35rem 0.15rem;">🌙 Mía Dư</span>
+          </label>
+          <label style="flex: 1; min-width: 75px; text-align: center;">
+            <input type="radio" name="miaOpTab" value="report">
+            <span style="font-size: 0.74rem; font-weight: 800; padding: 0.35rem 0.15rem;">📊 Tổng Kết</span>
+          </label>
+          <label style="flex: 1; min-width: 75px; text-align: center;">
+            <input type="radio" name="miaOpTab" value="new_batch">
+            <span style="font-size: 0.74rem; font-weight: 800; padding: 0.35rem 0.15rem;">➕ Đợt Mới</span>
+          </label>
+        </div>
+
+        <!-- TAB 1: BÀO MÍA SƠ CHẾ (Bó 12 cây -> Bó 10kg) -->
+        <div id="miaOpPanelSoche">
+          <div style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+              <strong style="font-size: 0.88rem; color: #065f46;">🎋 Tỷ lệ sơ chế thực tế đợt này:</strong>
+              <span id="socheStockInfo" style="font-size: 0.75rem; color: #047857; font-weight: 700;">Kho thô: 20 bó 12 cây</span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem;">
+              <div style="background: #fff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0.5rem; text-align: center;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Bó 12 cây mang bào</label>
+                <input type="number" id="socheRawQtyInput" min="0.5" step="0.5" value="4" style="width: 100%; font-size: 1.35rem; font-weight: 900; text-align: center; border: 1px solid #10b981; border-radius: 6px; padding: 0.25rem; color: #065f46;" />
+                <span style="font-size: 0.7rem; color: #059669; font-weight: 800;">bó 12 cây dài</span>
+              </div>
+
+              <span style="font-size: 1.4rem; color: #10b981; font-weight: 900;">➔</span>
+
+              <div style="background: #fff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0.5rem; text-align: center;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Số ký (kg) thu được</label>
+                <input type="number" id="socheYieldKgInput" min="1" step="1" value="60" style="width: 100%; font-size: 1.35rem; font-weight: 900; text-align: center; border: 1px solid #10b981; border-radius: 6px; padding: 0.25rem; color: #065f46;" />
+                <span style="font-size: 0.7rem; color: #059669; font-weight: 800;" id="socheYieldBundlesText">= 6 bó (1 bó = 10kg)</span>
+                <input type="hidden" id="socheYieldQtyInput" value="6" />
+              </div>
+            </div>
+
+            <p style="margin: 0; font-size: 0.74rem; color: #047857; line-height: 1.35;">
+              💡 <strong>Quy chuẩn: 1 bó = 10kg.</strong> Ví dụ: Bào 4 bó 12 cây ra 60 kg (6 bó). Hệ thống tự động trừ kho bó 12 cây và cộng kho mía thành phẩm.
+            </p>
+          </div>
+
+          <!-- Ghi chú chi tiết sơ chế -->
+          <div style="margin-bottom: 0.85rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 0.3rem;">📝 Ghi chú nhật ký sơ chế:</label>
+            <input type="text" id="socheNoteInput" style="width: 100%; padding: 0.5rem 0.65rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1; border-radius: var(--radius-sm); background: #fff;" />
+          </div>
+
+          <button class="primary-action" id="confirmSocheBtn" type="button" style="width: 100%; background: linear-gradient(135deg, #059669 0%, #047857 100%); border: none; padding: 0.85rem; font-weight: 900; font-size: 1rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(5, 150, 105, 0.4);">
+            <span>🔄 Xác Nhận Bào Mía (Nhập Kho Bó 10kg)</span>
+          </button>
+        </div>
+
+        <!-- TAB 2: XUẤT MÍA SANG CHI NHÁNH 2 (Điều chuyển bán hàng) -->
+        <div id="miaOpPanelTransfer" style="display: none;">
+          <div style="background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="font-size: 0.88rem; color: #9a3412;">🚚 Xuất mía sạch sang điểm bán:</strong>
+              <span id="transferStockInfo" style="font-size: 0.75rem; color: #c2410c; font-weight: 700;">Kho 10kg Quán Nhà còn: 10 bó</span>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem;">
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Từ kho:</label>
+                <input type="text" value="🏠 Quán Nhà (Chính)" readonly style="width: 100%; font-size: 0.85rem; font-weight: 800; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.35rem 0.5rem;" />
+              </div>
+              <span style="font-size: 1.2rem; color: #f97316; margin-top: 1rem;">➔</span>
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Đến điểm bán:</label>
+                <select id="transferTargetBranch" style="width: 100%; font-size: 0.85rem; font-weight: 800; border: 1.5px solid #f97316; border-radius: 6px; padding: 0.35rem 0.5rem; background: #fff;">
+                  <option value="Chi nhánh 2" selected>🏪 Chi nhánh 2</option>
+                  <option value="Quán Nhà (Chính)">🏠 Quán Nhà (Chính)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style="display: block; font-size: 0.75rem; color: #9a3412; font-weight: 800; margin-bottom: 0.25rem;">Số bó 10kg xuất đi:</label>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="number" id="transferQtyInput" min="1" max="100" value="2" style="width: 6rem; font-size: 1.4rem; font-weight: 900; text-align: center; border: 2px solid #f97316; border-radius: 8px; padding: 0.25rem; color: #9a3412; background: #fff;" />
+                <span style="font-size: 0.85rem; font-weight: 800; color: #9a3412;">bó 10kg</span>
+                <span style="font-size: 0.75rem; color: #c2410c; margin-left: auto;" id="transferYieldText">~50-60 ly tại CN2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ghi chú chi tiết điều chuyển -->
+          <div style="margin-bottom: 0.85rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 0.3rem;">📝 Ghi chú xuất kho sang chi nhánh:</label>
+            <input type="text" id="transferNoteInput" value="[Điều chuyển] Xuất 2 bó mía 10kg để bán ở Chi nhánh 2" style="width: 100%; padding: 0.5rem 0.65rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1; border-radius: var(--radius-sm); background: #fff;" />
+          </div>
+
+          <button class="primary-action" id="confirmTransferBtn" type="button" style="width: 100%; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); border: none; padding: 0.85rem; font-weight: 900; font-size: 1rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(234, 88, 12, 0.4);">
+            <span>🚚 Xác Nhận Xuất Mía Sang Chi Nhánh 2</span>
+          </button>
+        </div>
+
+        <!-- TAB 3: KIỂM KÊ MÍA DƯ CUỐI NGÀY -->
+        <div id="miaOpPanelRemaining" style="display: none;">
+          <div style="background: #faf5ff; border: 1.5px solid #ddd6fe; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
+            <div style="margin-bottom: 0.5rem;">
+              <strong style="font-size: 0.88rem; color: #6d28d9;">🌙 Kiểm kê mía chưa bán hết cuối ngày:</strong>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem;">
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Tại điểm bán:</label>
+                <select id="remainingBranchSelect" style="width: 100%; font-size: 0.85rem; font-weight: 800; border: 1.5px solid #8b5cf6; border-radius: 6px; padding: 0.35rem 0.5rem; background: #fff;">
+                  <option value="Chi nhánh 2" selected>🏪 Chi nhánh 2</option>
+                  <option value="Quán Nhà (Chính)">🏠 Quán Nhà (Chính)</option>
+                </select>
+              </div>
+
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Đơn vị đếm dư:</label>
+                <div class="segmented" style="height: 2.25rem;">
+                  <label><input type="radio" name="remainingUnitType" value="ly" checked> <span>🥤 Ly</span></label>
+                  <label><input type="radio" name="remainingUnitType" value="kg"> <span>⚖️ Kg</span></label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label style="display: block; font-size: 0.75rem; color: #6d28d9; font-weight: 800; margin-bottom: 0.25rem;">Hôm nay chưa bán hết mía, còn dư khoảng:</label>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="number" id="remainingAmountInput" min="0" step="0.5" value="15" style="width: 6rem; font-size: 1.4rem; font-weight: 900; text-align: center; border: 2px solid #8b5cf6; border-radius: 8px; padding: 0.25rem; color: #6d28d9; background: #fff;" />
+                <span style="font-size: 0.9rem; font-weight: 900; color: #6d28d9;" id="remainingUnitLabel">ly nước</span>
+                <span style="font-size: 0.75rem; color: #7c3aed; margin-left: auto;">(Chuyển sang mai bán tiếp)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ghi chú chi tiết kiểm kê -->
+          <div style="margin-bottom: 0.85rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 0.3rem;">📝 Ghi chú chốt ca cuối ngày:</label>
+            <input type="text" id="remainingNoteInput" style="width: 100%; padding: 0.5rem 0.65rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1; border-radius: var(--radius-sm); background: #fff;" />
+          </div>
+
+          <button class="primary-action" id="confirmRemainingBtn" type="button" style="width: 100%; background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); border: none; padding: 0.85rem; font-weight: 900; font-size: 1rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4);">
+            <span>🌙 Lưu Ghi Chú Kiểm Kê Mía Dư Cuối Ngày</span>
+          </button>
+        </div>
+
+        <!-- TAB 4: BÁO CÁO TỔNG KẾT ĐỢT NHẬP MÍA -->
+        <div id="miaOpPanelReport" style="display: none;">
+          <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.75rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #065f46; margin-bottom: 0.35rem;">📊 Chọn đợt mía cần xem tổng kết:</label>
+            <select id="reportBatchSelect" style="width: 100%; font-size: 0.85rem; font-weight: 800; border: 1.5px solid #10b981; border-radius: 6px; padding: 0.4rem 0.5rem; background: #fff; color: #065f46; margin-bottom: 0.6rem;">
+              <!-- Populated by JS -->
+            </select>
+
+            <!-- Card Tóm tắt Đợt -->
+            <div id="batchReportDetailCard" style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.75rem;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- Lịch sử từng lần bào trong đợt -->
+          <div style="margin-bottom: 0.85rem;">
+            <strong style="display: block; font-size: 0.8rem; color: #334155; margin-bottom: 0.35rem;">📜 Nhật ký từng lần bào vỏ trong đợt này:</strong>
+            <div id="batchHistoryTableWrap" style="max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.75rem; background: #fff;">
+              <!-- Table populated by JS -->
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="primary-action" id="closeActiveBatchBtn" type="button" style="flex: 1; background: linear-gradient(135deg, #059669 0%, #047857 100%); border: none; padding: 0.75rem; font-weight: 900; font-size: 0.92rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">
+              <span>🏁 Đóng &amp; Tổng Kết Đợt Mía Này</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 5: KHAI BÁO ĐỢT NHẬP MÍA THÔ MỚI -->
+        <div id="miaOpPanelNewBatch" style="display: none;">
+          <div style="background: #fff7ed; border: 1.5px solid #fed7aa; border-radius: var(--radius-md); padding: 0.85rem; margin-bottom: 0.85rem;">
+            <strong style="display: block; font-size: 0.88rem; color: #9a3412; margin-bottom: 0.5rem;">🎋 Khai báo lô mía thô mới mua từ vựa về kho:</strong>
+            
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.6rem;">
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Ngày nhập mía:</label>
+                <input type="date" id="newBatchDateInput" style="width: 100%; font-size: 0.85rem; font-weight: 800; border: 1.5px solid #fdba74; border-radius: 6px; padding: 0.35rem 0.5rem; background: #fff;" />
+              </div>
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Nhập về điểm:</label>
+                <input type="text" value="🏠 Quán Nhà (Kho tổng)" readonly style="width: 100%; font-size: 0.85rem; font-weight: 800; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.35rem 0.5rem;" />
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.6rem;">
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #9a3412; font-weight: 800; margin-bottom: 0.2rem;">Số bó 12 cây dài:</label>
+                <input type="number" id="newBatchQtyInput" min="1" max="500" value="20" style="width: 100%; font-size: 1.35rem; font-weight: 900; text-align: center; border: 2px solid #f97316; border-radius: 8px; padding: 0.25rem; color: #9a3412; background: #fff;" />
+              </div>
+              <div style="flex: 1;">
+                <label style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 700; margin-bottom: 0.2rem;">Đơn giá mua / bó:</label>
+                <input type="text" id="newBatchPriceInput" value="90.000 đ" style="width: 100%; font-size: 1.1rem; font-weight: 800; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0.35rem; background: #fff;" />
+              </div>
+            </div>
+
+            <div style="background: #fff; border: 1px dashed #f97316; border-radius: 6px; padding: 0.5rem; text-align: center;">
+              <span style="font-size: 0.75rem; color: #9a3412; font-weight: 700;">Tổng tiền chi mua đợt này: </span>
+              <strong style="font-size: 1.15rem; color: #ea580c;" id="newBatchTotalCostText">1.800.000 đ</strong>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 0.85rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 0.3rem;">📝 Ghi chú đợt mía:</label>
+            <input type="text" id="newBatchNoteInput" placeholder="Ví dụ: Vựa giao 20 bó mía cây ngọt, mía đều..." style="width: 100%; padding: 0.5rem 0.65rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1; border-radius: var(--radius-sm); background: #fff;" />
+          </div>
+
+          <button class="primary-action" id="confirmNewBatchBtn" type="button" style="width: 100%; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); border: none; padding: 0.85rem; font-weight: 900; font-size: 1rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(234, 88, 12, 0.4);">
+            <span>➕ Xác Nhận Nhập Đợt Mới &amp; Ghi Chi Tiền</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script src="./vendor/chart.umd.min.js"></script>
     <script src="./vendor/supabase.js"></script>
-    <script type="module" src="./js/app.js"></script>
+    <script type="module" src="./js/app.js?v=20260903_01"></script>
   </body>
 </html>
