@@ -45,10 +45,13 @@ import {
   batDauRealtime,
   dangKy,
   dangNhap,
+  dangXuat,
   daDangNhap,
   dongBo,
   phatTinHieuSync,
   syncErrorMessage,
+  layThongTinTaiKhoan,
+  datLaiClientSupabase,
 } from "./sync.js";
 
 const isAuthBypassedForTest = () => window.__NUOCMIA_TEST_AUTH__ === true;
@@ -4382,10 +4385,69 @@ function stopBarcodeCamera() {
 // AUTO SYNC & SUPABASE (ĐỒNG BỘ ĐA THIẾT BỊ THEO TÀI KHOẢN)
 // ----------------------------------------------------
 
-async function triggerAutoSync() {
+export async function updateSyncUI() {
+  const syncStatus = $("#syncStatus");
+  const logoutBtn = $("#logoutBtn");
+  const settingsLogoutBtn = $("#settingsLogoutBtn");
+  const accountStatusEl = $("#syncAccountStatus");
+  const urlInput = $("#supabaseUrl");
+  const anonInput = $("#supabaseAnon");
+  const emailInput = $("#loginEmail");
+
+  const syncConfig = state?.sync || {};
+  if (urlInput && !urlInput.value) urlInput.value = syncConfig.supabaseUrl || "https://rbvpsaotqmddtvcxkyxz.supabase.co";
+  if (anonInput && !anonInput.value) anonInput.value = syncConfig.supabaseAnon || "";
+  if (emailInput && !emailInput.value && syncConfig.accountEmail) {
+    emailInput.value = syncConfig.accountEmail;
+  }
+
+  const isAuth = await daDangNhap();
+  const user = isAuth ? await layThongTinTaiKhoan() : null;
+
+  if (isAuth && user) {
+    if (syncStatus) {
+      syncStatus.textContent = "🟢 Đã đồng bộ";
+      syncStatus.className = "sync-pill is-synced";
+      syncStatus.title = `Đã kết nối tài khoản: ${user.email}. Bấm để đồng bộ lại.`;
+    }
+    if (logoutBtn) logoutBtn.hidden = false;
+    if (settingsLogoutBtn) settingsLogoutBtn.hidden = false;
+    if (accountStatusEl) {
+      accountStatusEl.style.display = "block";
+      accountStatusEl.style.background = "#f0fdf4";
+      accountStatusEl.style.borderColor = "#bbf7d0";
+      accountStatusEl.style.color = "#166534";
+      accountStatusEl.innerHTML = `✅ <strong>Đang kết nối:</strong> ${escapeHtml(user.email)}<br><small style="color: #15803d; font-weight: normal;">Dữ liệu tự động đồng bộ thời gian thực với điện thoại & laptop.</small>`;
+    }
+  } else {
+    if (syncStatus) {
+      syncStatus.textContent = "🟡 Chưa đăng nhập";
+      syncStatus.className = "sync-pill is-offline";
+      syncStatus.title = "Chưa kết nối tài khoản đám mây. Bấm vào đây để đăng nhập & đồng bộ giữa Điện thoại và Laptop.";
+    }
+    if (logoutBtn) logoutBtn.hidden = true;
+    if (settingsLogoutBtn) settingsLogoutBtn.hidden = true;
+    if (accountStatusEl) {
+      accountStatusEl.style.display = "block";
+      accountStatusEl.style.background = "#fffbeb";
+      accountStatusEl.style.borderColor = "#fde68a";
+      accountStatusEl.style.color = "#92400e";
+      accountStatusEl.innerHTML = `⚠️ <strong>Chưa đăng nhập:</strong> Dữ liệu chỉ lưu tạm trên thiết bị này.<br><small style="color: #b45309; font-weight: normal;">Vui lòng nhập Email & Mật khẩu bên dưới và bấm "Đăng nhập" để đồng bộ dữ liệu giữa Điện thoại và Laptop.</small>`;
+    }
+  }
+}
+
+async function triggerAutoSync(isUserAction = false) {
+  const syncStatus = $("#syncStatus");
   try {
     const isAuth = await daDangNhap();
-    if (!isAuth) return;
+    if (!isAuth) {
+      if (syncStatus) {
+        syncStatus.textContent = "🟡 Chưa đăng nhập";
+        syncStatus.className = "sync-pill is-offline";
+      }
+      return { ok: false, message: "Chưa đăng nhập" };
+    }
 
     // Do not sync down and overwrite state if user is actively typing in settings
     const isEditingSettings = document.activeElement && (
@@ -4396,17 +4458,30 @@ async function triggerAutoSync() {
       return;
     }
 
-    const syncStatus = $("#syncStatus");
-    if (syncStatus) syncStatus.textContent = "Đang đồng bộ...";
-    await dongBo();
+    if (syncStatus) {
+      syncStatus.textContent = "🔵 Đang đồng bộ...";
+      syncStatus.className = "sync-pill is-syncing";
+    }
+    const res = await dongBo();
     state = await docDuLieu();
     renderAll();
-    if (syncStatus) syncStatus.textContent = "Đồng bộ sẵn sàng";
+    if (syncStatus) {
+      syncStatus.textContent = "🟢 Đã đồng bộ";
+      syncStatus.className = "sync-pill is-synced";
+    }
     await phatTinHieuSync();
+    updateSyncUI().catch(() => {});
+    return res;
   } catch (err) {
     console.warn("Auto sync failed", err);
-    const syncStatus = $("#syncStatus");
-    if (syncStatus) syncStatus.textContent = "Lỗi đồng bộ";
+    if (syncStatus) {
+      syncStatus.textContent = "🔴 Lỗi đồng bộ";
+      syncStatus.className = "sync-pill is-error";
+    }
+    if (isUserAction) {
+      showToast(syncErrorMessage(err), true);
+    }
+    return { ok: false, error: err };
   }
 }
 
@@ -4450,6 +4525,8 @@ export function switchView(currentView) {
     renderClosingsView();
   } else if (currentView === "history") {
     renderHistory();
+  } else if (currentView === "settings") {
+    updateSyncUI().catch(() => {});
   }
 }
 
@@ -6022,7 +6099,57 @@ function initEventListeners() {
     showToast("Đã xóa tất cả dữ liệu");
   });
 
-  // Supabase Auth Settings
+  // Supabase Auth & Sync Event Listeners
+  $("#syncStatus")?.addEventListener("click", async () => {
+    const isAuth = await daDangNhap();
+    if (!isAuth) {
+      $("#authScreen").hidden = false;
+      $(".app-shell")?.classList.add("is-auth-locked");
+      const authEmailInput = $("#authEmail");
+      if (authEmailInput && !authEmailInput.value && state?.sync?.accountEmail) {
+        authEmailInput.value = state.sync.accountEmail;
+      }
+      showToast("Vui lòng đăng nhập để đồng bộ giữa Điện thoại và Laptop");
+    } else {
+      showToast("Đang đồng bộ dữ liệu với máy chủ...");
+      const res = await triggerAutoSync(true);
+      const user = await layThongTinTaiKhoan();
+      if (res?.ok !== false) {
+        showToast(`✅ Đã đồng bộ thành công! (Tài khoản: ${user?.email || "Chính chủ"})`);
+      }
+    }
+  });
+
+  const handleLogout = async () => {
+    if (!confirm("Bạn có chắc chắn muốn đăng xuất tài khoản?")) return;
+    try {
+      await dangXuat();
+      authLoggedIn = false;
+      $("#authScreen").hidden = false;
+      $(".app-shell")?.classList.add("is-auth-locked");
+      updateSyncUI();
+      showToast("Đã đăng xuất tài khoản");
+    } catch (e) {
+      showToast("Lỗi đăng xuất: " + e.message, true);
+    }
+  };
+  $("#logoutBtn")?.addEventListener("click", handleLogout);
+  $("#settingsLogoutBtn")?.addEventListener("click", handleLogout);
+
+  $("#saveSyncConfigBtn")?.addEventListener("click", async () => {
+    const url = $("#supabaseUrl")?.value?.trim();
+    const anon = $("#supabaseAnon")?.value?.trim();
+    if (!url || !anon) {
+      showToast("Vui lòng nhập đầy đủ Supabase URL và Anon key", true);
+      return;
+    }
+    state.sync = { ...(state.sync || {}), supabaseUrl: url, supabaseAnon: anon };
+    await luuDuLieu(state);
+    datLaiClientSupabase();
+    showToast("Đã lưu cấu hình kết nối đám mây!");
+    updateSyncUI();
+  });
+
   $("#loginBtn")?.addEventListener("click", async () => {
     const email = $("#loginEmail")?.value?.trim();
     const pass = $("#loginPassword")?.value?.trim();
@@ -6039,6 +6166,7 @@ function initEventListeners() {
       showToast("Đăng nhập thành công! Đang tải dữ liệu từ tài khoản...");
       await triggerAutoSync();
       await startRealtimeListener();
+      updateSyncUI();
       showToast("Dữ liệu tài khoản đã được đồng bộ!");
     } catch (err) {
       showToast(`Lỗi đăng nhập: ${err.message}`, true);
@@ -6066,6 +6194,7 @@ function initEventListeners() {
       await dongBo();
       state = await docDuLieu();
       renderAll();
+      updateSyncUI();
       showToast("Đồng bộ hoàn tất!");
     } catch (err) {
       showToast(syncErrorMessage(err), true);
@@ -6086,6 +6215,7 @@ function initEventListeners() {
       showToast("Đăng nhập thành công! Đang tải dữ liệu tài khoản...");
       await triggerAutoSync();
       await startRealtimeListener();
+      updateSyncUI();
       showToast("Dữ liệu tài khoản đã được đồng bộ!");
     } catch (err) {
       showToast(`Lỗi đăng nhập: ${err.message}`, true);
@@ -6110,7 +6240,8 @@ function initEventListeners() {
   $("#authOfflineBypassBtn")?.addEventListener("click", () => {
     $("#authScreen").hidden = true;
     $(".app-shell")?.classList.remove("is-auth-locked");
-    showToast("Đang sử dụng ở chế độ lưu trữ thiết bị");
+    updateSyncUI();
+    showToast("⚠️ Đang dùng chế độ lưu tạm trên máy (Chưa đồng bộ lên đám mây)", true);
   });
 
 
@@ -6926,12 +7057,18 @@ async function init() {
       if (!isAuth) {
         $("#authScreen").hidden = false;
         $(".app-shell")?.classList.add("is-auth-locked");
+        const authEmailInput = $("#authEmail");
+        if (authEmailInput && !authEmailInput.value && state?.sync?.accountEmail) {
+          authEmailInput.value = state.sync.accountEmail;
+        }
+        await updateSyncUI();
       } else {
         $("#authScreen").hidden = true;
         $(".app-shell")?.classList.remove("is-auth-locked");
         authLoggedIn = true;
         await triggerAutoSync();
         await startRealtimeListener();
+        await updateSyncUI();
 
         // Background Auto-Sync Heartbeat & Lifecycle Listeners (Continuous Full-State Sync)
         if (typeof window !== "undefined") {
@@ -6957,7 +7094,10 @@ async function init() {
     } catch {
       $("#authScreen").hidden = false;
       $(".app-shell")?.classList.add("is-auth-locked");
+      await updateSyncUI();
     }
+  } else {
+    await updateSyncUI();
   }
 
   // Auto-prompt Morning Cash Drawer Check on first morning open

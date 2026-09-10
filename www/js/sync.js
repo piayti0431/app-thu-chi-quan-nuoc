@@ -41,6 +41,24 @@ function rememberIsValid() {
   return Date.parse(value) > Date.now();
 }
 
+export function datLaiClientSupabase() {
+  if (client) {
+    dungRealtime().catch(() => {});
+    client = null;
+  }
+}
+
+export async function layThongTinTaiKhoan() {
+  const activeClient = await ensureClient();
+  if (!activeClient) return null;
+  try {
+    const { data } = await activeClient.auth.getSession();
+    return data?.session?.user || null;
+  } catch {
+    return null;
+  }
+}
+
 async function ensureClient() {
   const data = await docDuLieu();
   const { supabaseUrl, supabaseAnon } = data.sync || {};
@@ -65,9 +83,20 @@ export async function daDangNhap() {
     const sessionPromise = activeClient.auth.getSession();
     const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: { session: null } }), 8000));
     const result = await Promise.race([sessionPromise, timeoutPromise]);
-    if (!result?.data?.session) {
+    let session = result?.data?.session;
+    if (!session) {
       clearRemembered();
       return false;
+    }
+    if (session.expires_at && session.expires_at * 1000 < Date.now() && typeof activeClient.auth.refreshSession === "function") {
+      try {
+        const refreshed = await activeClient.auth.refreshSession();
+        if (refreshed?.data?.session) {
+          session = refreshed.data.session;
+        }
+      } catch (refErr) {
+        console.warn("Session auto-refresh notice:", refErr);
+      }
     }
     if (!rememberIsValid()) {
       markRemembered();
@@ -124,36 +153,15 @@ export async function dongBo() {
   const currentDeviceId = data.sync?.deviceId || "local_device";
   const pending = pendingTransactions(data.ds);
 
-  // 1. PUSH PENDING TRANSACTIONS TO SUPABASE (RESILIENT ADAPTIVE SCHEMA)
+  // 1. PUSH PENDING TRANSACTIONS TO SUPABASE (DIRECT RESILIENT PACKED SCHEMA)
   if (pending.length) {
-    let pushError = null;
-    try {
-      const { error } = await activeClient
-        .from("giao_dich")
-        .upsert(
-          pending.map((item) => toRemoteTransaction(item, currentDeviceId, true, userId)),
-          { onConflict: "id" }
-        );
-      if (error) pushError = error;
-    } catch (e) {
-      pushError = e;
-    }
-
-    if (pushError) {
-      const errMsg = String(pushError?.message || pushError || "");
-      if (errMsg.includes("column") || errMsg.includes("schema cache") || errMsg.includes("42703") || errMsg.includes("chi_nhanh")) {
-        console.warn("Supabase lacks extended columns, automatically falling back to packed metadata in ghi_chu:", errMsg);
-        const { error: fallbackError } = await activeClient
-          .from("giao_dich")
-          .upsert(
-            pending.map((item) => toRemoteTransaction(item, currentDeviceId, false, userId)),
-            { onConflict: "id" }
-          );
-        if (fallbackError) throw fallbackError;
-      } else {
-        throw pushError;
-      }
-    }
+    const { error: pushError } = await activeClient
+      .from("giao_dich")
+      .upsert(
+        pending.map((item) => toRemoteTransaction(item, currentDeviceId, false, userId)),
+        { onConflict: "id" }
+      );
+    if (pushError) throw pushError;
 
     data.ds = data.ds.map((item) =>
       pending.some((queued) => queued.id === item.id) ? { ...item, daSync: true } : item,
@@ -357,7 +365,12 @@ export async function dongBo() {
     data.settingsVersion = newVersion;
   }
 
-  data.sync = { ...(data.sync || {}), lastPulledAt: new Date().toISOString(), accountEmail: session.user?.email || "" };
+  data.sync = {
+    ...(data.sync || {}),
+    lastPulledAt: new Date().toISOString(),
+    lastSyncedAt: new Date().toISOString(),
+    accountEmail: session.user?.email || (data.sync && data.sync.accountEmail) || "",
+  };
   await luuDuLieu(data);
 
   const changed = pending.length + merged.stats.pulled + merged.stats.removed;

@@ -1362,7 +1362,10 @@
             <div class="settings-card">
               <div class="card-head">
                 <h2>☁️ Đồng bộ máy chủ đám mây</h2>
-                <p class="subtitle">Đồng bộ dữ liệu thời gian thực giữa các điện thoại.</p>
+                <p class="subtitle">Đồng bộ dữ liệu thời gian thực giữa điện thoại và laptop.</p>
+              </div>
+              <div id="syncAccountStatus" style="margin-bottom: 0.85rem; padding: 0.6rem 0.85rem; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; background: #fffbeb; border: 1px solid #fde68a; color: #92400e;">
+                ⚠️ Chưa kết nối tài khoản. Dữ liệu chỉ lưu tạm trên thiết bị này.
               </div>
               <label>Địa chỉ máy chủ (URL)<input id="supabaseUrl" placeholder="https://...supabase.co"></label>
               <label>Khóa kết nối bảo mật (Anon key)<input id="supabaseAnon" placeholder="eyJ..."></label>
@@ -1375,6 +1378,7 @@
                 <button class="ghost-button" id="signupBtn" type="button">Tạo tài khoản</button>
                 <button class="primary-action slim" id="loginBtn" type="button">Đăng nhập</button>
                 <button class="ghost-button" id="syncNowBtn" type="button">Đồng bộ ngay</button>
+                <button class="ghost-button" id="settingsLogoutBtn" type="button" style="color: #dc2626; border-color: rgba(220, 38, 38, 0.3);" hidden>Đăng xuất</button>
               </div>
             </div>
 

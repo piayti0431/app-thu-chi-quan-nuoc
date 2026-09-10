@@ -264,6 +264,46 @@ h3 {
   background: #fff;
   color: var(--muted);
   white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.sync-pill:hover {
+  filter: brightness(0.96);
+  transform: translateY(-1px);
+}
+
+.sync-pill:active {
+  transform: translateY(0);
+}
+
+.sync-pill.is-synced {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.sync-pill.is-syncing {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.sync-pill.is-offline {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+.sync-pill.is-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
 }
 
 .logout-button {
