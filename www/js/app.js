@@ -40,6 +40,7 @@ import {
 import { phanTichChiTiet, phanTichNhieu } from "./parser.js";
 import { dailyReport, docSoTienTiengViet, matchBranch, computeFundBalances } from "./report.js";
 import { batDauNghe, docLai, dungNghe, getVoiceSettings, saveVoiceSettings, phatTiengChuongTingTing } from "./speech.js";
+import { taoDonThanhToanMoMo, kiemTraTrangThaiMoMo, batDauKiemTraMoMo, dungKiemTraMoMo } from "./momo.js";
 import { hoiGeminiAI } from "./ai-assistant.js";
 import {
   batDauRealtime,
@@ -495,13 +496,13 @@ function renderQuickIngredients() {
 
       return `
       <button class="quick-btn ingredient-card theme-${item.icon || "cane_bundle"}" data-id="${item.id}" type="button" aria-label="Xuất dùng / Nhập ${item.name} (${shortCost}/${item.unit})" style="position: relative;">
-        ${stockBadge}
         <span class="quick-btn-badge ing-cost-badge">${shortCost}/${item.unit}</span>
         <div class="quick-btn-img-box ing-img-box">
           <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.endsWith('.jpg')?this.src.replace('.jpg','.svg'):this.src.replace('.svg','.jpg');}else{this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';}" />
           <span class="ing-icon" style="display: none;">${getIngredientIconSvg(item.icon)}</span>
         </div>
         <strong class="quick-btn-name">${item.shortName || item.name}</strong>
+        ${stockBadge}
       </button>
     `;
     })
@@ -4197,6 +4198,24 @@ function phatLoaThongBaoChuyenKhoan(soTien, phuongThuc = "chuyen_khoan") {
   }, 350);
 }
 
+// Thông báo thanh toán MoMo theo Mẫu 2 đã duyệt: "Đã nhận [số tiền] qua ví MoMo!"
+export function phatLoaThongBaoMoMo(soTien) {
+  if (state.enableAudioPaymentAlert === false) return;
+
+  // Phát chuông Ting Ting báo ngân ngân vang
+  phatTiengChuongTingTing();
+
+  const speechMoney = docSoTienTiengViet(Number(soTien) || 0);
+  const text = `Đã nhận ${speechMoney} qua ví MoMo!`;
+
+  setTimeout(() => {
+    docLai(text).catch((err) => {
+      console.warn("MoMo speech audio alert error:", err);
+    });
+  }, 350);
+}
+
+
 
 function updateAudioAlertButtonUI() {
   const isEnabled = state.enableAudioPaymentAlert !== false;
@@ -4558,6 +4577,17 @@ export function switchView(currentView) {
   $$(".view").forEach((v) => v.classList.remove("is-active"));
   const tab = $(`.tabs .tab[data-view='${currentView}']`);
   if (tab) tab.classList.add("is-active");
+
+  const moreViews = ["history", "stats", "settings"];
+  const moreBtn = $("#moreNavBtn");
+  if (moreBtn) {
+    if (moreViews.includes(currentView)) {
+      moreBtn.classList.add("is-active");
+    } else {
+      moreBtn.classList.remove("is-active");
+    }
+  }
+
   const viewId = `view-${currentView}`;
   $(`#${viewId}`)?.classList.add("is-active");
 
@@ -4585,8 +4615,82 @@ function initEventListeners() {
   $$(".tabs .tab").forEach((tab) => {
     tab.onclick = () => {
       const currentView = tab.getAttribute("data-view");
-      switchView(currentView);
+      if (currentView) switchView(currentView);
     };
+  });
+
+  // More Navigation Sheet (Option B on mobile)
+  const moreNavBtn = $("#moreNavBtn");
+  const moreNavSheet = $("#moreNavSheet");
+  const closeMoreNavBtn = $("#closeMoreNavBtn");
+
+  const closeMoreSheet = () => {
+    if (!moreNavSheet) return;
+    try {
+      if (typeof moreNavSheet.close === "function") {
+        moreNavSheet.close();
+      } else {
+        moreNavSheet.classList.remove("is-open");
+        moreNavSheet.style.display = "none";
+      }
+    } catch (e) {
+      moreNavSheet.style.display = "none";
+    }
+  };
+
+  if (moreNavBtn && moreNavSheet) {
+    moreNavBtn.onclick = () => {
+      try {
+        if (typeof moreNavSheet.showModal === "function") {
+          moreNavSheet.showModal();
+        } else {
+          moreNavSheet.classList.add("is-open");
+          moreNavSheet.style.display = "flex";
+        }
+      } catch (e) {
+        moreNavSheet.style.display = "flex";
+      }
+    };
+  }
+
+  if (closeMoreNavBtn) {
+    closeMoreNavBtn.onclick = closeMoreSheet;
+  }
+
+  if (moreNavSheet) {
+    moreNavSheet.addEventListener("click", (e) => {
+      if (e.target === moreNavSheet) closeMoreSheet();
+    });
+  }
+
+  $$("#moreNavSheet [data-more-view]").forEach((card) => {
+    card.onclick = () => {
+      const v = card.getAttribute("data-more-view");
+      closeMoreSheet();
+      if (v) switchView(v);
+    };
+  });
+
+  $("#moreTaxBtn")?.addEventListener("click", () => {
+    closeMoreSheet();
+    renderTaxReportModal();
+    $("#taxReportDialog")?.showModal();
+  });
+
+  $("#moreCostCalcBtn")?.addEventListener("click", () => {
+    closeMoreSheet();
+    openCostCalculatorModal();
+  });
+
+  $("#moreVoiceBtn")?.addEventListener("click", () => {
+    closeMoreSheet();
+    const voiceModal = $("#voiceSettingsDialog");
+    const voiceSelect = $("#voiceSelect");
+    const voiceRateSelect = $("#voiceRateSelect");
+    const current = getVoiceSettings();
+    if (voiceSelect) voiceSelect.value = current.voice || "google_vi";
+    if (voiceRateSelect) voiceRateSelect.value = String(current.rate || "1.0");
+    voiceModal?.showModal();
   });
 
   // Event delegation for transactions (todayList & historyList)
@@ -5126,6 +5230,142 @@ function initEventListeners() {
 
   $("#confirmCashBillBtn")?.addEventListener("click", () => checkoutDigitalBill("tien_mat"));
   $("#confirmQrBillBtn")?.addEventListener("click", () => checkoutDigitalBill("chuyen_khoan"));
+
+  // ----------------------------------------------------
+  // THANH TOÁN VÍ MOMO QR ĐỘNG (TỰ ĐỘNG BÁO TIỀN VỀ)
+  // ----------------------------------------------------
+  const openMomoCheckoutModal = async () => {
+    if (!activePosBill.length) {
+      showToast("Chưa có món nào trong Bill", true);
+      return;
+    }
+
+    const activeBranch = (state.currentBranch && state.currentBranch !== "all")
+      ? state.currentBranch
+      : ((state.branches && state.branches[0]?.name) || "Quán Nhà (Chính)");
+
+    const totalCups = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1), 0);
+    const totalAmount = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1) * (getItemPrice(entry.item, activeBranch) || 0), 0);
+    const billCode = `BILL-${Date.now().toString().slice(-4)}`;
+    const billDesc = activePosBill.map(e => `${e.qty} ${e.item.name}`).join(", ");
+
+    // Đóng hộp thoại chốt bill thường, mở hộp thoại MoMo
+    $("#fastCheckoutDialog")?.close();
+    const momoModal = $("#momoPaymentDialog");
+    if (!momoModal) return;
+
+    if ($("#momoBillCodeDisplay")) $("#momoBillCodeDisplay").textContent = `Đơn hàng #${billCode} (${totalCups} ly)`;
+    if ($("#momoBillDescDisplay")) $("#momoBillDescDisplay").textContent = billDesc;
+    if ($("#momoTotalAmountDisplay")) $("#momoTotalAmountDisplay").textContent = formatMoney(totalAmount);
+    if ($("#momoQrLoading")) $("#momoQrLoading").style.display = "flex";
+    if ($("#momoQrImage")) $("#momoQrImage").style.display = "none";
+    if ($("#momoStatusText")) $("#momoStatusText").textContent = "Đang kết nối MoMo tạo mã QR...";
+    if ($("#momoStatusBox")) {
+      $("#momoStatusBox").style.background = "#fff1f2";
+      $("#momoStatusBox").style.borderColor = "#fecdd3";
+    }
+    if ($("#momoStatusText")) $("#momoStatusText").style.color = "#9f1239";
+
+    momoModal.showModal();
+
+    try {
+      const momoRes = await taoDonThanhToanMoMo({
+        orderId: billCode,
+        amount: totalAmount,
+        orderInfo: `Bán ${totalCups} ly: ${billDesc}`.slice(0, 200),
+        branch: activeBranch,
+      });
+
+      if (momoRes && momoRes.ok) {
+        if ($("#momoQrLoading")) $("#momoQrLoading").style.display = "none";
+        const qrImg = $("#momoQrImage");
+        if (qrImg) {
+          qrImg.src = momoRes.qrCodeUrl;
+          qrImg.style.display = "block";
+        }
+        if ($("#momoStatusText")) $("#momoStatusText").textContent = "Đang đợi khách quét & chuyển tiền...";
+
+        // Hàm xử lý hoàn tất thanh toán thành công
+        const handleSuccess = async (data) => {
+          dungKiemTraMoMo();
+          if ($("#momoStatusBox")) {
+            $("#momoStatusBox").style.background = "#f0fdf4";
+            $("#momoStatusBox").style.borderColor = "#86efac";
+          }
+          if ($("#momoStatusText")) {
+            $("#momoStatusText").style.color = "#166534";
+            $("#momoStatusText").textContent = "✅ Đã nhận tiền MoMo thành công!";
+          }
+
+          // 1. Chuông Ting Ting + Loa AI đọc to Mẫu 2: "Đã nhận [số tiền] qua ví MoMo!"
+          phatLoaThongBaoMoMo(totalAmount);
+
+          // 2. Tự động ghi nhận từng món vào sổ thu chi
+          for (const entry of activePosBill) {
+            const itemPrice = getItemPrice(entry.item, activeBranch);
+            const lineCost = entry.qty * (Number(entry.item.costPrice) || 0);
+            const linePrice = entry.qty * itemPrice;
+
+            await themGiaoDich({
+              loai: "thu",
+              soTien: linePrice,
+              soLuong: entry.qty,
+              donViTinh: entry.item.voiceUnit || "ly",
+              phuongThuc: "chuyen_khoan",
+              giaCostDonVi: entry.item.costPrice || 0,
+              tongGiaCost: lineCost,
+              danhMuc: entry.item.category || entry.item.name,
+              ghiChu: `#${billCode} - Bán ${entry.qty} ${entry.item.name} (MoMo GD: ${data?.transId || billCode})`,
+              cauNoiGoc: `Bán ${entry.qty} ${entry.item.name} (MoMo #${billCode})`,
+              daSuaTay: false,
+              chiNhanh: activeBranch,
+            });
+          }
+
+          activePosBill = [];
+          renderPosBillBar();
+          state = await docDuLieu();
+          renderAll();
+          triggerAutoSync();
+
+          showToast(`🎉 Đã nhận ${formatMoney(totalAmount)} qua ví MoMo thành công!`);
+
+          setTimeout(() => {
+            momoModal.close();
+          }, 1600);
+        };
+
+        // Bắt đầu vòng lặp tự động hỏi MoMo tiền đã vào chưa
+        batDauKiemTraMoMo(momoRes.orderId, handleSuccess, (err) => {
+          if ($("#momoStatusText")) $("#momoStatusText").textContent = `⚠️ ${err?.message || "Chờ thanh toán..."}`;
+        });
+
+        // Nút bấm thử loa & chuông (để chủ quán test thực tế)
+        const testBtn = $("#testMomoSuccessBtn");
+        if (testBtn) {
+          testBtn.onclick = () => {
+            handleSuccess({ transId: `TEST_${Date.now().toString().slice(-4)}` });
+          };
+        }
+      } else {
+        if ($("#momoQrLoading")) $("#momoQrLoading").style.display = "none";
+        if ($("#momoStatusText")) $("#momoStatusText").textContent = `Lỗi tạo mã: ${momoRes?.message || "Thử lại sau"}`;
+      }
+    } catch (err) {
+      if ($("#momoQrLoading")) $("#momoQrLoading").style.display = "none";
+      if ($("#momoStatusText")) $("#momoStatusText").textContent = "Không thể kết nối máy chủ MoMo";
+    }
+  };
+
+  $("#confirmMomoBillBtn")?.addEventListener("click", openMomoCheckoutModal);
+  $("#closeMomoPaymentBtn")?.addEventListener("click", () => {
+    dungKiemTraMoMo();
+    $("#momoPaymentDialog")?.close();
+  });
+  $("#cancelMomoPaymentBtn")?.addEventListener("click", () => {
+    dungKiemTraMoMo();
+    $("#momoPaymentDialog")?.close();
+  });
 
   // ----------------------------------------------------
   // SỰ KIỆN CHUYỂN ĐỔI CHẾ ĐỘ: BÁN NƯỚC VS NHẬP NGUYÊN LIỆU

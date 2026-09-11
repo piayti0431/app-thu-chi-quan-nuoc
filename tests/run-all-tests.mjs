@@ -40,6 +40,7 @@ const TEST_SUITES = [
   "xss-sanitize.test.mjs",
   "inventory-unitcost.test.mjs",
   "parser-custom-items.test.mjs",
+  "momo-payment.test.mjs",
 ];
 
 async function runSuite(suiteFile) {

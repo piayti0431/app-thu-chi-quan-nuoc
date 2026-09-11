@@ -197,17 +197,17 @@
           </button>
           <button class="tab" data-view="jars">
             <span class="tab-icon">🏺</span>
-            <span class="tab-label">4 Hũ Tiền</span>
+            <span class="tab-label">Quỹ Tiền</span>
           </button>
           <button class="tab" data-view="closings">
             <span class="tab-icon">📋</span>
             <span class="tab-label">Chốt Ca</span>
           </button>
-          <button class="tab" data-view="history">
+          <button class="tab tab-desktop-only" data-view="history">
             <span class="tab-icon">📜</span>
             <span class="tab-label">Lịch sử</span>
           </button>
-          <button class="tab" data-view="stats">
+          <button class="tab tab-desktop-only" data-view="stats">
             <span class="tab-icon">📊</span>
             <span class="tab-label">Thống kê</span>
           </button>
@@ -216,9 +216,13 @@
             <span class="tab-icon">🤖</span>
             <span class="tab-label">Thư Ký EV</span>
           </button>
-          <button class="tab" data-view="settings">
+          <button class="tab tab-desktop-only" data-view="settings">
             <span class="tab-icon">⚙️</span>
             <span class="tab-label">Cài đặt</span>
+          </button>
+          <button class="tab tab-mobile-only" id="moreNavBtn" type="button" aria-label="Xem thêm chức năng">
+            <span class="tab-icon">⋯</span>
+            <span class="tab-label">Thêm</span>
           </button>
         </nav>
 
@@ -2416,15 +2420,70 @@
           </div>
         </div>
 
-        <!-- 2 NÚT CHỐT BILL (TIỀN MẶT / QR) - ICON TO, CHỮ PHỤ NHỎ -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem;">
+        <!-- 3 NÚT CHỐT BILL (TIỀN MẶT / CK NGÂN HÀNG / MOMO QR) -->
+        <div class="checkout-actions-grid" style="display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 0.5rem;">
           <button class="primary-action confirm-bill-cta cta-cash" id="confirmCashBillBtn" type="button">
             <span class="cta-icon">💵</span>
             <span class="cta-label">Tiền mặt</span>
           </button>
           <button class="primary-action confirm-bill-cta cta-qr" id="confirmQrBillBtn" type="button">
             <span class="cta-icon">📱</span>
-            <span class="cta-label">QR</span>
+            <span class="cta-label">CK Thường</span>
+          </button>
+          <button class="primary-action confirm-bill-cta cta-momo" id="confirmMomoBillBtn" type="button" style="background: linear-gradient(135deg, #a50064 0%, #d82d8b 100%); color: #fff; box-shadow: 0 4px 12px rgba(216, 45, 139, 0.35);">
+            <span class="cta-icon">👛</span>
+            <span class="cta-label">MoMo QR</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- HỘP THOẠI THANH TOÁN MOMO QR ĐỘNG (TỰ ĐỘNG NHẬN DIỆN TIỀN VỀ) -->
+    <dialog class="confirm-dialog modern-modal momo-payment-dialog" id="momoPaymentDialog" style="max-width: 420px; width: 95vw; border-radius: 1.25rem; overflow: hidden; padding: 0; box-shadow: 0 25px 50px -12px rgba(165, 0, 100, 0.35); margin: auto;">
+      <!-- Header Gradient MoMo Pink -->
+      <div style="background: linear-gradient(135deg, #a50064 0%, #d82d8b 100%); color: #fff; padding: 0.85rem 1.1rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <div style="width: 2.6rem; height: 2.6rem; border-radius: 50%; background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; font-size: 1.35rem;">👛</div>
+          <div>
+            <h2 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #ffffff;">Thanh Toán Ví MoMo</h2>
+            <p style="margin: 0.1rem 0 0; font-size: 0.72rem; color: #fce7f3;" id="momoPartnerBadge">Mã ĐV: MOMOIPFW20260606</p>
+          </div>
+        </div>
+        <button class="ghost-button" id="closeMomoPaymentBtn" type="button" style="width: 2.4rem; height: 2.4rem; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); font-size: 1.2rem; cursor: pointer;" aria-label="Đóng">✕</button>
+      </div>
+
+      <div style="padding: 1rem 1.1rem; text-align: center;">
+        <!-- TỔNG TIỀN VÀ MÃ ĐƠN -->
+        <div style="background: #fdf2f8; border: 1.5px solid #fbcfe8; border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+          <div style="text-align: left;">
+            <span style="font-size: 0.75rem; color: #9d174d; font-weight: 700;" id="momoBillCodeDisplay">Đơn hàng #BILL-0000</span>
+            <div style="font-size: 0.72rem; color: #831843; max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="momoBillDescDisplay">Bán nước mía</div>
+          </div>
+          <strong style="font-size: 1.45rem; font-weight: 900; color: #a50064;" id="momoTotalAmountDisplay">0 đ</strong>
+        </div>
+
+        <!-- KHUNG MÃ QR ĐỘNG -->
+        <div class="momo-qr-container" style="position: relative; display: inline-block; background: #fff; padding: 0.65rem; border-radius: var(--radius-lg); border: 2px solid #f472b6; box-shadow: 0 8px 20px -4px rgba(216, 45, 139, 0.18); margin-bottom: 0.75rem;">
+          <div id="momoQrLoading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 220px; height: 220px;">
+            <div class="sync-spinner" style="width: 32px; height: 32px; border: 3px solid #fce7f3; border-top-color: #d82d8b; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 0.5rem;"></div>
+            <span style="font-size: 0.82rem; font-weight: 600; color: #64748b;">Đang tạo mã QR MoMo...</span>
+          </div>
+          <img id="momoQrImage" src="" alt="Mã QR MoMo" style="display: none; width: 220px; height: 220px; border-radius: 0.4rem; object-fit: contain; margin: 0 auto;" />
+        </div>
+
+        <!-- TRẠNG THÁI KIỂM TRA TIỀN VỀ -->
+        <div id="momoStatusBox" style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: var(--radius-sm); padding: 0.45rem 0.65rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+          <span class="momo-pulse-dot"></span>
+          <span style="font-size: 0.82rem; font-weight: 700; color: #9f1239;" id="momoStatusText">Đang đợi khách quét &amp; chuyển tiền...</span>
+        </div>
+
+        <!-- HÀNG NÚT THAO TÁC: HỦY / TEST GIẢ LẬP -->
+        <div style="display: grid; grid-template-columns: 1fr 1.15fr; gap: 0.5rem;">
+          <button class="ghost-button" id="cancelMomoPaymentBtn" type="button" style="padding: 0.55rem; font-size: 0.82rem; font-weight: 700; color: #64748b;">
+            ✕ Hủy bỏ
+          </button>
+          <button class="ghost-button" id="testMomoSuccessBtn" type="button" style="padding: 0.55rem; font-size: 0.82rem; font-weight: 700; color: #a50064; border-color: #fbcfe8; background: #fdf2f8;" title="Thử nghiệm chuông Ting Ting và Loa AI đọc số tiền">
+            ⚡ Thử loa &amp; chuông
           </button>
         </div>
       </div>
@@ -2827,6 +2886,82 @@
 
           <button class="primary-action" id="confirmNewBatchBtn" type="button" style="width: 100%; background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); border: none; padding: 0.85rem; font-weight: 900; font-size: 1rem; justify-content: center; border-radius: var(--radius-md); box-shadow: 0 4px 14px rgba(234, 88, 12, 0.4);">
             <span>➕ Xác Nhận Nhập Đợt Mới &amp; Ghi Chi Tiền</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- BOTTOM SHEET: MENU MỞ RỘNG (OPTION B CHO MOBILE) -->
+    <dialog class="more-nav-dialog" id="moreNavSheet">
+      <div class="more-nav-sheet-content">
+        <div class="more-nav-sheet-header">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <div class="more-nav-header-icon">✨</div>
+            <div>
+              <h3 style="margin: 0; font-size: 1.1rem; font-weight: 800; color: #0f172a;">Chức Năng & Tiện Ích</h3>
+              <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: #64748b;">Xem sổ chi tiết, báo cáo doanh thu và công cụ F&B</p>
+            </div>
+          </div>
+          <button type="button" class="more-nav-close-btn" id="closeMoreNavBtn" aria-label="Đóng menu">✕</button>
+        </div>
+
+        <div class="more-nav-grid">
+          <!-- 3 Tab Mở Rộng -->
+          <button type="button" class="more-nav-card" data-more-view="history">
+            <div class="more-nav-card-icon" style="background: #eff6ff; color: #2563eb;">📜</div>
+            <div class="more-nav-card-info">
+              <strong>Lịch Sử Giao Dịch</strong>
+              <span>Tra cứu sổ thu chi, hóa đơn, sửa/xóa</span>
+            </div>
+            <span class="more-nav-card-arrow">›</span>
+          </button>
+
+          <button type="button" class="more-nav-card" data-more-view="stats">
+            <div class="more-nav-card-icon" style="background: #ecfdf5; color: #059669;">📊</div>
+            <div class="more-nav-card-info">
+              <strong>Thống Kê & Báo Cáo</strong>
+              <span>Doanh thu ngày/tuần/tháng, P&L, cơ cấu món</span>
+            </div>
+            <span class="more-nav-card-arrow">›</span>
+          </button>
+
+          <button type="button" class="more-nav-card" data-more-view="settings">
+            <div class="more-nav-card-icon" style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0;">⚙️</div>
+            <div class="more-nav-card-info">
+              <strong>Cài Đặt & Menu Quán</strong>
+              <span>Bảng giá món, định lượng nguyên liệu, Cloud Sync</span>
+            </div>
+            <span class="more-nav-card-arrow">›</span>
+          </button>
+
+          <!-- Các Công Cụ Nhanh F&B -->
+          <div class="more-nav-divider"><span>Công cụ nghiệp vụ</span></div>
+
+          <button type="button" class="more-nav-card mini" id="moreTaxBtn">
+            <div class="more-nav-card-icon" style="background: #fef3c7; color: #d97706;">🧾</div>
+            <div class="more-nav-card-info">
+              <strong>Khai Thuế 01/CNKD</strong>
+              <span>Tờ khai thuế 4.5% hộ kinh doanh F&B</span>
+            </div>
+            <span class="more-nav-card-arrow">›</span>
+          </button>
+
+          <button type="button" class="more-nav-card mini" id="moreCostCalcBtn">
+            <div class="more-nav-card-icon" style="background: #e0f2fe; color: #0284c7;">🧮</div>
+            <div class="more-nav-card-info">
+              <strong>Tính Giá Vốn & Hòa Vốn</strong>
+              <span>Phân bổ cost nguyên liệu & tiền mặt bằng</span>
+            </div>
+            <span class="more-nav-card-arrow">›</span>
+          </button>
+
+          <button type="button" class="more-nav-card mini" id="moreVoiceBtn">
+            <div class="more-nav-card-icon" style="background: #fdf4ff; color: #c026d3;">🎙️</div>
+            <div class="more-nav-card-info">
+              <strong>Cài Đặt Giọng Loa AI</strong>
+              <span>Chọn giọng đọc Google Tiếng Việt, tốc độ nói</span>
+            </div>
+            <span class="more-nav-card-arrow">›</span>
           </button>
         </div>
       </div>
