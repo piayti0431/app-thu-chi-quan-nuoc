@@ -498,7 +498,7 @@ function renderQuickIngredients() {
         ${stockBadge}
         <span class="quick-btn-badge ing-cost-badge">${shortCost}/${item.unit}</span>
         <div class="quick-btn-img-box ing-img-box">
-          <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.replace('.svg','.jpg');}else{this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';}" />
+          <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.endsWith('.jpg')?this.src.replace('.jpg','.svg'):this.src.replace('.svg','.jpg');}else{this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';}" />
           <span class="ing-icon" style="display: none;">${getIngredientIconSvg(item.icon)}</span>
         </div>
         <strong class="quick-btn-name">${item.shortName || item.name}</strong>
@@ -558,7 +558,7 @@ function openQuickIngredientModal(item, defaultTab = "buy") {
     imgEl.onerror = function () {
       if (!this.dataset.fallback) {
         this.dataset.fallback = "1";
-        this.src = this.src.replace(".svg", ".jpg");
+        this.src = this.src.endsWith(".jpg") ? this.src.replace(".jpg", ".svg") : this.src.replace(".svg", ".jpg");
       } else {
         this.src = "./assets/ingredients/bo_mia_10kg.jpg";
       }
@@ -3172,7 +3172,7 @@ function renderMaterialsView() {
           <span class="ing-stock-badge ${isLow ? 'is-low' : ''}">Tồn: ${stockBadgeText}</span>
           <span class="quick-btn-badge ing-cost-badge" style="background: #7c3aed !important; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.35) !important;">~${yieldVal} ly</span>
           <div class="quick-btn-img-box ing-img-box">
-            <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.replace('.svg','.jpg');}else{this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';}" />
+            <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.endsWith('.jpg')?this.src.replace('.jpg','.svg'):this.src.replace('.svg','.jpg');}else{this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';}" />
             <span class="ing-icon" style="display: none;">${getIngredientIconSvg(item.icon)}</span>
           </div>
           <strong class="quick-btn-name">${item.shortName || item.name}</strong>
@@ -3211,7 +3211,7 @@ function renderMaterialsView() {
           <td>
             <div style="display: flex; align-items: center; gap: 0.65rem;">
               <div style="width: 2.3rem; height: 2.3rem; border-radius: 6px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-                <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.replace('.svg','.jpg');}else{this.src='./assets/ingredients/bo_mia_10kg.jpg';}" />
+                <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.endsWith('.jpg')?this.src.replace('.jpg','.svg'):this.src.replace('.svg','.jpg');}else{this.src='./assets/ingredients/bo_mia_10kg.jpg';}" />
               </div>
               <div>
                 <strong style="display: block; font-size: 0.88rem; color: #0f172a;">${item.name}</strong>

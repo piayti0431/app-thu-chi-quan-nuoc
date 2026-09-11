@@ -285,7 +285,7 @@ export const DEFAULT_DATA = {
       category: "Mía chặt khúc bán hàng",
       note: "1 bó 10kg bào sạch ép ~25-30 ly (Tự sơ chế từ bó 12 cây dài)",
       icon: "cane_bundle",
-      image: "./assets/ingredients/bo_mia_10kg.svg",
+      image: "./assets/ingredients/bo_mia_10kg.jpg",
       inventoryId: "mia_10kg",
       yieldPerUnit: 25,
       defaultMode: "use",
@@ -300,7 +300,7 @@ export const DEFAULT_DATA = {
       category: "Mua mía cây",
       note: "1 bó 12 cây dài thô mua từ vựa về bào ra ~1.5 bó 10kg (~45 ly)",
       icon: "cane_bundle",
-      image: "./assets/ingredients/bo_mia_12_cay.svg",
+      image: "./assets/ingredients/bo_mia_12_cay.jpg",
       inventoryId: "mia_cay",
       yieldPerUnit: 45,
       defaultMode: "buy",
@@ -315,7 +315,7 @@ export const DEFAULT_DATA = {
       category: "Mua đá viên",
       note: "Quán Nhà 17k / CN2 21k (1 bao ~30 ly)",
       icon: "ice_bag",
-      image: "./assets/ingredients/da_vien.svg",
+      image: "./assets/ingredients/da_vien.jpg",
       inventoryId: "da_vien",
       yieldPerUnit: 30,
     },
@@ -329,7 +329,7 @@ export const DEFAULT_DATA = {
       category: "Mua tắc",
       note: "1.5kg tắc 45k (30k/kg) pha sốt tắc",
       icon: "calamansi",
-      image: "./assets/ingredients/tac.svg",
+      image: "./assets/ingredients/tac.jpg",
       inventoryId: "tac_tuoi",
       yieldPerUnit: 25,
     },
@@ -343,7 +343,7 @@ export const DEFAULT_DATA = {
       category: "Mua thơm",
       note: "4 ly/trái (Cost mía thơm 7k)",
       icon: "pineapple",
-      image: "./assets/ingredients/thom.svg",
+      image: "./assets/ingredients/thom.jpg",
       inventoryId: "thom_dua",
       yieldPerUnit: 4,
     },
@@ -357,7 +357,7 @@ export const DEFAULT_DATA = {
       category: "Mua rau má",
       note: "1kg 30k ra 12.5 ly rau má",
       icon: "pennywort",
-      image: "./assets/ingredients/rau_ma.svg",
+      image: "./assets/ingredients/rau_ma.jpg",
       inventoryId: "rau_ma",
       yieldPerUnit: 12.5,
     },
@@ -371,7 +371,7 @@ export const DEFAULT_DATA = {
       category: "Mua đậu xanh",
       note: "10 ly/kg",
       icon: "mung_bean",
-      image: "./assets/ingredients/dau_xanh.svg",
+      image: "./assets/ingredients/dau_xanh.jpg",
       inventoryId: "dau_xanh",
       yieldPerUnit: 10,
     },
@@ -385,7 +385,7 @@ export const DEFAULT_DATA = {
       category: "Mua cam",
       note: "3 ly/kg (Cost mía cam 10k)",
       icon: "orange_fresh",
-      image: "./assets/ingredients/cam_sanh.svg",
+      image: "./assets/ingredients/cam_sanh.jpg",
       inventoryId: "cam_sanh",
       yieldPerUnit: 3,
     },
@@ -399,7 +399,7 @@ export const DEFAULT_DATA = {
       category: "Mua sữa đặc",
       note: "1 lon pha ~10 ly má sữa",
       icon: "condensed_milk",
-      image: "./assets/ingredients/sua_dac.svg",
+      image: "./assets/ingredients/sua_dac.jpg",
       inventoryId: "sua_dac",
       yieldPerUnit: 10,
     },
@@ -413,7 +413,7 @@ export const DEFAULT_DATA = {
       category: "Mua ly nhựa",
       note: "2000 cái là 1tr (500đ/cái)",
       icon: "plastic_cup",
-      image: "./assets/ingredients/ly_nhua.svg",
+      image: "./assets/ingredients/ly_nhua.jpg",
       inventoryId: "ly_nhua",
       yieldPerUnit: 2000,
     },
@@ -427,7 +427,7 @@ export const DEFAULT_DATA = {
       category: "Mua ống hút",
       note: "270k/bao 10 bịch (27k/bịch ~2.000 ống)",
       icon: "drinking_straw",
-      image: "./assets/ingredients/ong_hut.svg",
+      image: "./assets/ingredients/ong_hut.jpg",
       inventoryId: "ong_hut",
       yieldPerUnit: 2000,
     },
@@ -441,7 +441,7 @@ export const DEFAULT_DATA = {
       category: "Mua bịch mang đi",
       note: "Bọc 1 ly / 2 ly (~300 cái/kg)",
       icon: "takeaway_bag",
-      image: "./assets/ingredients/bich_t.svg",
+      image: "./assets/ingredients/bich_t.jpg",
       inventoryId: "bich_t",
       yieldPerUnit: 300,
     },
@@ -455,7 +455,7 @@ export const DEFAULT_DATA = {
       category: "Mua màng ép",
       note: "45k/cuộn ép được 2.000 ly (22.5đ/ly)",
       icon: "cup_sealing_film",
-      image: "./assets/ingredients/mang_keo.svg",
+      image: "./assets/ingredients/mang_keo.jpg",
       inventoryId: "mang_ep",
       yieldPerUnit: 2000,
     },
@@ -469,7 +469,7 @@ export const DEFAULT_DATA = {
       category: "Mua đường",
       note: "Đường 20k/kg (pha trà 10k/kg đường)",
       icon: "sugar_sack",
-      image: "./assets/ingredients/duong_cat.svg",
+      image: "./assets/ingredients/duong_cat.jpg",
       inventoryId: "duong_cat",
       yieldPerUnit: 25,
     },
@@ -908,10 +908,15 @@ export const VALID_INGREDIENT_IMAGES = new Set([
 ]);
 
 export function getValidIngredientImage(item) {
-  if (!item) return "./assets/ingredients/bo_mia_10kg.svg";
+  if (!item) return "./assets/ingredients/bo_mia_10kg.jpg";
   let img = typeof item.image === "string" ? item.image.trim() : "";
   if (img.startsWith("assets/")) img = "./" + img;
-  if (img && VALID_INGREDIENT_IMAGES.has(img)) return img;
+  if (img) {
+    // If the image is stored as .svg or .jpg, always prefer the realistic .jpg photo if available
+    const jpgCandidate = img.replace(/\.svg$/i, ".jpg");
+    if (VALID_INGREDIENT_IMAGES.has(jpgCandidate)) return jpgCandidate;
+    if (VALID_INGREDIENT_IMAGES.has(img)) return img;
+  }
 
   const str = `${item.id || ""} ${item.name || ""} ${item.shortName || ""} ${item.category || ""}`
     .normalize("NFD")
@@ -920,22 +925,22 @@ export function getValidIngredientImage(item) {
     .replace(/Đ/g, "d")
     .toLowerCase();
 
-  if (str.includes("12 cay") || str.includes("cay dai") || str.includes("chua bao")) return "./assets/ingredients/bo_mia_12_cay.svg";
-  if (str.includes("10kg") || str.includes("10 kg") || str.includes("mia")) return "./assets/ingredients/bo_mia_10kg.svg";
-  if (str.includes("mang") || str.includes("keo") || str.includes("ep ly") || str.includes("cuon")) return "./assets/ingredients/mang_keo.svg";
-  if (str.includes("bich") || str.includes("boc") || str.includes("t bag") || str.includes("tbag") || str.includes("xach")) return "./assets/ingredients/bich_t.svg";
-  if (str.includes("ong hut") || str.includes("hut") || str.includes("straw")) return "./assets/ingredients/ong_hut.svg";
-  if (str.includes("da vien") || str.includes("bao da") || str.includes("nuoc da") || str.includes("ice") || /\bda\b/.test(str)) return "./assets/ingredients/da_vien.svg";
-  if (str.includes("tac") || str.includes("quat") || str.includes("calamansi")) return "./assets/ingredients/tac.svg";
-  if (str.includes("thom") || str.includes("dua") || str.includes("khom") || str.includes("pineapple")) return "./assets/ingredients/thom.svg";
-  if (str.includes("rau ma") || str.includes("pennywort")) return "./assets/ingredients/rau_ma.svg";
-  if (str.includes("dau xanh") || str.includes("mung")) return "./assets/ingredients/dau_xanh.svg";
-  if (str.includes("cam") || str.includes("orange")) return "./assets/ingredients/cam_sanh.svg";
-  if (str.includes("sua") || str.includes("milk")) return "./assets/ingredients/sua_dac.svg";
-  if (str.includes("duong") || str.includes("sugar")) return "./assets/ingredients/duong_cat.svg";
-  if (str.includes("ly") || str.includes("coc") || str.includes("cup")) return "./assets/ingredients/ly_nhua.svg";
+  if (str.includes("12 cay") || str.includes("cay dai") || str.includes("chua bao")) return "./assets/ingredients/bo_mia_12_cay.jpg";
+  if (str.includes("10kg") || str.includes("10 kg") || str.includes("mia")) return "./assets/ingredients/bo_mia_10kg.jpg";
+  if (str.includes("mang") || str.includes("keo") || str.includes("ep ly") || str.includes("cuon")) return "./assets/ingredients/mang_keo.jpg";
+  if (str.includes("bich") || str.includes("boc") || str.includes("t bag") || str.includes("tbag") || str.includes("xach")) return "./assets/ingredients/bich_t.jpg";
+  if (str.includes("ong hut") || str.includes("hut") || str.includes("straw")) return "./assets/ingredients/ong_hut.jpg";
+  if (str.includes("da vien") || str.includes("bao da") || str.includes("nuoc da") || str.includes("ice") || /\bda\b/.test(str)) return "./assets/ingredients/da_vien.jpg";
+  if (str.includes("tac") || str.includes("quat") || str.includes("calamansi")) return "./assets/ingredients/tac.jpg";
+  if (str.includes("thom") || str.includes("dua") || str.includes("khom") || str.includes("pineapple")) return "./assets/ingredients/thom.jpg";
+  if (str.includes("rau ma") || str.includes("pennywort")) return "./assets/ingredients/rau_ma.jpg";
+  if (str.includes("dau xanh") || str.includes("mung")) return "./assets/ingredients/dau_xanh.jpg";
+  if (str.includes("cam") || str.includes("orange")) return "./assets/ingredients/cam_sanh.jpg";
+  if (str.includes("sua") || str.includes("milk")) return "./assets/ingredients/sua_dac.jpg";
+  if (str.includes("duong") || str.includes("sugar")) return "./assets/ingredients/duong_cat.jpg";
+  if (str.includes("ly") || str.includes("coc") || str.includes("cup")) return "./assets/ingredients/ly_nhua.jpg";
 
-  return "./assets/ingredients/bo_mia_10kg.svg";
+  return "./assets/ingredients/bo_mia_10kg.jpg";
 }
 
 export function getItemPrice(item, branch = "Quán Nhà (Chính)") {
@@ -1166,7 +1171,7 @@ export function mergeData(data) {
             category: "Mua mía cây",
             note: "1 bó 10kg đã bào sạch cột dây ~25-30 ly (7k/kg)",
             icon: "cane_bundle",
-            image: "./assets/ingredients/bo_mia_10kg.svg",
+            image: "./assets/ingredients/bo_mia_10kg.jpg",
             inventoryId: "mia_10kg",
             yieldPerUnit: 25,
           });
@@ -1185,7 +1190,7 @@ export function mergeData(data) {
             category: "Mua mía cây",
             note: "1 bó 12 cây dài 90k chưa bào ra 15kg mía (~45 ly)",
             icon: "cane_bundle",
-            image: "./assets/ingredients/bo_mia_12_cay.svg",
+            image: "./assets/ingredients/bo_mia_12_cay.jpg",
             inventoryId: "mia_cay",
             yieldPerUnit: 45,
           });
