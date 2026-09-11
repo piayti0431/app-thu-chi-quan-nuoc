@@ -34,6 +34,24 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, x-client-info, apikey",
 };
 
+function boDauTiengViet(text: string): string {
+  if (!text) return "";
+  return String(text)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
+function chuanHoaStoreId(branch: string): string {
+  if (!branch) return "QUAN_NHA";
+  return boDauTiengViet(branch)
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 50) || "QUAN_NHA";
+}
+
 Deno.serve(async (req) => {
   // CORS Preflight
   if (req.method === "OPTIONS") {
@@ -54,8 +72,14 @@ Deno.serve(async (req) => {
     if (body.action === "create") {
       const safeOrderId = String(body.orderId || `MOMO_${Date.now()}`);
       const safeAmount = Math.max(1000, Math.round(Number(body.amount) || 0));
-      const safeInfo = String(body.orderInfo || "Thanh toan nuoc mia").slice(0, 200);
+      const safeInfo = boDauTiengViet(body.orderInfo || "Thanh toan nuoc mia")
+        .replace(/[^a-zA-Z0-9\s_-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 150) || "Thanh toan nuoc mia";
       const branch = body.branch || "Quán Nhà";
+      const safeStoreId = chuanHoaStoreId(branch);
+      const safePartnerName = "Quan Nuoc Mia 2.0";
       const extraData = "";
 
       const rawSignature = `accessKey=${MOMO_CONFIG.accessKey}&amount=${safeAmount}&extraData=${extraData}&ipnUrl=${MOMO_CONFIG.ipnUrl}&orderId=${safeOrderId}&orderInfo=${safeInfo}&partnerCode=${MOMO_CONFIG.partnerCode}&redirectUrl=${MOMO_CONFIG.redirectUrl}&requestId=${safeOrderId}&requestType=${MOMO_CONFIG.requestType}`;
@@ -63,8 +87,8 @@ Deno.serve(async (req) => {
 
       const requestBody = {
         partnerCode: MOMO_CONFIG.partnerCode,
-        partnerName: `Quán Nước Mía - ${branch}`,
-        storeId: branch,
+        partnerName: safePartnerName,
+        storeId: safeStoreId,
         requestId: safeOrderId,
         amount: safeAmount,
         orderId: safeOrderId,

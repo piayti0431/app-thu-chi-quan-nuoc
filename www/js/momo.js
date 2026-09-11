@@ -99,13 +99,43 @@ async function guiHttpRequest(url, payload, actionPayload = null) {
 }
 
 /**
+ * Loại bỏ dấu tiếng Việt để chuỗi an toàn tuyệt đối với API ngân hàng và ví điện tử
+ */
+export function boDauTiengViet(text) {
+  if (!text) return "";
+  return String(text)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+}
+
+/**
+ * Chuẩn hóa storeId theo quy chuẩn MoMo Merchant API: [a-zA-Z0-9_-], tối đa 50 ký tự
+ */
+export function chuanHoaStoreId(branch) {
+  if (!branch) return "QUAN_NHA";
+  return boDauTiengViet(branch)
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 50) || "QUAN_NHA";
+}
+
+/**
  * Tạo đơn thanh toán MoMo QR động
  * @param {Object} param0 { orderId, amount, orderInfo, branch }
  */
-export async function taoDonThanhToanMoMo({ orderId, amount, orderInfo = "Thanh toán nước mía", branch = "Quán Nhà" }) {
+export async function taoDonThanhToanMoMo({ orderId, amount, orderInfo = "Thanh toan nuoc mia", branch = "Quán Nhà" }) {
   const safeOrderId = String(orderId || `MOMO_${Date.now()}`);
   const safeAmount = Math.max(1000, Math.round(Number(amount) || 0));
-  const safeInfo = String(orderInfo || "Thanh toan nuoc mia").slice(0, 200);
+  const safeInfo = boDauTiengViet(orderInfo || "Thanh toan nuoc mia")
+    .replace(/[^a-zA-Z0-9\s_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 150) || "Thanh toan nuoc mia";
+  const safeStoreId = chuanHoaStoreId(branch);
+  const safePartnerName = "Quan Nuoc Mia 2.0";
   const extraData = "";
 
   const rawSignature = `accessKey=${MOMO_CONFIG.accessKey}&amount=${safeAmount}&extraData=${extraData}&ipnUrl=${MOMO_CONFIG.ipnUrl}&orderId=${safeOrderId}&orderInfo=${safeInfo}&partnerCode=${MOMO_CONFIG.partnerCode}&redirectUrl=${MOMO_CONFIG.redirectUrl}&requestId=${safeOrderId}&requestType=${MOMO_CONFIG.requestType}`;
@@ -114,8 +144,8 @@ export async function taoDonThanhToanMoMo({ orderId, amount, orderInfo = "Thanh 
 
   const requestBody = {
     partnerCode: MOMO_CONFIG.partnerCode,
-    partnerName: `Quán Nước Mía - ${branch}`,
-    storeId: branch,
+    partnerName: safePartnerName,
+    storeId: safeStoreId,
     requestId: safeOrderId,
     amount: safeAmount,
     orderId: safeOrderId,
