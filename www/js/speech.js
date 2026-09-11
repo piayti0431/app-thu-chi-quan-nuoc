@@ -464,45 +464,90 @@ export async function phatAmThanhGoogleTTS(text, options = {}) {
     currentAudio = null;
   }
 
-  const chunks = tachCauNho(text, 140);
+  const chunks = tachCauNho(text, 120);
   if (!chunks.length) return false;
 
   try {
     for (const chunk of chunks) {
-      const encoded = encodeURIComponent(chunk);
-      const audioSources = [
-        `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encoded}`,
-      ];
-
       let playedOk = false;
-      for (const src of audioSources) {
-        try {
-          const audio = new Audio();
-          currentAudio = audio;
-          audio.src = src;
 
-          const ok = await new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve(false), 8000);
-            audio.onended = () => {
-              clearTimeout(timeout);
-              resolve(true);
-            };
-            audio.onerror = () => {
-              clearTimeout(timeout);
-              resolve(false);
-            };
-            audio.play().catch(() => {
-              clearTimeout(timeout);
-              resolve(false);
+      // 1. SoundOfText Google Cloud TTS (giọng tiếng Việt Google chuẩn, có CORS header, âm thanh chất lượng cao)
+      try {
+        const controller = new AbortController();
+        const fetchTimer = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch("https://api.soundoftext.com/sounds", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ engine: "Google", data: { text: chunk, voice: "vi-VN" } }),
+          signal: controller.signal,
+        });
+        clearTimeout(fetchTimer);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.id) {
+            const audioUrl = `https://files.soundoftext.com/${data.id}.mp3`;
+            const audio = new Audio(audioUrl);
+            currentAudio = audio;
+
+            const ok = await new Promise((resolve) => {
+              let done = false;
+              const finish = (result) => {
+                if (done) return;
+                done = true;
+                clearTimeout(timeout);
+                resolve(result);
+              };
+              const timeout = setTimeout(() => finish(true), 8000);
+              audio.onended = () => finish(true);
+              audio.onerror = () => finish(false);
+              audio.play().catch(() => finish(false));
             });
-          });
 
-          if (ok) {
-            playedOk = true;
-            break;
+            if (ok) {
+              playedOk = true;
+            }
           }
-        } catch (_) {
-          continue;
+        }
+      } catch (_) {}
+
+      // 2. Direct Google Translate TTS fallback
+      if (!playedOk) {
+        const encoded = encodeURIComponent(chunk);
+        const audioSources = [
+          `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encoded}`,
+          `https://translate.google.com.vn/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encoded}`,
+        ];
+
+        for (const src of audioSources) {
+          try {
+            const audio = new Audio();
+            currentAudio = audio;
+            audio.src = src;
+
+            const ok = await new Promise((resolve) => {
+              const timeout = setTimeout(() => resolve(false), 3000);
+              audio.onended = () => {
+                clearTimeout(timeout);
+                resolve(true);
+              };
+              audio.onerror = () => {
+                clearTimeout(timeout);
+                resolve(false);
+              };
+              audio.play().catch(() => {
+                clearTimeout(timeout);
+                resolve(false);
+              });
+            });
+
+            if (ok) {
+              playedOk = true;
+              break;
+            }
+          } catch (_) {
+            continue;
+          }
         }
       }
 
@@ -529,7 +574,6 @@ function timGiongDocTiengViet(selectedVoiceURI = "") {
 
     // 1. Phải có mã ngôn ngữ tiếng Việt (vi-VN, vi)
     if (lang === "vi-vn" || lang === "vi" || lang.startsWith("vi-")) {
-      // Loại trừ các giọng tiếng Anh bị gắn nhầm
       if (name.includes("english") || name.includes("david") || name.includes("zira") || name.includes("susan") || name.includes("mark")) {
         return false;
       }
@@ -598,19 +642,21 @@ export async function docLai(text, customOptions = {}) {
   const played = await phatAmThanhGoogleTTS(spokenText, settings);
   if (played) return;
 
-  // 3. Fallback: Device SpeechSynthesis CHỈ KHI tìm thấy giọng thuần Tiếng Việt (tuyệt đối không đọc bằng giọng Anh)
+  // 3. Fallback: Device SpeechSynthesis (đảm bảo luôn phát âm thanh thay vì im lặng)
   if (typeof window !== "undefined" && window.speechSynthesis && window.SpeechSynthesisUtterance) {
-    const vnVoice = timGiongDocTiengViet(settings.deviceVoiceURI || "");
-    if (vnVoice) {
+    try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(spokenText);
       utterance.lang = "vi-VN";
-      utterance.voice = vnVoice;
+      const vnVoice = timGiongDocTiengViet(settings.deviceVoiceURI || "");
+      if (vnVoice) {
+        utterance.voice = vnVoice;
+      }
       utterance.rate = settings.rate || 0.95;
       utterance.pitch = settings.pitch || 1.0;
       window.speechSynthesis.speak(utterance);
-    } else {
-      console.log("Không có giọng đọc thuần Tiếng Việt trên thiết bị; bỏ qua để tránh phát âm tiếng Anh lai tạp.");
+    } catch (err) {
+      console.warn("SpeechSynthesis error:", err);
     }
   }
 }

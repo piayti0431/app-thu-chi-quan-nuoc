@@ -4199,8 +4199,8 @@ function phatLoaThongBaoChuyenKhoan(soTien, phuongThuc = "chuyen_khoan") {
 }
 
 // Thông báo thanh toán MoMo theo Mẫu 2 đã duyệt: "Đã nhận [số tiền] qua ví MoMo!"
-export function phatLoaThongBaoMoMo(soTien) {
-  if (state.enableAudioPaymentAlert === false) return;
+export function phatLoaThongBaoMoMo(soTien, force = false) {
+  if (!force && state.enableAudioPaymentAlert === false) return;
 
   // Phát chuông Ting Ting báo ngân ngân vang
   phatTiengChuongTingTing();
@@ -5286,7 +5286,7 @@ function initEventListeners() {
         if ($("#momoStatusText")) $("#momoStatusText").textContent = "Đang đợi khách quét & chuyển tiền...";
 
         // Hàm xử lý hoàn tất thanh toán thành công
-        const handleSuccess = async (data) => {
+        const handleSuccess = async (data, isTest = false) => {
           dungKiemTraMoMo();
           if ($("#momoStatusBox")) {
             $("#momoStatusBox").style.background = "#f0fdf4";
@@ -5298,7 +5298,7 @@ function initEventListeners() {
           }
 
           // 1. Chuông Ting Ting + Loa AI đọc to Mẫu 2: "Đã nhận [số tiền] qua ví MoMo!"
-          phatLoaThongBaoMoMo(totalAmount);
+          phatLoaThongBaoMoMo(totalAmount, isTest);
 
           // 2. Tự động ghi nhận từng món vào sổ thu chi
           for (const entry of activePosBill) {
@@ -5344,7 +5344,7 @@ function initEventListeners() {
         const testBtn = $("#testMomoSuccessBtn");
         if (testBtn) {
           testBtn.onclick = () => {
-            handleSuccess({ transId: `TEST_${Date.now().toString().slice(-4)}` });
+            handleSuccess({ transId: `TEST_${Date.now().toString().slice(-4)}` }, true);
           };
         }
       } else {
