@@ -1,3 +1,5 @@
+import { normalizeTransactionId } from "./sync-model.js";
+
 const STORAGE_KEY = "nuocmia_v1";
 const BACKUP_STORAGE_KEY = `${STORAGE_KEY}_backup`;
 export const NOTEBOOK_VERSION = "20260831_exact_pricing_v8";
@@ -1076,8 +1078,10 @@ export function mergeData(data) {
           }
         }
 
+        const validId = normalizeTransactionId(item.id);
         return {
           ...item,
+          id: validId,
           loai: itemLoai,
           soTien: itemSoTien,
           billCode,
@@ -2229,8 +2233,9 @@ export async function truKhoNguyenLieu(branchName, ingredientIdOrName, qty, note
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const billCode = `#XK-${Date.now().toString().slice(-4)}`;
     const tx = {
-      id: `tx_xuat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: generateTransactionId(data.ds),
       ngay: today,
+      gio: now.toTimeString().slice(0, 5),
       thoiGian: now.toTimeString().slice(0, 5),
       loai: "xuat_dung",
       inventoryAction: "xuat",

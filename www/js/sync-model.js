@@ -1,3 +1,29 @@
+export function normalizeTransactionId(id) {
+  if (typeof id === "number" && Number.isSafeInteger(id) && id > 0) {
+    return id;
+  }
+  const str = String(id || "").trim();
+  if (/^\d+$/.test(str)) {
+    const num = Number(str);
+    if (Number.isSafeInteger(num) && num > 0) return num;
+  }
+  const match = str.match(/\d{10,16}/);
+  if (match) {
+    const extracted = Number(match[0]);
+    if (Number.isSafeInteger(extracted) && extracted > 0) {
+      if (extracted < 1e14) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+          hash = (hash * 31 + str.charCodeAt(i)) % 1000;
+        }
+        return extracted * 1000 + Math.abs(hash);
+      }
+      return extracted;
+    }
+  }
+  return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
 export function toBaseRemoteTransaction(item, deviceId = "local", userId = "") {
   const realLoai = item.loai;
   const isSpecialLoai = realLoai && realLoai !== 'thu' && realLoai !== 'chi';
@@ -34,7 +60,7 @@ export function toBaseRemoteTransaction(item, deviceId = "local", userId = "") {
     : `[EXT:${JSON.stringify(extMeta)}]`;
 
   const payload = {
-    id: item.id,
+    id: normalizeTransactionId(item.id),
     device_id: item.deviceId || deviceId,
     ngay: item.ngay,
     gio: item.gio,
@@ -81,7 +107,7 @@ export function toRemoteTransaction(item, deviceId = "local", useExtended = true
     : cleanGhiChu;
 
   const payload = {
-    id: item.id,
+    id: normalizeTransactionId(item.id),
     device_id: item.deviceId || deviceId,
     ngay: item.ngay,
     gio: item.gio,
@@ -132,7 +158,7 @@ export function fromRemoteTransaction(row) {
     : (loai === 'xuat_dung' ? 0 : (Number(row.so_tien) || 0));
 
   const result = {
-    id: Number(row.id),
+    id: normalizeTransactionId(row.id),
     ngay: String(row.ngay || ""),
     gio: row.gio || "",
     loai: loai,
@@ -172,7 +198,7 @@ function isRemoteNewer(localItem, remoteItem) {
 
 export function isSettingsRow(rowOrItem) {
   if (!rowOrItem) return false;
-  const id = Number(rowOrItem.id);
+  const id = normalizeTransactionId(rowOrItem.id);
   const loai = rowOrItem.loai || rowOrItem.loai_giao_dich;
   const danhMuc = rowOrItem.danhMuc || rowOrItem.danh_muc;
   const ghiChu = rowOrItem.ghiChu || rowOrItem.ghi_chu || "";
@@ -192,7 +218,8 @@ export function mergeTransactions(localItems = [], remoteRows = []) {
 
   for (const item of localItems) {
     if (!isSettingsRow(item)) {
-      byId.set(Number(item.id), { ...item });
+      const normalizedId = normalizeTransactionId(item.id);
+      byId.set(normalizedId, { ...item, id: normalizedId });
     }
   }
 
@@ -239,5 +266,7 @@ export function mergeTransactions(localItems = [], remoteRows = []) {
 }
 
 export function pendingTransactions(items = []) {
-  return items.filter((item) => !isSettingsRow(item) && (!item.daSync || item.deleted));
+  return items
+    .filter((item) => !isSettingsRow(item) && (!item.daSync || item.deleted))
+    .map((item) => ({ ...item, id: normalizeTransactionId(item.id) }));
 }

@@ -1,5 +1,5 @@
 import { docDuLieu, luuDuLieu } from "./db.js";
-import { isSettingsRow, mergeTransactions, pendingTransactions, toRemoteTransaction } from "./sync-model.js";
+import { isSettingsRow, mergeTransactions, normalizeTransactionId, pendingTransactions, toRemoteTransaction } from "./sync-model.js";
 
 let client = null;
 let realtimeChannel = null;
@@ -151,6 +151,21 @@ export async function dongBo() {
   const userId = session.user?.id || "";
   let data = await docDuLieu();
   const currentDeviceId = data.sync?.deviceId || "local_device";
+
+  // Sanitize any existing string IDs in local storage before push
+  let dataModified = false;
+  data.ds = (data.ds || []).map((item) => {
+    const safeId = normalizeTransactionId(item.id);
+    if (item.id !== safeId) {
+      dataModified = true;
+      return { ...item, id: safeId };
+    }
+    return item;
+  });
+  if (dataModified) {
+    await luuDuLieu(data);
+  }
+
   const pending = pendingTransactions(data.ds);
 
   // 1. PUSH PENDING TRANSACTIONS TO SUPABASE (DIRECT RESILIENT PACKED SCHEMA)
@@ -163,8 +178,9 @@ export async function dongBo() {
       );
     if (pushError) throw pushError;
 
+    const pendingIds = new Set(pending.map((queued) => queued.id));
     data.ds = data.ds.map((item) =>
-      pending.some((queued) => queued.id === item.id) ? { ...item, daSync: true } : item,
+      pendingIds.has(item.id) ? { ...item, daSync: true } : item,
     );
     await luuDuLieu(data);
   }

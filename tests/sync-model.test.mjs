@@ -78,4 +78,22 @@ const localSale = {
   assert.equal(toRemoteTransaction(deletedLocal).deleted, true);
 }
 
-console.log("PASS sync-model: push, pull, soft-delete, conflict handling");
+{
+  // Test sanitization of legacy string transaction ID (e.g. tx_xuat_1788869741090_ya...)
+  const legacyStringTx = {
+    ...localSale,
+    id: "tx_xuat_1788869741090_ya",
+    loai: "xuat_dung",
+    daSync: false,
+  };
+  const remote = toRemoteTransaction(legacyStringTx, "device_test", false, "user_test");
+  assert.equal(typeof remote.id, "number");
+  assert.ok(Number.isSafeInteger(remote.id));
+  assert.ok(remote.id > 0);
+
+  const pending = pendingTransactions([legacyStringTx]);
+  assert.equal(typeof pending[0].id, "number");
+  assert.ok(Number.isSafeInteger(pending[0].id));
+}
+
+console.log("PASS sync-model: push, pull, soft-delete, conflict handling, bigint id normalization");
