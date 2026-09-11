@@ -219,19 +219,20 @@ export async function kiemTraTrangThaiMoMo(orderId) {
 }
 
 /**
- * Bắt đầu vòng lặp tự động hỏi MoMo (Polling siêu tốc mỗi 1.2 giây)
+ * Bắt đầu vòng lặp tự động hỏi MoMo (Polling siêu tốc mỗi 1.2 giây, tối đa 30 giây)
  * @param {string} orderId
  * @param {Function} onThanhCong Callback khi tiền đã vào
- * @param {Function} onThatBai Callback khi đơn bị từ chối / hủy
+ * @param {Function} onThatBai Callback khi đơn bị từ chối / hủy / hết hạn
  * @param {number} intervalMs Tần suất kiểm tra (mặc định 1200ms)
+ * @param {number} maxDurationMs Thời hạn tối đa hiển thị mã QR (mặc định 30000ms = 30s)
  */
-export function batDauKiemTraMoMo(orderId, onThanhCong, onThatBai, intervalMs = 1200) {
+export function batDauKiemTraMoMo(orderId, onThanhCong, onThatBai, intervalMs = 1200, maxDurationMs = 30000) {
   dungKiemTraMoMo();
   currentTrackingOrderId = orderId;
 
   let isChecking = false;
   let attempt = 0;
-  const maxAttempts = 250; // Giới hạn 5 phút (250 * 1.2s)
+  const maxAttempts = Math.max(1, Math.ceil(maxDurationMs / intervalMs)); // Mặc định 25 lần * 1.2s = 30s
 
   const checkTick = async () => {
     if (isChecking || !currentTrackingOrderId || currentTrackingOrderId !== orderId) return;
@@ -242,7 +243,7 @@ export function batDauKiemTraMoMo(orderId, onThanhCong, onThatBai, intervalMs = 
       dungKiemTraMoMo();
       isChecking = false;
       if (typeof onThatBai === "function") {
-        onThatBai({ message: "Hết thời gian chờ thanh toán (5 phút)" });
+        onThatBai({ message: "Mã QR đã hết hạn thanh toán (30 giây)", isExpired: true });
       }
       return;
     }
@@ -261,7 +262,8 @@ export function batDauKiemTraMoMo(orderId, onThanhCong, onThatBai, intervalMs = 
         dungKiemTraMoMo();
         isChecking = false;
         if (typeof onThatBai === "function") {
-          onThatBai(kq);
+          const isExpired = kq.resultCode === 1006 || (typeof kq.message === "string" && kq.message.toLowerCase().includes("hết hạn"));
+          onThatBai({ ...kq, isExpired });
         }
         return;
       }

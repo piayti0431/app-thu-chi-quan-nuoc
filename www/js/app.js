@@ -5234,11 +5234,24 @@ function initEventListeners() {
   // ----------------------------------------------------
   // THANH TOÁN VÍ MOMO QR ĐỘNG (TỰ ĐỘNG BÁO TIỀN VỀ)
   // ----------------------------------------------------
+  let momoCountdownTimer = null;
+
+  const clearMomoCountdown = () => {
+    if (momoCountdownTimer) {
+      clearInterval(momoCountdownTimer);
+      momoCountdownTimer = null;
+    }
+  };
+
   const openMomoCheckoutModal = async () => {
     if (!activePosBill.length) {
       showToast("Chưa có món nào trong Bill", true);
       return;
     }
+
+    // Dọn dẹp timer và polling cũ
+    clearMomoCountdown();
+    dungKiemTraMoMo();
 
     const activeBranch = (state.currentBranch && state.currentBranch !== "all")
       ? state.currentBranch
@@ -5259,12 +5272,27 @@ function initEventListeners() {
     if ($("#momoTotalAmountDisplay")) $("#momoTotalAmountDisplay").textContent = formatMoney(totalAmount);
     if ($("#momoQrLoading")) $("#momoQrLoading").style.display = "flex";
     if ($("#momoQrImage")) $("#momoQrImage").style.display = "none";
+    if ($("#momoQrExpiredOverlay")) $("#momoQrExpiredOverlay").style.display = "none";
+    if ($("#momoCountdownBox")) $("#momoCountdownBox").style.display = "none";
+    if ($("#momoCountdownSec")) {
+      $("#momoCountdownSec").textContent = "30s";
+      $("#momoCountdownSec").style.color = "#dc2626";
+    }
+    if ($("#momoPulseDot")) $("#momoPulseDot").style.display = "inline-block";
     if ($("#momoStatusText")) $("#momoStatusText").textContent = "Đang kết nối MoMo tạo mã QR...";
     if ($("#momoStatusBox")) {
       $("#momoStatusBox").style.background = "#fff1f2";
       $("#momoStatusBox").style.borderColor = "#fecdd3";
     }
     if ($("#momoStatusText")) $("#momoStatusText").style.color = "#9f1239";
+
+    // Gắn sự kiện tạo mã mới khi bấm retry
+    const retryBtn = $("#momoRetryBtn");
+    if (retryBtn) {
+      retryBtn.onclick = () => {
+        openMomoCheckoutModal();
+      };
+    }
 
     momoModal.showModal();
 
@@ -5283,11 +5311,54 @@ function initEventListeners() {
           qrImg.src = momoRes.qrCodeUrl;
           qrImg.style.display = "block";
         }
+        if ($("#momoCountdownBox")) $("#momoCountdownBox").style.display = "inline-flex";
         if ($("#momoStatusText")) $("#momoStatusText").textContent = "Đang đợi khách quét & chuyển tiền...";
+
+        // Hàm xử lý hết hạn 30 giây
+        const handleExpire = () => {
+          clearMomoCountdown();
+          dungKiemTraMoMo();
+          if ($("#momoQrExpiredOverlay")) $("#momoQrExpiredOverlay").style.display = "flex";
+          if ($("#momoPulseDot")) $("#momoPulseDot").style.display = "none";
+          if ($("#momoCountdownSec")) $("#momoCountdownSec").textContent = "0s";
+          if ($("#momoStatusBox")) {
+            $("#momoStatusBox").style.background = "#fef2f2";
+            $("#momoStatusBox").style.borderColor = "#fca5a5";
+          }
+          if ($("#momoStatusText")) {
+            $("#momoStatusText").style.color = "#b91c1c";
+            $("#momoStatusText").textContent = "⚠️ Mã QR đã hết hạn thanh toán (30s)";
+          }
+        };
+
+        // Bắt đầu đếm ngược 30 giây
+        let remainingSec = 30;
+        clearMomoCountdown();
+        momoCountdownTimer = setInterval(() => {
+          remainingSec--;
+          if (remainingSec > 0) {
+            const cdSec = $("#momoCountdownSec");
+            if (cdSec) {
+              cdSec.textContent = `${remainingSec}s`;
+              if (remainingSec <= 5) {
+                cdSec.style.color = "#ef4444";
+                cdSec.style.fontWeight = "900";
+              } else {
+                cdSec.style.color = "#dc2626";
+                cdSec.style.fontWeight = "800";
+              }
+            }
+          } else {
+            handleExpire();
+          }
+        }, 1000);
 
         // Hàm xử lý hoàn tất thanh toán thành công
         const handleSuccess = async (data, isTest = false) => {
+          clearMomoCountdown();
           dungKiemTraMoMo();
+          if ($("#momoQrExpiredOverlay")) $("#momoQrExpiredOverlay").style.display = "none";
+          if ($("#momoCountdownBox")) $("#momoCountdownBox").style.display = "none";
           if ($("#momoStatusBox")) {
             $("#momoStatusBox").style.background = "#f0fdf4";
             $("#momoStatusBox").style.borderColor = "#86efac";
@@ -5335,10 +5406,14 @@ function initEventListeners() {
           }, 1600);
         };
 
-        // Bắt đầu vòng lặp tự động hỏi MoMo tiền đã vào chưa
+        // Bắt đầu vòng lặp tự động hỏi MoMo tiền đã vào chưa (giới hạn 30s)
         batDauKiemTraMoMo(momoRes.orderId, handleSuccess, (err) => {
-          if ($("#momoStatusText")) $("#momoStatusText").textContent = `⚠️ ${err?.message || "Chờ thanh toán..."}`;
-        });
+          if (err?.isExpired) {
+            handleExpire();
+          } else {
+            if ($("#momoStatusText")) $("#momoStatusText").textContent = `⚠️ ${err?.message || "Chờ thanh toán..."}`;
+          }
+        }, 1200, 30000);
 
         // Nút bấm thử loa & chuông (để chủ quán test thực tế)
         const testBtn = $("#testMomoSuccessBtn");
@@ -5357,14 +5432,22 @@ function initEventListeners() {
     }
   };
 
+  const cleanupMomoModal = () => {
+    clearMomoCountdown();
+    dungKiemTraMoMo();
+  };
+
   $("#confirmMomoBillBtn")?.addEventListener("click", openMomoCheckoutModal);
   $("#closeMomoPaymentBtn")?.addEventListener("click", () => {
-    dungKiemTraMoMo();
+    cleanupMomoModal();
     $("#momoPaymentDialog")?.close();
   });
   $("#cancelMomoPaymentBtn")?.addEventListener("click", () => {
-    dungKiemTraMoMo();
+    cleanupMomoModal();
     $("#momoPaymentDialog")?.close();
+  });
+  $("#momoPaymentDialog")?.addEventListener("close", () => {
+    cleanupMomoModal();
   });
 
   // ----------------------------------------------------

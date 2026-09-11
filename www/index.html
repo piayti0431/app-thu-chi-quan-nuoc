@@ -2454,12 +2454,18 @@
 
       <div style="padding: 1rem 1.1rem; text-align: center;">
         <!-- TỔNG TIỀN VÀ MÃ ĐƠN -->
-        <div style="background: #fdf2f8; border: 1.5px solid #fbcfe8; border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="background: #fdf2f8; border: 1.5px solid #fbcfe8; border-radius: var(--radius-md); padding: 0.6rem 0.85rem; margin-bottom: 0.55rem; display: flex; justify-content: space-between; align-items: center;">
           <div style="text-align: left;">
             <span style="font-size: 0.75rem; color: #9d174d; font-weight: 700;" id="momoBillCodeDisplay">Đơn hàng #BILL-0000</span>
             <div style="font-size: 0.72rem; color: #831843; max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="momoBillDescDisplay">Bán nước mía</div>
           </div>
           <strong style="font-size: 1.45rem; font-weight: 900; color: #a50064;" id="momoTotalAmountDisplay">0 đ</strong>
+        </div>
+
+        <!-- ĐỒNG HỒ ĐẾM NGƯỢC 30 GIÂY -->
+        <div class="momo-countdown-box" id="momoCountdownBox" style="display: none; margin: 0 auto 0.6rem;">
+          <span>⏳ Mã QR hết hạn sau:</span>
+          <span id="momoCountdownSec" style="font-family: monospace, sans-serif; font-size: 0.95rem; color: #dc2626; font-weight: 800;">30s</span>
         </div>
 
         <!-- KHUNG MÃ QR ĐỘNG -->
@@ -2469,11 +2475,21 @@
             <span style="font-size: 0.82rem; font-weight: 600; color: #64748b;">Đang tạo mã QR MoMo...</span>
           </div>
           <img id="momoQrImage" src="" alt="Mã QR MoMo" style="display: none; width: 220px; height: 220px; border-radius: 0.4rem; object-fit: contain; margin: 0 auto;" />
+
+          <!-- OVERLAY HẾT HẠN KHI QUÁ 30 GIÂY -->
+          <div class="momo-expired-overlay" id="momoQrExpiredOverlay" style="display: none;">
+            <span style="font-size: 2.2rem; line-height: 1; margin-bottom: 0.35rem;">⏰</span>
+            <strong style="font-size: 0.92rem; color: #b91c1c; margin-bottom: 0.25rem;">Mã QR đã hết hạn (30s)</strong>
+            <p style="font-size: 0.75rem; color: #64748b; margin: 0 0 0.85rem; line-height: 1.35;">Mỗi mã QR chỉ hiển thị 30 giây để đảm bảo an toàn đơn hàng</p>
+            <button id="momoRetryBtn" type="button" class="primary-button" style="background: linear-gradient(135deg, #a50064 0%, #d82d8b 100%); color: #fff; border: none; padding: 0.55rem 1.1rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 12px rgba(216, 45, 139, 0.35);">
+              🔄 Tạo mã mới (30s)
+            </button>
+          </div>
         </div>
 
         <!-- TRẠNG THÁI KIỂM TRA TIỀN VỀ -->
         <div id="momoStatusBox" style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: var(--radius-sm); padding: 0.45rem 0.65rem; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
-          <span class="momo-pulse-dot"></span>
+          <span class="momo-pulse-dot" id="momoPulseDot"></span>
           <span style="font-size: 0.82rem; font-weight: 700; color: #9f1239;" id="momoStatusText">Đang đợi khách quét &amp; chuyển tiền...</span>
         </div>
 

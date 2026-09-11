@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { taoChuKyHmacSha256, MOMO_CONFIG, taoDonThanhToanMoMo, kiemTraTrangThaiMoMo } from "../www/js/momo.js";
+import {
+  taoChuKyHmacSha256,
+  MOMO_CONFIG,
+  taoDonThanhToanMoMo,
+  kiemTraTrangThaiMoMo,
+  batDauKiemTraMoMo,
+  dungKiemTraMoMo,
+} from "../www/js/momo.js";
 
 console.log("Starting tests/momo-payment.test.mjs...");
 
@@ -38,4 +45,32 @@ console.log("Starting tests/momo-payment.test.mjs...");
   console.log("PASS 3: kiemTraTrangThaiMoMo executed without exception, result:", kq.message || kq.resultCode);
 }
 
+// Test 4: Polling hết hạn sau thời gian tối đa quy định (30s)
+{
+  const orderId = "TEST_EXPIRE_" + Date.now();
+  await taoDonThanhToanMoMo({
+    orderId,
+    amount: 10000,
+    orderInfo: "Bán nước mía test",
+    branch: "Quán Nhà",
+  });
+  
+  const expireResult = await new Promise((resolve) => {
+    // Chạy thử với cấu hình timeout nhanh 100ms (interval 20ms) để kiểm tra cơ chế hết hạn
+    batDauKiemTraMoMo(
+      orderId,
+      () => {},
+      (err) => resolve(err),
+      20,
+      100
+    );
+  });
+
+  assert.equal(expireResult?.isExpired, true);
+  dungKiemTraMoMo();
+  console.log("PASS 4: batDauKiemTraMoMo terminates with isExpired: true when reaching max duration");
+}
+
+
 console.log("ALL MoMo Payment tests passed successfully!");
+
