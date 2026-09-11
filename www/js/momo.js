@@ -10,7 +10,7 @@ export const MOMO_CONFIG = {
   endpointCreate: "https://payment.momo.vn/v2/gateway/api/create",
   endpointQuery: "https://payment.momo.vn/v2/gateway/api/query",
   redirectUrl: "https://momo.vn",
-  ipnUrl: "https://momo.vn",
+  ipnUrl: "https://rbvpsaotqmddtvcxkyxz.supabase.co/functions/v1/momo-ipn",
   requestType: "captureWallet",
   publicKey: `MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAok7D5ML1lnAD1hmE28gyrFbuuG+utePpOx8Rxxy85BpjlpGyCnQJkVedkcwSfNC9dAFsHnNM4RW9Y8CnChwA9HP1CYELUT5L+7K4ZQkmYggkilXJjqbgfM7lXXKTfakYQkUCu+VRUaMJTihTLuoO5Vz/a1WGp4D1F5ezGQxLZ1dt/TK5kzK5IfX6z9CCjVwYWGE4earb0f1nm8p55/sxFSWzNaTA3SZVLDxVSXipPYJN6meywwzaAvd7zwSSDlcg2WKn2g+OHlBeR1MTajeIV5Z80gp25VSX3EhEJIhG+hNUkbBsJdZcoy1PQ9eMDaMaOmO4jsd/DS4MeVu2bNs7snQ9tIPkOccUwQdTOudTFeigUrZrpS/oI2SKVk3QeVY0nJKywJf1/hnh/G5sFdaMgoiUtQF2re8F2y8trTriczSoHiP5JY0zPK2Hjnl/onayykWEWA6hzU9aPLN3qOi/X85TzfqjWQQpMb4iG/UUxwU05cpi/d0bg1/BimrS8zoQB9f+7uLh76fVFGVR8UZnVuQt99slcv3pV0ijTVq3rTqhBXvltcWLJW4APACEmeU0Q7zgMHbnUaFyc47fXVlJwBLXaC+NtM/ayrGt861gnyDATvOVuWu/xOlJ3rWEzVhntsMUjtd5INit4ZQgkaEt9odO/rASGOsUUMkUpwPBQx0CAwEAAQ==`,
 };
@@ -170,11 +170,13 @@ export async function kiemTraTrangThaiMoMo(orderId) {
 
   try {
     const response = await guiHttpRequest(MOMO_CONFIG.endpointQuery, requestBody);
+    const isSuccess = response?.resultCode === 0 || response?.resultCode === 9000;
+    const isPending = response?.resultCode === 1000 || response?.resultCode === 7000;
     return {
       ok: true,
       resultCode: response?.resultCode,
-      isSuccess: response?.resultCode === 0,
-      isPending: response?.resultCode === 1000,
+      isSuccess,
+      isPending,
       message: response?.message,
       amount: response?.amount,
       transId: response?.transId,
@@ -192,23 +194,28 @@ export async function kiemTraTrangThaiMoMo(orderId) {
 }
 
 /**
- * Bắt đầu vòng lặp tự động hỏi MoMo (Polling mỗi 2 giây)
+ * Bắt đầu vòng lặp tự động hỏi MoMo (Polling siêu tốc mỗi 1.2 giây)
  * @param {string} orderId
  * @param {Function} onThanhCong Callback khi tiền đã vào
  * @param {Function} onThatBai Callback khi đơn bị từ chối / hủy
- * @param {number} intervalMs Tần suất kiểm tra (mặc định 2000ms)
+ * @param {number} intervalMs Tần suất kiểm tra (mặc định 1200ms)
  */
-export function batDauKiemTraMoMo(orderId, onThanhCong, onThatBai, intervalMs = 2000) {
+export function batDauKiemTraMoMo(orderId, onThanhCong, onThatBai, intervalMs = 1200) {
   dungKiemTraMoMo();
   currentTrackingOrderId = orderId;
 
+  let isChecking = false;
   let attempt = 0;
-  const maxAttempts = 150; // Giới hạn 5 phút (150 * 2s)
+  const maxAttempts = 250; // Giới hạn 5 phút (250 * 1.2s)
 
-  activePollingTimer = setInterval(async () => {
+  const checkTick = async () => {
+    if (isChecking || !currentTrackingOrderId || currentTrackingOrderId !== orderId) return;
+    isChecking = true;
     attempt++;
+
     if (attempt > maxAttempts) {
       dungKiemTraMoMo();
+      isChecking = false;
       if (typeof onThatBai === "function") {
         onThatBai({ message: "Hết thời gian chờ thanh toán (5 phút)" });
       }
@@ -219,20 +226,32 @@ export function batDauKiemTraMoMo(orderId, onThanhCong, onThatBai, intervalMs = 
       const kq = await kiemTraTrangThaiMoMo(orderId);
       if (kq.isSuccess) {
         dungKiemTraMoMo();
+        isChecking = false;
         if (typeof onThanhCong === "function") {
           onThanhCong(kq);
         }
+        return;
       } else if (!kq.isPending && kq.resultCode !== -1) {
-        // Giao dịch bị hủy hoặc từ chối (1005, 1006,...)
+        // Giao dịch bị hủy hoặc từ chối dứt điểm (1005, 1006,...)
         dungKiemTraMoMo();
+        isChecking = false;
         if (typeof onThatBai === "function") {
           onThatBai(kq);
         }
+        return;
       }
     } catch (err) {
       console.warn("Lỗi kiểm tra MoMo:", err);
+    } finally {
+      isChecking = false;
     }
-  }, intervalMs);
+  };
+
+  // Kiểm tra ngay lập tức lần đầu sau 600ms
+  setTimeout(checkTick, 600);
+
+  // Vòng lặp định kỳ mỗi 1.2s
+  activePollingTimer = setInterval(checkTick, intervalMs);
 }
 
 /**
