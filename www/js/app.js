@@ -4206,7 +4206,7 @@ export function phatLoaThongBaoMoMo(soTien, force = false) {
   phatTiengChuongTingTing();
 
   const speechMoney = docSoTienTiengViet(Number(soTien) || 0);
-  const text = `Đã nhận ${speechMoney} qua ví MoMo!`;
+  const text = `Đã nhận ${speechMoney} qua ví Mô Mô!`;
 
   setTimeout(() => {
     docLai(text).catch((err) => {

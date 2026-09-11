@@ -326,7 +326,7 @@ export function chuanHoaLoiNoiTiengViet(rawText) {
   text = text.replace(/\+\s*/g, "thu ");
   text = text.replace(/-\s*/g, "chi ");
   text = text.replace(/\b(ck|CK)\b/g, "chuyển khoản");
-  text = text.replace(/\b(momo|MoMo|MOMO)\b/g, "mo mo");
+  text = text.replace(/\b(momo|MoMo|MOMO|Momo)\b/gi, "mô mô");
   text = text.replace(/\b(qr|QR)\b/g, "mã quy rờ");
   text = text.replace(/\b(cost|Cost)\b/g, "tiền vốn");
   text = text.replace(/\b(pos|POS)\b/g, "bán hàng");
