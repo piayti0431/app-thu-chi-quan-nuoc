@@ -1,5 +1,5 @@
 // Service Worker cho Sổ Quán Nước Mía
-const CACHE_NAME = 'so-quan-nuoc-v2-20260908';
+const CACHE_NAME = 'so-quan-nuoc-v3-20260911';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -11,7 +11,47 @@ const STATIC_ASSETS = [
   './js/report.js',
   './js/speech.js',
   './js/sync.js',
-  './assets/logo-app.svg'
+  './assets/logo-app.svg',
+  './assets/ingredients/bo_mia_10kg.svg',
+  './assets/ingredients/bo_mia_12_cay.svg',
+  './assets/ingredients/bo_mia.svg',
+  './assets/ingredients/da_vien.svg',
+  './assets/ingredients/tac.svg',
+  './assets/ingredients/thom.svg',
+  './assets/ingredients/rau_ma.svg',
+  './assets/ingredients/dau_xanh.svg',
+  './assets/ingredients/cam_sanh.svg',
+  './assets/ingredients/sua_dac.svg',
+  './assets/ingredients/ly_nhua.svg',
+  './assets/ingredients/ong_hut.svg',
+  './assets/ingredients/bich_t.svg',
+  './assets/ingredients/mang_keo.svg',
+  './assets/ingredients/duong_cat.svg',
+  './assets/ingredients/bo_mia_10kg.jpg',
+  './assets/ingredients/bo_mia_12_cay.jpg',
+  './assets/ingredients/da_vien.jpg',
+  './assets/ingredients/tac.jpg',
+  './assets/ingredients/thom.jpg',
+  './assets/ingredients/rau_ma.jpg',
+  './assets/ingredients/dau_xanh.jpg',
+  './assets/ingredients/cam_sanh.jpg',
+  './assets/ingredients/sua_dac.jpg',
+  './assets/ingredients/ly_nhua.jpg',
+  './assets/ingredients/ong_hut.jpg',
+  './assets/ingredients/bich_t.jpg',
+  './assets/ingredients/mang_keo.jpg',
+  './assets/ingredients/duong_cat.jpg',
+  './assets/menu/nuoc_mia.jpg',
+  './assets/menu/nuoc_mia_1l.jpg',
+  './assets/menu/mia_tac.jpg',
+  './assets/menu/mia_thom.jpg',
+  './assets/menu/mia_cam.jpg',
+  './assets/menu/nuoc_cam.jpg',
+  './assets/menu/tra_tac.jpg',
+  './assets/menu/tra_da.jpg',
+  './assets/menu/rau_ma.jpg',
+  './assets/menu/rau_ma_dau_xanh.jpg',
+  './assets/menu/rau_ma_sua.jpg'
 ];
 
 // Cài đặt SW & cache tài nguyên cốt lõi

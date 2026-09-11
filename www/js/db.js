@@ -874,9 +874,44 @@ export function getValidMenuImage(item) {
   return item.image || "";
 }
 
+export const VALID_INGREDIENT_IMAGES = new Set([
+  "./assets/ingredients/bo_mia_10kg.svg",
+  "./assets/ingredients/bo_mia_12_cay.svg",
+  "./assets/ingredients/bo_mia.svg",
+  "./assets/ingredients/da_vien.svg",
+  "./assets/ingredients/tac.svg",
+  "./assets/ingredients/thom.svg",
+  "./assets/ingredients/rau_ma.svg",
+  "./assets/ingredients/dau_xanh.svg",
+  "./assets/ingredients/cam_sanh.svg",
+  "./assets/ingredients/sua_dac.svg",
+  "./assets/ingredients/ly_nhua.svg",
+  "./assets/ingredients/ong_hut.svg",
+  "./assets/ingredients/bich_t.svg",
+  "./assets/ingredients/mang_keo.svg",
+  "./assets/ingredients/duong_cat.svg",
+  "./assets/ingredients/bo_mia_10kg.jpg",
+  "./assets/ingredients/bo_mia_12_cay.jpg",
+  "./assets/ingredients/bo_mia.jpg",
+  "./assets/ingredients/da_vien.jpg",
+  "./assets/ingredients/tac.jpg",
+  "./assets/ingredients/thom.jpg",
+  "./assets/ingredients/rau_ma.jpg",
+  "./assets/ingredients/dau_xanh.jpg",
+  "./assets/ingredients/cam_sanh.jpg",
+  "./assets/ingredients/sua_dac.jpg",
+  "./assets/ingredients/ly_nhua.jpg",
+  "./assets/ingredients/ong_hut.jpg",
+  "./assets/ingredients/bich_t.jpg",
+  "./assets/ingredients/mang_keo.jpg",
+  "./assets/ingredients/duong_cat.jpg",
+]);
+
 export function getValidIngredientImage(item) {
-  if (!item) return "./assets/ingredients/bo_mia.svg";
-  if (item.image && (item.image.endsWith(".svg") || item.image.endsWith(".jpg") || item.image.endsWith(".png"))) return item.image;
+  if (!item) return "./assets/ingredients/bo_mia_10kg.svg";
+  let img = typeof item.image === "string" ? item.image.trim() : "";
+  if (img.startsWith("assets/")) img = "./" + img;
+  if (img && VALID_INGREDIENT_IMAGES.has(img)) return img;
 
   const str = `${item.id || ""} ${item.name || ""} ${item.shortName || ""} ${item.category || ""}`
     .normalize("NFD")
@@ -888,13 +923,13 @@ export function getValidIngredientImage(item) {
   if (str.includes("12 cay") || str.includes("cay dai") || str.includes("chua bao")) return "./assets/ingredients/bo_mia_12_cay.svg";
   if (str.includes("10kg") || str.includes("10 kg") || str.includes("mia")) return "./assets/ingredients/bo_mia_10kg.svg";
   if (str.includes("mang") || str.includes("keo") || str.includes("ep ly") || str.includes("cuon")) return "./assets/ingredients/mang_keo.svg";
-  if (str.includes("bich") || str.includes("boc") || str.includes("t bag") || str.includes("tbag")) return "./assets/ingredients/bich_t.svg";
+  if (str.includes("bich") || str.includes("boc") || str.includes("t bag") || str.includes("tbag") || str.includes("xach")) return "./assets/ingredients/bich_t.svg";
   if (str.includes("ong hut") || str.includes("hut") || str.includes("straw")) return "./assets/ingredients/ong_hut.svg";
   if (str.includes("da vien") || str.includes("bao da") || str.includes("nuoc da") || str.includes("ice") || /\bda\b/.test(str)) return "./assets/ingredients/da_vien.svg";
   if (str.includes("tac") || str.includes("quat") || str.includes("calamansi")) return "./assets/ingredients/tac.svg";
   if (str.includes("thom") || str.includes("dua") || str.includes("khom") || str.includes("pineapple")) return "./assets/ingredients/thom.svg";
   if (str.includes("rau ma") || str.includes("pennywort")) return "./assets/ingredients/rau_ma.svg";
-  if (str.includes("dau xanh") || str.includes("dau") || str.includes("mung")) return "./assets/ingredients/dau_xanh.svg";
+  if (str.includes("dau xanh") || str.includes("mung")) return "./assets/ingredients/dau_xanh.svg";
   if (str.includes("cam") || str.includes("orange")) return "./assets/ingredients/cam_sanh.svg";
   if (str.includes("sua") || str.includes("milk")) return "./assets/ingredients/sua_dac.svg";
   if (str.includes("duong") || str.includes("sugar")) return "./assets/ingredients/duong_cat.svg";

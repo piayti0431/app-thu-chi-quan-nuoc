@@ -201,6 +201,43 @@ function getDrinkIconSvg(iconName) {
   }
 }
 
+function getIngredientIconSvg(iconName) {
+  switch (iconName) {
+    case "ice_bag":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 6h14l-1.5 15a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2L5 6z"/><path d="M9 3h6M12 3v3M8 11h8M8 15h8"/></svg>`;
+    case "calamansi":
+    case "orange_fresh":
+    case "citrus":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"/></svg>`;
+    case "pineapple":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="14" rx="7" ry="8"/><path d="M12 2l-2 5h4l-2-5zM9 4l-3 4 4-1M15 4l3 4-4-1M8 11l8 6M16 11l-8 6"/></svg>`;
+    case "pennywort":
+    case "leaf":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2.5 1 5-1 9.5a7 7 0 0 1-7 8.5z"/><path d="M2 22c5-5 7-10 8-12"/></svg>`;
+    case "mung_bean":
+    case "bean":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11a8 8 0 0 0 16 0H4zM4 11v2a8 8 0 0 0 16 0v-2"/><circle cx="9" cy="8" r="1.5" fill="currentColor"/><circle cx="15" cy="8" r="1.5" fill="currentColor"/></svg>`;
+    case "condensed_milk":
+    case "milk":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="16" rx="3"/><ellipse cx="12" cy="4" rx="7" ry="2"/><line x1="5" y1="10" x2="19" y2="10"/><line x1="5" y1="14" x2="19" y2="14"/></svg>`;
+    case "plastic_cup":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4h12l-1.5 16a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2L6 4z"/><path d="M4 4h16"/></svg>`;
+    case "drinking_straw":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 21L17 3M11 21l6-11"/></svg>`;
+    case "takeaway_bag":
+    case "t_bag":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8h12l-1 13H7L6 8z"/><path d="M9 8V5a3 3 0 0 1 6 0v3"/></svg>`;
+    case "cup_sealing_film":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M4 12h5M15 12h5"/></svg>`;
+    case "sugar_sack":
+    case "sugar":
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7h12l1 13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L6 7z"/><path d="M8 7V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/><circle cx="12" cy="14" r="2"/></svg>`;
+    case "cane_bundle":
+    default:
+      return `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2v20M12 2v20M18 2v20M6 7h12M6 12h12M6 17h12"/></svg>`;
+  }
+}
+
 // ----------------------------------------------------
 // RENDERERS
 // ----------------------------------------------------
@@ -453,17 +490,18 @@ function renderQuickIngredients() {
       const currentStock = stockMap[invId] !== undefined ? stockMap[invId] : null;
       const isLow = currentStock !== null && currentStock <= 2;
       const stockBadge = currentStock !== null
-        ? `<span class="ing-stock-badge ${isLow ? 'is-low' : ''}" style="position: absolute; bottom: 0.35rem; right: 0.35rem; font-size: 0.7rem; font-weight: 800; background: ${isLow ? '#fee2e2' : 'rgba(241, 245, 249, 0.94)'}; color: ${isLow ? '#b91c1c' : '#334155'}; padding: 0.12rem 0.4rem; border-radius: 4px; border: 1px solid ${isLow ? '#fca5a5' : '#cbd5e1'}; backdrop-filter: blur(4px);">Tồn: ${currentStock} ${item.unit || ""}</span>`
+        ? `<span class="ing-stock-badge ${isLow ? 'is-low' : ''}">Tồn: ${currentStock} ${item.unit || ""}</span>`
         : '';
 
       return `
       <button class="quick-btn ingredient-card theme-${item.icon || "cane_bundle"}" data-id="${item.id}" type="button" aria-label="Xuất dùng / Nhập ${item.name} (${shortCost}/${item.unit})" style="position: relative;">
+        ${stockBadge}
         <span class="quick-btn-badge ing-cost-badge">${shortCost}/${item.unit}</span>
         <div class="quick-btn-img-box ing-img-box">
-          <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" />
+          <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.replace('.svg','.jpg');}else{this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';}" />
+          <span class="ing-icon" style="display: none;">${getIngredientIconSvg(item.icon)}</span>
         </div>
         <strong class="quick-btn-name">${item.shortName || item.name}</strong>
-        ${stockBadge}
       </button>
     `;
     })
@@ -514,7 +552,18 @@ function openQuickIngredientModal(item, defaultTab = "buy") {
   const buyNoteInput = $("#ingBuyNoteInput");
   const useNoteInput = $("#ingUseNoteInput");
 
-  if (imgEl) imgEl.src = getValidIngredientImage(item);
+  if (imgEl) {
+    imgEl.dataset.fallback = "";
+    imgEl.src = getValidIngredientImage(item);
+    imgEl.onerror = function () {
+      if (!this.dataset.fallback) {
+        this.dataset.fallback = "1";
+        this.src = this.src.replace(".svg", ".jpg");
+      } else {
+        this.src = "./assets/ingredients/bo_mia_10kg.jpg";
+      }
+    };
+  }
   if (nameEl) nameEl.textContent = item.name;
   if (unitCostEl) unitCostEl.textContent = `${formatMoney(unitCost)} / ${item.unit}`;
   if (noteEl) noteEl.textContent = item.note || `Định mức ~${item.yieldPerUnit || 1} ly / ${item.unit}`;
@@ -2261,7 +2310,7 @@ function renderIngredientManager(force = false) {
               <tr class="ingredient-item-row" data-index="${index}" data-id="${item.id}">
                 <td style="text-align: center;">
                   <div style="width: 2.2rem; height: 2.2rem; border-radius: 6px; overflow: hidden; margin: 0 auto; border: 1px solid #cbd5e1; background: #fff;">
-                    <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='./assets/ingredients/bo_mia.jpg';" />
+                    <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.replace('.svg','.jpg');}else{this.src='./assets/ingredients/bo_mia_10kg.jpg';}" />
                   </div>
                 </td>
                 <td>
@@ -3120,12 +3169,13 @@ function renderMaterialsView() {
 
         return `
         <button class="quick-btn ingredient-card theme-${item.icon || "cane_bundle"}" data-id="${item.id}" type="button" style="position: relative;">
+          <span class="ing-stock-badge ${isLow ? 'is-low' : ''}">Tồn: ${stockBadgeText}</span>
           <span class="quick-btn-badge ing-cost-badge" style="background: #7c3aed !important; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.35) !important;">~${yieldVal} ly</span>
           <div class="quick-btn-img-box ing-img-box">
-            <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" />
+            <img class="quick-btn-img ing-img" src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.replace('.svg','.jpg');}else{this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';}" />
+            <span class="ing-icon" style="display: none;">${getIngredientIconSvg(item.icon)}</span>
           </div>
           <strong class="quick-btn-name">${item.shortName || item.name}</strong>
-          <span class="ing-stock-badge ${isLow ? 'is-low' : ''}" style="position: absolute; bottom: 0.35rem; right: 0.35rem; font-size: 0.7rem; font-weight: 800; background: ${isLow ? '#fee2e2' : 'rgba(241, 245, 249, 0.94)'}; color: ${isLow ? '#b91c1c' : '#334155'}; padding: 0.12rem 0.4rem; border-radius: 4px; border: 1px solid ${isLow ? '#fca5a5' : '#cbd5e1'}; backdrop-filter: blur(4px);">Tồn: ${stockBadgeText}</span>
         </button>
       `;
       })
@@ -3160,8 +3210,8 @@ function renderMaterialsView() {
         <tr>
           <td>
             <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <div style="width: 2.3rem; height: 2.3rem; border-radius: 6px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; flex-shrink: 0;">
-                <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" />
+              <div style="width: 2.3rem; height: 2.3rem; border-radius: 6px; overflow: hidden; background: #fff; border: 1px solid #e2e8f0; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+                <img src="${imgSrc}" alt="${item.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src=this.src.replace('.svg','.jpg');}else{this.src='./assets/ingredients/bo_mia_10kg.jpg';}" />
               </div>
               <div>
                 <strong style="display: block; font-size: 0.88rem; color: #0f172a;">${item.name}</strong>
