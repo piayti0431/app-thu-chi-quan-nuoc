@@ -5246,7 +5246,7 @@ function initEventListeners() {
 
     const totalCups = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1), 0);
     const totalAmount = activePosBill.reduce((sum, entry) => sum + (entry.qty || 1) * (getItemPrice(entry.item, activeBranch) || 0), 0);
-    const billCode = `BILL-${Date.now().toString().slice(-4)}`;
+    const billCode = `BILL-${Date.now().toString().slice(-6)}`;
     const billDesc = activePosBill.map(e => `${e.qty} ${e.item.name}`).join(", ");
 
     // Đóng hộp thoại chốt bill thường, mở hộp thoại MoMo

@@ -47,7 +47,7 @@ export async function taoChuKyHmacSha256(secretKey, rawData) {
 /**
  * Gửi HTTP Request an toàn hỗ trợ Capacitor Native HTTP và Fetch
  */
-async function guiHttpRequest(url, payload) {
+async function guiHttpRequest(url, payload, actionPayload = null) {
   // 1. Thử gửi qua Capacitor Native HTTP nếu đang chạy trên App Android
   try {
     if (
@@ -65,10 +65,26 @@ async function guiHttpRequest(url, payload) {
       return res.data;
     }
   } catch (err) {
-    console.warn("CapacitorHttp không khả dụng, chuyển sang fetch:", err);
+    console.warn("CapacitorHttp không khả dụng:", err);
   }
 
-  // 2. Chuẩn fetch mặc định
+  // 2. Trên Web Browser: Gọi qua Supabase Edge Proxy để giải quyết triệt để 100% lỗi CORS của MoMo
+  if (actionPayload && MOMO_CONFIG.ipnUrl) {
+    try {
+      const proxyRes = await fetch(MOMO_CONFIG.ipnUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(actionPayload),
+      });
+      if (proxyRes.ok) {
+        return await proxyRes.json();
+      }
+    } catch (err) {
+      console.warn("MoMo Edge Proxy fetch error:", err);
+    }
+  }
+
+  // 3. Chuẩn fetch trực tiếp fallback (nếu proxy có sự cố hoặc trong môi trường test Node.js)
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -113,7 +129,13 @@ export async function taoDonThanhToanMoMo({ orderId, amount, orderInfo = "Thanh 
   };
 
   try {
-    const response = await guiHttpRequest(MOMO_CONFIG.endpointCreate, requestBody);
+    const response = await guiHttpRequest(MOMO_CONFIG.endpointCreate, requestBody, {
+      action: "create",
+      orderId: safeOrderId,
+      amount: safeAmount,
+      orderInfo: safeInfo,
+      branch,
+    });
     if (response && response.resultCode === 0) {
       return {
         ok: true,
@@ -169,7 +191,10 @@ export async function kiemTraTrangThaiMoMo(orderId) {
   };
 
   try {
-    const response = await guiHttpRequest(MOMO_CONFIG.endpointQuery, requestBody);
+    const response = await guiHttpRequest(MOMO_CONFIG.endpointQuery, requestBody, {
+      action: "query",
+      orderId,
+    });
     const isSuccess = response?.resultCode === 0 || response?.resultCode === 9000;
     const isPending = response?.resultCode === 1000 || response?.resultCode === 7000;
     return {
