@@ -1,9 +1,9 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 
 const MOMO_CONFIG = {
-  partnerCode: "MOMOIPFW20260606",
-  accessKey: "",
-  secretKey: "",
+  partnerCode: Deno.env.get("MOMO_PARTNER_CODE") || "MOMOIPFW20260606",
+  accessKey: Deno.env.get("MOMO_ACCESS_KEY") || "",
+  secretKey: Deno.env.get("MOMO_SECRET_KEY") || "",
   endpointCreate: "https://payment.momo.vn/v2/gateway/api/create",
   endpointQuery: "https://payment.momo.vn/v2/gateway/api/query",
   redirectUrl: "https://momo.vn",

@@ -5,15 +5,13 @@
 
 export const MOMO_CONFIG = {
   partnerCode: "MOMOIPFW20260606",
-  accessKey: "",
-  secretKey: "",
   endpointCreate: "https://payment.momo.vn/v2/gateway/api/create",
   endpointQuery: "https://payment.momo.vn/v2/gateway/api/query",
   redirectUrl: "https://momo.vn",
   ipnUrl: "https://rbvpsaotqmddtvcxkyxz.supabase.co/functions/v1/momo-ipn",
   requestType: "captureWallet",
-  publicKey: `MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAok7D5ML1lnAD1hmE28gyrFbuuG+utePpOx8Rxxy85BpjlpGyCnQJkVedkcwSfNC9dAFsHnNM4RW9Y8CnChwA9HP1CYELUT5L+7K4ZQkmYggkilXJjqbgfM7lXXKTfakYQkUCu+VRUaMJTihTLuoO5Vz/a1WGp4D1F5ezGQxLZ1dt/TK5kzK5IfX6z9CCjVwYWGE4earb0f1nm8p55/sxFSWzNaTA3SZVLDxVSXipPYJN6meywwzaAvd7zwSSDlcg2WKn2g+OHlBeR1MTajeIV5Z80gp25VSX3EhEJIhG+hNUkbBsJdZcoy1PQ9eMDaMaOmO4jsd/DS4MeVu2bNs7snQ9tIPkOccUwQdTOudTFeigUrZrpS/oI2SKVk3QeVY0nJKywJf1/hnh/G5sFdaMgoiUtQF2re8F2y8trTriczSoHiP5JY0zPK2Hjnl/onayykWEWA6hzU9aPLN3qOi/X85TzfqjWQQpMb4iG/UUxwU05cpi/d0bg1/BimrS8zoQB9f+7uLh76fVFGVR8UZnVuQt99slcv3pV0ijTVq3rTqhBXvltcWLJW4APACEmeU0Q7zgMHbnUaFyc47fXVlJwBLXaC+NtM/ayrGt861gnyDATvOVuWu/xOlJ3rWEzVhntsMUjtd5INit4ZQgkaEt9odO/rASGOsUUMkUpwPBQx0CAwEAAQ==`,
 };
+
 
 let activePollingTimer = null;
 let currentTrackingOrderId = null;
@@ -138,9 +136,11 @@ export async function taoDonThanhToanMoMo({ orderId, amount, orderInfo = "Thanh 
   const safePartnerName = "Quan Nuoc Mia 2.0";
   const extraData = "";
 
-  const rawSignature = `accessKey=${MOMO_CONFIG.accessKey}&amount=${safeAmount}&extraData=${extraData}&ipnUrl=${MOMO_CONFIG.ipnUrl}&orderId=${safeOrderId}&orderInfo=${safeInfo}&partnerCode=${MOMO_CONFIG.partnerCode}&redirectUrl=${MOMO_CONFIG.redirectUrl}&requestId=${safeOrderId}&requestType=${MOMO_CONFIG.requestType}`;
+  const rawSignature = `accessKey=${MOMO_CONFIG.accessKey || ""}&amount=${safeAmount}&extraData=${extraData}&ipnUrl=${MOMO_CONFIG.ipnUrl}&orderId=${safeOrderId}&orderInfo=${safeInfo}&partnerCode=${MOMO_CONFIG.partnerCode}&redirectUrl=${MOMO_CONFIG.redirectUrl}&requestId=${safeOrderId}&requestType=${MOMO_CONFIG.requestType}`;
 
-  const signature = await taoChuKyHmacSha256(MOMO_CONFIG.secretKey, rawSignature);
+  const signature = MOMO_CONFIG.secretKey
+    ? await taoChuKyHmacSha256(MOMO_CONFIG.secretKey, rawSignature)
+    : "";
 
   const requestBody = {
     partnerCode: MOMO_CONFIG.partnerCode,
@@ -209,8 +209,10 @@ export async function kiemTraTrangThaiMoMo(orderId) {
   if (!orderId) return { ok: false, message: "Thiếu mã đơn hàng" };
 
   const requestId = `QUERY_${Date.now()}`;
-  const rawSignature = `accessKey=${MOMO_CONFIG.accessKey}&orderId=${orderId}&partnerCode=${MOMO_CONFIG.partnerCode}&requestId=${requestId}`;
-  const signature = await taoChuKyHmacSha256(MOMO_CONFIG.secretKey, rawSignature);
+  const rawSignature = `accessKey=${MOMO_CONFIG.accessKey || ""}&orderId=${orderId}&partnerCode=${MOMO_CONFIG.partnerCode}&requestId=${requestId}`;
+  const signature = MOMO_CONFIG.secretKey
+    ? await taoChuKyHmacSha256(MOMO_CONFIG.secretKey, rawSignature)
+    : "";
 
   const requestBody = {
     partnerCode: MOMO_CONFIG.partnerCode,
